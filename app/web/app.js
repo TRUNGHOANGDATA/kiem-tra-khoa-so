@@ -138,10 +138,13 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
   const tb = $("bang-chi-tiet");
   if (!kq.tong) { tb.innerHTML = `<tr><td class="bang-trong">Không có dòng nào.</td></tr>`; }
   else {
-    const soCot = new Set(["Amount", "ps_no", "ps_co", "net", "tong", "so_dong", "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9"]);
-    tb.innerHTML = `<thead><tr>${kq.cot.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
-      kq.dong.map((r) => `<tr>${kq.cot.map((c) => soCot.has(c) && typeof r[c] === "number"
-        ? `<td class="so">${fmt(r[c])}</td>` : `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    // Nhãn cột và danh sách cột số do backend cấp (app.checks.base.TEN_COT) — không lặp lại ở đây.
+    const soCot = new Set(kq.cot_so || []);
+    const oDuLieu = (r, c) => typeof r[c] === "boolean" ? `<td>${r[c] ? "Có" : "Không"}</td>`
+      : soCot.has(c) && typeof r[c] === "number" ? `<td class="so">${fmt(r[c])}</td>`
+      : `<td>${esc(r[c])}</td>`;
+    tb.innerHTML = `<thead><tr>${(kq.nhan || kq.cot).map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
+      kq.dong.map((r) => `<tr>${kq.cot.map((c) => oDuLieu(r, c)).join("")}</tr>`).join("")}</tbody>`;
   }
   vePhanTrang(kq.tong, trang);
   $("khung-chi-tiet").classList.remove("an");

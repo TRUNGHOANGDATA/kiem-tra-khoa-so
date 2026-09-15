@@ -31,7 +31,7 @@ def _thieu(df, tk: str, no: tuple, co: tuple, ly_do: str, la_ben_no: bool = True
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
     bang = so_phat_sinh_tai_khoan(df)
-    pl = bang[bat_dau(bang["TK"], "5", "6", "7", "8") & (bang["net"].abs() > 0.5)].copy()
+    pl = bang[bat_dau(bang["TK"], "5", "6", "7", "8") & (bang["net"].abs() > NGUONG_CON_LAI)].copy()
     la_tu_ket_chuyen = bat_dau(pl["TK"], *TK_TU_KET_CHUYEN_CUOI_KY)
     pl["ly_do"] = pl["net"].map(lambda n: f"Net phát sinh trong kỳ còn {fmt_so(n)} — chưa kết chuyển hết")
     pl.loc[la_tu_ket_chuyen, "ly_do"] = pl.loc[la_tu_ket_chuyen, "net"].map(
@@ -61,7 +61,10 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
             ps_no, ps_co = phat_sinh_theo_prefix(df, "911")
             rows.append({"TK": "911", "ps_no": ps_no, "ps_co": ps_co,
                          "ly_do": "Có phát sinh 911 nhưng không có bút toán 911 ↔ 421"})
-    kq.append(CheckResult("C5.5", "Thiếu kết chuyển lãi/lỗ 911 ↔ 421", NHOM, VANG, _bang(rows)))
+    kq.append(CheckResult("C5.5", "Thiếu kết chuyển lãi/lỗ 911 ↔ 421", NHOM, VANG, _bang(rows),
+                          ghi_chu="Chỉ kiểm tra CÓ hay KHÔNG có bút toán 911 ↔ 421 — không đối chiếu"
+                                  " được số tiền lãi/lỗ, nên kết chuyển sai số tiền vẫn lọt;"
+                                  " muốn bắt phải có số dư đầu kỳ mà bảng kê này không mang theo"))
 
     rows = []
     vao_no, _ = phat_sinh_theo_prefix(df, "1331")

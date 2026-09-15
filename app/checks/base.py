@@ -11,6 +11,28 @@ COT_CHUAN = ["DocNo", "DocDate", "DebitAccount", "CreditAccount", "Amount", "Des
 NGUONG_CON_LAI = 0.5
 TK_KHO = ("152", "153", "155", "156")
 
+# Nhãn tiếng Việt cho mọi cột mà 29 bộ kiểm tra có thể sinh ra. Dùng chung cho bảng
+# chi tiết trên giao diện và mọi sheet của báo cáo Excel — tên cột tiếng Anh của
+# Bravo không được lọt ra trước mặt người dùng.
+TEN_COT = {
+    "DocCode": "Loại CT", "DocNo": "Số CT", "DocDate": "Ngày CT",
+    "DebitAccount": "TK Nợ", "CreditAccount": "TK Có", "Amount": "Số tiền",
+    "Description": "Diễn giải", "CreatedByName": "Người lập", "TaxCode": "Mã thuế",
+    "ly_do": "Lý do",
+    "TK": "Tài khoản", "ps_no": "Phát sinh Nợ", "ps_co": "Phát sinh Có",
+    "net": "Chênh lệch Nợ − Có", "so_dong": "Số dòng", "tong": "Tổng tiền",
+    "thue_vao_1331": "Thuế vào (1331)", "thue_ra_33311": "Thuế ra (33311)",
+    "bat_thuong": "Bất thường",
+}
+# Cột canh phải & định dạng số — một danh sách duy nhất cho cả giao diện lẫn Excel.
+COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",
+                   "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9")
+
+
+def ten_cot(cot) -> list[str]:
+    """Nhãn hiển thị của một dãy tên cột (giữ nguyên nếu chưa đặt tên tiếng Việt)."""
+    return [TEN_COT.get(c, c) for c in cot]
+
 
 @dataclass
 class BoiCanh:

@@ -7,21 +7,33 @@ NHOM = "G3"
 TK_THUE = ("1331", "33311")
 
 
+def _khoa_chung_tu(df: pd.DataFrame) -> pd.Series:
+    """Số chứng từ chỉ duy nhất trong từng quyển: phải gộp theo (DocCode, DocNo).
+
+    Trên file thật có 16.385 DocNo nhưng 16.411 cặp (DocCode, DocNo) — 26 số dùng
+    chung giữa các quyển. Gộp theo DocNo thôi thì một phiếu nhập thiếu dòng 1331
+    sẽ lọt lưới nhờ một phiếu chi trùng số đã có dòng đó.
+    """
+    return (df["DocCode"].fillna("").astype(str).str.strip() + ""
+            + df["DocNo"].fillna("").astype(str).str.strip())
+
+
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
     tax = df["TaxCode"].fillna("").astype(str).str.strip().str.upper()
     co_thue = tax.ne("") & tax.ne("V00")
     dong_tk_thue = bat_dau(df["DebitAccount"], *TK_THUE) | bat_dau(df["CreditAccount"], *TK_THUE)
+    ct = _khoa_chung_tu(df)
 
-    docs_thieu = set(df.loc[co_thue, "DocNo"]) - set(df.loc[dong_tk_thue, "DocNo"])
-    kq.append(tao_ket_qua(df[co_thue & df["DocNo"].isin(docs_thieu)], "C3.1",
+    docs_thieu = set(ct[co_thue]) - set(ct[dong_tk_thue])
+    kq.append(tao_ket_qua(df[co_thue & ct.isin(docs_thieu)], "C3.1",
                           "Có mã thuế nhưng chứng từ thiếu TK thuế", NHOM, VANG,
                           "TaxCode chịu thuế nhưng cả chứng từ không có dòng 1331/33311"))
 
     dt = bat_dau(df["CreditAccount"], "511") & co_thue
     dong_33311 = bat_dau(df["DebitAccount"], "33311") | bat_dau(df["CreditAccount"], "33311")
-    docs_dt_thieu = set(df.loc[dt, "DocNo"]) - set(df.loc[dong_33311, "DocNo"])
-    kq.append(tao_ket_qua(df[dt & df["DocNo"].isin(docs_dt_thieu)], "C3.2",
+    docs_dt_thieu = set(ct[dt]) - set(ct[dong_33311])
+    kq.append(tao_ket_qua(df[dt & ct.isin(docs_dt_thieu)], "C3.2",
                           "Doanh thu thiếu thuế đầu ra", NHOM, VANG,
                           "Có Có 511 với TaxCode chịu thuế nhưng chứng từ không có 33311"))
 

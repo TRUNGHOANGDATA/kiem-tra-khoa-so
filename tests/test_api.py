@@ -156,6 +156,34 @@ def test_tim_kiem_theo_ngay_hien_thi(tmp_path):
     assert ct["tong"] == 1 and ct["dong"][0]["DocNo"] == "B"
 
 
+def test_lay_chi_tiet_kem_nhan_tieng_viet_va_cot_so(tmp_path):
+    """C4/C6: nhãn cột và danh sách cột số đi từ backend sang, JS không tự giữ bản sao."""
+    api = JsApi()
+    api.chay_kiem_tra(_xlsx(tmp_path))
+    ct = api.lay_chi_tiet("C1.1")
+    assert ct["cot"][:2] == ["DocNo", "DocDate"]          # khóa dữ liệu giữ tên gốc
+    assert ct["nhan"][:2] == ["Số CT", "Ngày CT"]         # nhãn hiển thị tiếng Việt
+    assert ct["nhan"][-1] == "Lý do" and "Số tiền" in ct["nhan"]
+    assert ct["cot_so"] == ["Amount"]
+
+    th = api.lay_chi_tiet("C6.3")
+    assert th["nhan"] == ["Loại CT", "Số dòng", "Tổng tiền"]
+    assert set(th["cot_so"]) == {"so_dong", "tong"}       # so_dong từng bị bỏ sót ở báo cáo
+
+
+def test_moi_cot_cac_check_sinh_ra_deu_co_nhan_tieng_viet(tmp_path):
+    """C4: quét toàn bộ 29 check — không cột nào rơi lại tên tiếng Anh."""
+    api = JsApi()
+    api.chay_kiem_tra(_xlsx(tmp_path))
+    thieu = {}
+    for ma in api._kq:
+        ct = api.lay_chi_tiet(ma)
+        for c, nhan in zip(ct["cot"], ct["nhan"]):
+            if c == nhan:
+                thieu.setdefault(ma, []).append(c)
+    assert thieu == {}, f"cột chưa có trong TEN_COT: {thieu}"
+
+
 def test_kich_thuoc_gioi_han_toi_da_500():
     api = JsApi()
     df = pd.DataFrame({"DocNo": [f"D{i}" for i in range(600)]})

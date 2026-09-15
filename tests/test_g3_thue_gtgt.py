@@ -25,6 +25,25 @@ def test_c32_doanh_thu_thieu_thue_dau_ra(ctx):
     assert _kq(df, ctx)["C3.2"].so_loi == 1
 
 
+def test_c31_c32_gom_theo_ca_loai_va_so_chung_tu(ctx):
+    """C1: hai quyển khác nhau trùng số CT — phiếu thiếu TK thuế không được núp bóng phiếu kia."""
+    df = tao_df([
+        {"DocCode": "PN", "DocNo": "001", "DebitAccount": "1521", "CreditAccount": "3311", "TaxCode": "V10"},
+        {"DocCode": "PC", "DocNo": "001", "DebitAccount": "6421", "CreditAccount": "1111", "TaxCode": "V10"},
+        {"DocCode": "PC", "DocNo": "001", "DebitAccount": "1331", "CreditAccount": "1111", "TaxCode": "V10"},
+    ])
+    kq = _kq(df, ctx)["C3.1"]
+    assert kq.so_loi == 1                                  # chỉ PN/001 thiếu
+    assert kq.chi_tiet["DebitAccount"].tolist() == ["1521"]
+
+    dt = tao_df([
+        {"DocCode": "HD", "DocNo": "77", "DebitAccount": "1311", "CreditAccount": "5111", "TaxCode": "R10A"},
+        {"DocCode": "PX", "DocNo": "77", "DebitAccount": "1311", "CreditAccount": "5111", "TaxCode": "R10A"},
+        {"DocCode": "PX", "DocNo": "77", "DebitAccount": "1311", "CreditAccount": "33311", "TaxCode": "R10A"},
+    ])
+    assert _kq(dt, ctx)["C3.2"].so_loi == 1                # chỉ HD/77 thiếu 33311
+
+
 def test_c33_bang_tong_hop_thue(ctx):
     df = tao_df([
         {"DebitAccount": "1331", "CreditAccount": "3311", "TaxCode": "V10", "Amount": 100},

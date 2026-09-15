@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from .checks import TEN_NHOM
-from .checks.base import DO, VANG, XANH, CheckResult, fmt_so
+from .checks.base import COT_SO_HIEN_THI, DO, VANG, XANH, CheckResult, fmt_so, ten_cot
 from .loader import ThongTinFile
 from .trang_thai import BuocKhoaSo, tinh_ket_luan
 
@@ -24,21 +24,24 @@ def ten_sheet_an_toan(ten: str) -> str:
 
 
 def _ghi_bang(writer, ten_sheet, df: pd.DataFrame, fmt, dong_dau=0):
+    goc = list(df.columns)                     # tên gốc: dùng để chọn định dạng số
     df = df.copy()
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].dt.strftime("%d/%m/%Y")
+        elif pd.api.types.is_bool_dtype(df[c]):
+            df[c] = df[c].map({True: "Có", False: "Không"})
+    df.columns = ten_cot(goc)
     df.to_excel(writer, sheet_name=ten_sheet, index=False, startrow=dong_dau)
     ws = writer.sheets[ten_sheet]
-    for j, c in enumerate(df.columns):
-        ws.write(dong_dau, j, c, fmt["header"])
+    for j, (c, nhan) in enumerate(zip(goc, df.columns)):
+        ws.write(dong_dau, j, nhan, fmt["header"])
         if len(df):
-            do_dai = df[c].astype("string").fillna("").str.len()
+            do_dai = df[nhan].astype("string").fillna("").str.len()
             rong = max(10, min(60, int(do_dai.quantile(0.9)) + 2))
         else:
             rong = 12
-        ws.set_column(j, j, rong, fmt["so"] if c in ("Amount", "ps_no", "ps_co", "net", "tong",
-                                                          "thue_vao_1331", "thue_ra_33311") else None)
+        ws.set_column(j, j, rong, fmt["so"] if c in COT_SO_HIEN_THI else None)
     ws.freeze_panes(dong_dau + 1, 0)
     if len(df):
         ws.autofilter(dong_dau, 0, dong_dau + len(df), len(df.columns) - 1)

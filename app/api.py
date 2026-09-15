@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import checks, report
-from .checks.base import DO, VANG, THU_TU_MUC_DO, BoiCanh, CheckResult
+from .checks.base import COT_SO_HIEN_THI, THU_TU_MUC_DO, BoiCanh, CheckResult, ten_cot
 from .loader import ThongTinFile, doc_bang_ke, tim_file_moi_nhat
 from .trang_thai import suy_trang_thai, tinh_ket_luan
 
@@ -129,7 +129,10 @@ class JsApi:
         tong = int(len(df))
         kich_thuoc = max(1, min(int(kich_thuoc), 500))
         a = max(0, (int(trang) - 1) * kich_thuoc)
-        return {"tong": tong, "trang": int(trang), "cot": list(df.columns),
+        cot = list(df.columns)
+        # Nhãn tiếng Việt và danh sách cột số đi kèm dữ liệu, không nhân bản sang JS.
+        return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
+                "cot_so": [c for c in cot if c in COT_SO_HIEN_THI],
                 "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
 
     # ---- xuất & mở ----

@@ -12,6 +12,12 @@ GHI_CHU_CHUA_TINH_GIA = ("Nghi chưa chạy tính giá xuất kho bình quân cu
                          "— toàn bộ dòng xuất kho đều không có đơn giá")
 
 
+def _so(s: pd.Series) -> pd.Series:
+    """Chuỗi số đã định dạng. astype("string") là bắt buộc: trên frame rỗng, .map()
+    giữ nguyên dtype float64 và phép nối "chuỗi" + Series float sẽ nổ _UFuncNoLoopError."""
+    return s.map(fmt_so).astype("string")
+
+
 def _bang_tong_hop(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["TK", "ps_no", "ps_co", "ly_do"])
 
@@ -30,8 +36,8 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     ghi_chu_c41 = GHI_CHU_CHUA_TINH_GIA if chua_tinh_gia else ghi_chu_sl
 
     gia_0 = co_sl & ((df["UnitCost"] <= 0) | (df["Amount"] <= 0))
-    ly_do_c41 = ("Có SL " + df["Quantity9"].map(fmt_so) + ", đơn giá " + df["UnitCost"].map(fmt_so) +
-                 ", tiền " + df["Amount"].map(fmt_so) +
+    ly_do_c41 = ("Có SL " + _so(df["Quantity9"]) + ", đơn giá " + _so(df["UnitCost"]) +
+                 ", tiền " + _so(df["Amount"]) +
                  " — có số lượng nhưng đơn giá hoặc tiền = 0 (chưa tính giá xuất kho)")
     kq.append(tao_ket_qua(df[gia_0], "C4.1", "Xuất/nhập kho giá = 0", NHOM, DO, ly_do_c41[gia_0],
                           ghi_chu=ghi_chu_c41))
@@ -39,8 +45,8 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     co_gia = co_sl & (df["UnitCost"] > 0)
     tien_tinh = df["Quantity9"] * df["UnitCost"]
     lech = (df["Amount"] - tien_tinh).abs() > (df["Amount"].abs() * 0.001 + 1)
-    ly_do_c42 = ("SL " + df["Quantity9"].map(fmt_so) + " × đơn giá " + df["UnitCost"].map(fmt_so) +
-                 " = " + tien_tinh.map(fmt_so) + " nhưng Amount ghi " + df["Amount"].map(fmt_so) +
+    ly_do_c42 = ("SL " + _so(df["Quantity9"]) + " × đơn giá " + _so(df["UnitCost"]) +
+                 " = " + _so(tien_tinh) + " nhưng Amount ghi " + _so(df["Amount"]) +
                  " — lệch vượt ngưỡng làm tròn 0,1% + 1đ")
     kq.append(tao_ket_qua(df[co_gia & lech], "C4.2", "Tiền ≠ Số lượng × Đơn giá", NHOM, VANG,
                           ly_do_c42[co_gia & lech], ghi_chu=ghi_chu_sl))
