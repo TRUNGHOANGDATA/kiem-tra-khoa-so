@@ -1,0 +1,7 @@
+1. Source/
+2. Report/
+__pycache__/
+*.pyc
+.pytest_cache/
+.superpowers/
+*.xlsx
