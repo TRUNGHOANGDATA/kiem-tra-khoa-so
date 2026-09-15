@@ -1,0 +1,36 @@
+"""Kiểm thử end-to-end trên file thật (Bang ke chung tu 082027.xlsx).
+
+Bỏ qua tự động nếu không có file thật trong '1. Source' — máy CI/máy khác không
+có file này vẫn chạy được toàn bộ suite còn lại.
+"""
+import os
+import time
+
+import pytest
+
+from app.api import JsApi
+
+FILE = "1. Source/Bang ke chung tu 082027.xlsx"
+pytestmark = pytest.mark.skipif(not os.path.exists(FILE), reason="không có file thật")
+
+
+def test_pipeline_file_that_chay_nhanh_va_hop_ly(tmp_path):
+    api = JsApi()
+    api.thu_muc_report = str(tmp_path)
+    t = time.time()
+    kq = api.chay_kiem_tra(FILE)
+    assert "loi" not in kq, kq.get("loi")
+    thoi_gian = time.time() - t
+    assert kq["tomtat"]["ky"] == "08/2026" and kq["tomtat"]["so_dong"] == 79450
+    assert len(kq["trang_thai"]) == 11
+    # G4/G5 phải phản ánh dữ liệu thật: có phát sinh 621/632 nên không "không áp dụng"
+    tt = {b["buoc"]: b for b in kq["trang_thai"]}
+    assert tt["Tập hợp CP NVL trực tiếp 621 → 154"]["trang_thai"] != "khong_ap_dung"
+    assert tt["Kết chuyển giá vốn 632 → 911"]["trang_thai"] != "khong_ap_dung"
+    # chi tiết theo trang không đổ toàn bộ
+    ct = api.lay_chi_tiet("C1.1", 1, 100)
+    assert len(ct["dong"]) <= 100 and ct["tong"] > 0
+    path = api.xuat_bao_cao()["path"]
+    assert os.path.exists(path)
+    print(f"\nThời gian kiểm tra: {thoi_gian:.1f}s")
+    assert thoi_gian < 60

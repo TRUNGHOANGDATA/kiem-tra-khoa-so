@@ -99,7 +99,7 @@ function veTabA() {
     li.innerHTML = `<div class="icon">${ICON_TT[b.trang_thai]}</div>
       <div><div class="ten">${esc(b.buoc)}</div><div class="tom-tat">${esc(b.tom_tat)}</div></div>
       <span class="nhan">${NHAN_TT[b.trang_thai]}</span><span>›</span>`;
-    li.onclick = () => moChiTiet(b.ma_check, `${esc(b.buoc)} — chứng minh (${b.ma_check})`);
+    li.onclick = () => moChiTiet(b.ma_check, b.buoc + ` — chứng minh (${b.ma_check})`);
     ul.append(li);
   });
 }
@@ -114,9 +114,9 @@ function veTabB() {
       <div class="tom-tat">${n.ma === "G6" ? "Bảng thống kê" : NHAN_MD[n.muc_do]}</div><ul class="ds-check">${ds}</ul>`;
     d.querySelectorAll("li").forEach((li) => li.onclick = (ev) => {
       ev.stopPropagation(); const c = n.checks.find((x) => x.ma === li.dataset.ma);
-      chonThe(d); moChiTiet(c.ma, `${esc(c.ma)} · ${esc(c.ten)}${c.ghi_chu ? " — " + esc(c.ghi_chu) : ""}`);
+      chonThe(d); moChiTiet(c.ma, c.ma + " · " + c.ten + (c.ghi_chu ? " — " + c.ghi_chu : ""));
     });
-    d.onclick = () => { const c = n.checks.find((x) => x.so_loi > 0) || n.checks[0]; chonThe(d); moChiTiet(c.ma, `${esc(c.ma)} · ${esc(c.ten)}`); };
+    d.onclick = () => { const c = n.checks.find((x) => x.so_loi > 0) || n.checks[0]; chonThe(d); moChiTiet(c.ma, c.ma + " · " + c.ten); };
     luoi.append(d);
   });
 }
