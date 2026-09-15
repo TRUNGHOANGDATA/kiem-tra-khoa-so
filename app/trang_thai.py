@@ -5,7 +5,7 @@ import pandas as pd
 
 from .checks.base import (DO, NGUONG_CON_LAI, TK_KHO, VANG, CheckResult, bat_dau, co_dong, fmt_so,
                           phat_sinh_theo_prefix)
-from .checks.g4_kho_gia_von import GHI_CHU_CHUA_TINH_GIA, GHI_CHU_THIEU_SL
+from .checks.g4_kho_gia_von import GHI_CHU_CHUA_TINH_GIA, GHI_CHU_THIEU_SL, thong_ke_xuat_kho
 
 BUOC_TINH_GIA_XUAT_KHO = "Tính giá xuất kho (mọi dòng xuất có đơn giá)"
 
@@ -24,11 +24,22 @@ class BuocKhoaSo:
     co_chung_cu: bool = True
 
 
-def _ket_chuyen(df, ten, tk, no, co, ma) -> BuocKhoaSo:
-    """Bước dạng 'TK nguồn -> TK đích': dựa vào phát sinh & sự tồn tại bút toán."""
+def _ket_chuyen(df, ten, tk, no, co, ma, chi_bat_ben_no=False) -> BuocKhoaSo:
+    """Bước dạng 'TK nguồn -> TK đích': dựa vào phát sinh & sự tồn tại bút toán.
+
+    chi_bat_ben_no=True khi check được trích dẫn (C4.4) chỉ lập dòng lúc ps_no > 0,
+    nên ca chỉ có bên Có không thể có bảng chứng minh.
+    """
     ps_no, ps_co = phat_sinh_theo_prefix(df, tk)
     if ps_no == 0 and ps_co == 0:
         return BuocKhoaSo(ten, KHONG_AP_DUNG, f"Kỳ này không có phát sinh {tk}", ma)
+    if chi_bat_ben_no and ps_no == 0:
+        # Không có gì để tập hợp mà vẫn có phát sinh Có -> bất thường, nhưng gọi là
+        # "chưa kết chuyển" thì sai: C4.4 bỏ qua ca này nên bảng chứng minh sẽ trống.
+        return BuocKhoaSo(ten, CAN_RA,
+                          f"Không có phát sinh Nợ {tk} nhưng có phát sinh Có {fmt_so(ps_co)}"
+                          f" — bút toán bất thường, cần rà soát",
+                          ma, co_chung_cu=False)
     if not co_dong(df, no=no, co=co):
         return BuocKhoaSo(ten, CHUA_LAM, f"Phát sinh {tk}: Nợ {fmt_so(ps_no)} / Có {fmt_so(ps_co)} — chưa có bút toán kết chuyển", ma)
     # Dùng số dư CÓ DẤU, đúng như C4.4/C5.2 — hai check đó chỉ bắt chiều thiếu
@@ -70,9 +81,9 @@ def _nhom_ve_911(df, ten, cac_tk, huong, ma) -> BuocKhoaSo:
 
 def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[BuocKhoaSo]:
     ds = [
-        _ket_chuyen(df, "Tập hợp CP NVL trực tiếp 621 → 154", "621", ("154",), ("621",), "C4.4"),
-        _ket_chuyen(df, "Tập hợp CP nhân công trực tiếp 622 → 154", "622", ("154",), ("622",), "C4.4"),
-        _ket_chuyen(df, "Tập hợp & phân bổ CP SXC 627 → 154", "627", ("154",), ("627",), "C4.4"),
+        _ket_chuyen(df, "Tập hợp CP NVL trực tiếp 621 → 154", "621", ("154",), ("621",), "C4.4", True),
+        _ket_chuyen(df, "Tập hợp CP nhân công trực tiếp 622 → 154", "622", ("154",), ("622",), "C4.4", True),
+        _ket_chuyen(df, "Tập hợp & phân bổ CP SXC 627 → 154", "627", ("154",), ("627",), "C4.4", True),
     ]
 
     if not co_dong(df, no=("154",)):
@@ -94,8 +105,10 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
         elif c41.ghi_chu == GHI_CHU_THIEU_SL:
             ds.append(BuocKhoaSo(ten_gia, KHONG_AP_DUNG, c41.ghi_chu, "C4.1"))
         elif c41.ghi_chu == GHI_CHU_CHUA_TINH_GIA:
+            so_chua_gia, tong_dong_kho = thong_ke_xuat_kho(df)
             ds.append(BuocKhoaSo(ten_gia, CHUA_LAM,
-                                 f"Chưa tính giá xuất kho bình quân cuối kỳ — {c41.so_loi} dòng xuất kho chưa có đơn giá",
+                                 f"Chưa tính giá xuất kho bình quân cuối kỳ —"
+                                 f" {so_chua_gia}/{tong_dong_kho} dòng xuất kho chưa có đơn giá",
                                  "C4.1"))
         elif c41.so_loi == 0:
             ds.append(BuocKhoaSo(ten_gia, DA_LAM, f"{int(dong_kho.sum())} dòng kho, không dòng giá = 0", "C4.1"))
@@ -122,9 +135,15 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
     else:
         ds.append(BuocKhoaSo("Kết chuyển lãi/lỗ 911 ↔ 421", CHUA_LAM, "Có 911 nhưng chưa kết chuyển sang 421", "C5.5"))
 
+    co_pl = (bat_dau(df["DebitAccount"], "5", "6", "7", "8")
+             | bat_dau(df["CreditAccount"], "5", "6", "7", "8")).any()
     c51 = ket_qua.get("C5.1")
     if c51 is None:
         ds.append(BuocKhoaSo("TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)", KHONG_AP_DUNG, "Chưa chạy kiểm tra C5.1", "C5.1"))
+    elif not co_pl:
+        # Không có TK doanh thu/chi phí nào thì không thể nói "đã kết chuyển hết".
+        ds.append(BuocKhoaSo("TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)", KHONG_AP_DUNG,
+                             "Kỳ này không có phát sinh TK đầu 5/6/7/8", "C5.1"))
     elif c51.so_loi == 0:
         ds.append(BuocKhoaSo("TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)", DA_LAM, "Mọi TK doanh thu/chi phí đã về 0", "C5.1"))
     else:

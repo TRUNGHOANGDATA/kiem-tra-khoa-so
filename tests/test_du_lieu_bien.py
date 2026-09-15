@@ -25,14 +25,14 @@ def test_frame_rong_khong_lam_vo_g4(df_rong, ctx):
     assert list(kq["C4.1"].chi_tiet.columns)[-1] == "ly_do"
 
 
-def test_frame_rong_khong_sinh_viec_phai_lam(df_rong, ctx):
-    """Không dòng nào thì không có việc gì để làm — và tuyệt đối không có bước chưa_làm/cần_rà."""
+def test_frame_rong_thi_ca_11_buoc_deu_khong_ap_dung(df_rong, ctx):
+    """Không dòng nào thì không bước nào áp dụng — kể cả bước 11.
+
+    Trước đây bước 11 ra "đã làm / Mọi TK doanh thu/chi phí đã về 0" trên file rỗng.
+    """
     kq = {r.ma: r for r in checks.chay_tat_ca(df_rong, ctx)}
     ds = tt.suy_trang_thai(df_rong, kq)
-    assert not [b for b in ds if b.trang_thai in (tt.CHUA_LAM, tt.CAN_RA)]
-    # 10 bước không áp dụng; bước 11 suy từ C5.1 (không TK nào lệch) nên là "đã làm"
-    assert sum(b.trang_thai == tt.KHONG_AP_DUNG for b in ds) == 10
-    assert ds[-1].trang_thai == tt.DA_LAM
+    assert [b.trang_thai for b in ds] == [tt.KHONG_AP_DUNG] * 11
 
 
 def test_tk_toan_null_chi_trip_check_vang(df_tk_null, ctx):

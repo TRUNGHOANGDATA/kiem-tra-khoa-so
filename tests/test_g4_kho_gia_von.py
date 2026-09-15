@@ -38,26 +38,41 @@ def test_c41_c42_ghi_chu_khi_khong_co_du_lieu_sl(ctx):
     assert kq42.so_loi == 0 and kq42.ghi_chu == g4.GHI_CHU_THIEU_SL
 
 
-def test_c41_ghi_chu_chua_tinh_gia_khi_khong_dong_kho_nao_co_don_gia(ctx):
-    """A1: có dòng kho kèm số lượng nhưng không một dòng nào có đơn giá -> nghi chưa tính giá."""
-    df = tao_df([
-        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0},
-        {"DebitAccount": "6214", "CreditAccount": "1552", "Quantity9": 5, "UnitCost": 0, "Amount": 0},
-        {"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 9},
-    ])
+def dong_xuat(n, co_gia):
+    """n dòng xuất kho có số lượng, có/không có đơn giá."""
+    return [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10,
+             "UnitCost": 7 if co_gia else 0, "Amount": 70 if co_gia else 0} for _ in range(n)]
+
+
+def test_c41_ghi_chu_chua_tinh_gia_khi_ty_le_dat_nguong(ctx):
+    """A1: 80/100 dòng xuất không đơn giá = đúng ngưỡng 0,8 -> nghi chưa chạy tính giá."""
+    df = tao_df(dong_xuat(80, False) + dong_xuat(20, True))
     kq = _kq(df, ctx)["C4.1"]
-    assert kq.so_loi == 2 and kq.muc_do_thuc == "do"
+    assert kq.so_loi == 80 and kq.muc_do_thuc == "do"
     assert kq.ghi_chu == g4.GHI_CHU_CHUA_TINH_GIA
 
 
-def test_c41_khong_ghi_chu_chua_tinh_gia_khi_co_dong_co_don_gia(ctx):
-    """Chỉ một dòng kho có đơn giá là đủ để bác giả thiết 'chưa chạy tính giá cả kỳ'."""
-    df = tao_df([
-        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0},
-        {"DebitAccount": "1521", "CreditAccount": "3311", "Quantity9": 10, "UnitCost": 7, "Amount": 70},
-    ])
+def test_c41_khong_ghi_chu_khi_ty_le_duoi_nguong(ctx):
+    """79/100 = 0,79 < 0,8 -> chỉ là các dòng sót, không phải cả kỳ chưa tính giá."""
+    df = tao_df(dong_xuat(79, False) + dong_xuat(21, True))
     kq = _kq(df, ctx)["C4.1"]
-    assert kq.so_loi == 1 and kq.ghi_chu == ""
+    assert kq.so_loi == 79 and kq.ghi_chu == ""
+
+
+def test_c41_it_dong_thi_khong_ket_luan_theo_ty_le(ctx):
+    """Dưới SO_DONG_XUAT_TOI_THIEU, tỷ lệ 100% cũng không đủ căn cứ."""
+    df = tao_df(dong_xuat(g4.SO_DONG_XUAT_TOI_THIEU - 1, False))
+    kq = _kq(df, ctx)["C4.1"]
+    assert kq.so_loi == g4.SO_DONG_XUAT_TOI_THIEU - 1 and kq.ghi_chu == ""
+
+
+def test_thong_ke_xuat_kho_chi_dem_dong_xuat(ctx):
+    """Dòng nhập mang giá mua — gộp vào mẫu số sẽ pha loãng tỷ lệ."""
+    df = tao_df(dong_xuat(90, False) + dong_xuat(10, True)
+                + [{"DebitAccount": "1521", "CreditAccount": "3311", "Quantity9": 10,
+                    "UnitCost": 7, "Amount": 70}] * 500)
+    assert g4.thong_ke_xuat_kho(df) == (90, 100)
+    assert g4.nghi_chua_tinh_gia(df) is True
 
 
 def test_c43_gia_von_khong_di_kem_kho(ctx):

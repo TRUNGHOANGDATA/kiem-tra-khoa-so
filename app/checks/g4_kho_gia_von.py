@@ -9,7 +9,9 @@ TK_CO_HOP_LE_GIA_VON = ("152", "153", "154", "155", "156", "157", "627", "2294",
 TK_CHI_PHI_SX = ("621", "622", "627")
 GHI_CHU_THIEU_SL = "File không có dữ liệu số lượng/đơn giá — không kiểm tra được giá xuất kho"
 GHI_CHU_CHUA_TINH_GIA = ("Nghi chưa chạy tính giá xuất kho bình quân cuối kỳ "
-                         "— toàn bộ dòng xuất kho đều không có đơn giá")
+                         "— phần lớn dòng xuất kho chưa có đơn giá")
+TY_LE_NGHI_CHUA_TINH_GIA = 0.8   # tỷ lệ dòng xuất kho không có đơn giá đủ để nghi chưa chạy tính giá
+SO_DONG_XUAT_TOI_THIEU = 100     # dưới mức này tỷ lệ không nói lên điều gì
 
 
 def _so(s: pd.Series) -> pd.Series:
@@ -22,6 +24,26 @@ def _bang_tong_hop(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["TK", "ps_no", "ps_co", "ly_do"])
 
 
+def thong_ke_xuat_kho(df: pd.DataFrame) -> tuple[int, int]:
+    """(số dòng xuất kho có SL mà chưa có đơn giá, tổng số dòng xuất kho có SL).
+
+    Chỉ đếm dòng XUẤT (Có TK kho): dòng nhập mang giá mua nên luôn có đơn giá,
+    gộp chung vào mẫu số sẽ pha loãng tỷ lệ và che mất việc chưa chạy tính giá.
+    """
+    xuat = bat_dau(df["CreditAccount"], *TK_KHO) & (df["Quantity9"] > 0)
+    return int((xuat & (df["UnitCost"] <= 0)).sum()), int(xuat.sum())
+
+
+def nghi_chua_tinh_gia(df: pd.DataFrame) -> bool:
+    """Phần lớn dòng xuất kho không có đơn giá -> nghi chưa chạy tính giá bình quân cuối kỳ.
+
+    Là MỘT việc phải làm, không phải hàng chục nghìn lỗi rời rạc. Dùng tỷ lệ chứ không
+    đòi tuyệt đối: trên sổ thật vẫn có một thiểu số dòng xuất mang đơn giá đích danh.
+    """
+    chua_gia, tong = thong_ke_xuat_kho(df)
+    return tong >= SO_DONG_XUAT_TOI_THIEU and chua_gia / tong >= TY_LE_NGHI_CHUA_TINH_GIA
+
+
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
     dong_kho = bat_dau(df["DebitAccount"], *TK_KHO) | bat_dau(df["CreditAccount"], *TK_KHO)
@@ -29,11 +51,7 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     khong_co_du_lieu_sl = not bool((df["Quantity9"] > 0).any())
     ghi_chu_sl = GHI_CHU_THIEU_SL if khong_co_du_lieu_sl else ""
 
-    # Cả kỳ có dòng kho kèm số lượng nhưng không một dòng nào có đơn giá dương
-    # -> nghi chưa chạy tính giá xuất kho bình quân cuối kỳ (một việc phải làm,
-    #    không phải hàng chục nghìn lỗi rời rạc).
-    chua_tinh_gia = bool(co_sl.any()) and not bool((co_sl & (df["UnitCost"] > 0)).any())
-    ghi_chu_c41 = GHI_CHU_CHUA_TINH_GIA if chua_tinh_gia else ghi_chu_sl
+    ghi_chu_c41 = GHI_CHU_CHUA_TINH_GIA if nghi_chua_tinh_gia(df) else ghi_chu_sl
 
     gia_0 = co_sl & ((df["UnitCost"] <= 0) | (df["Amount"] <= 0))
     ly_do_c41 = ("Có SL " + _so(df["Quantity9"]) + ", đơn giá " + _so(df["UnitCost"]) +

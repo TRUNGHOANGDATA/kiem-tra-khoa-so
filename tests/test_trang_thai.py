@@ -24,9 +24,19 @@ KICH_BAN = {
         # đã có dòng kho tính được giá -> không phải "cả kỳ chưa chạy tính giá" (A1)
         {"DebitAccount": "1521", "CreditAccount": "3311", "Quantity9": 2, "UnitCost": 5, "Amount": 10},
         {"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 10}],
-    "chua_tinh_gia_xuat_kho": [
-        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0},
-        {"DebitAccount": "6214", "CreditAccount": "1552", "Quantity9": 5, "UnitCost": 0, "Amount": 0}],
+    # 90/100 dòng xuất kho không có đơn giá -> trên ngưỡng tỷ lệ
+    "chua_tinh_gia_xuat_kho": (
+        [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0}] * 90
+        + [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 7, "Amount": 70}] * 10),
+    # 70/100 -> dưới ngưỡng, chỉ là các dòng sót
+    "sot_dong_xuat_chua_co_gia": (
+        [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0}] * 70
+        + [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 7, "Amount": 70}] * 30),
+    # chỉ có phát sinh Có 621, không có Nợ 621 -> C4.4 không lập dòng nào
+    "621_chi_co_ben_co": [{"DebitAccount": "1111", "CreditAccount": "6211", "Amount": 100}],
+    # không có TK đầu 5/6/7/8 nào -> bước 11 không thể nói "đã về 0"
+    "khong_co_tk_pl": [{"DebitAccount": "1111", "CreditAccount": "1121", "Amount": 100},
+                       {"DebitAccount": "1311", "CreditAccount": "1111", "Amount": 50}],
     "lai_lo_va_thue": [{"DebitAccount": "911", "CreditAccount": "6421"},
                        {"DebitAccount": "911", "CreditAccount": "4212"},
                        {"DebitAccount": "1331", "CreditAccount": "3311"},
@@ -87,9 +97,12 @@ def test_buoc_can_xu_ly_luon_tro_toi_bang_chung_co_that(ten, ctx):
                 f"[{ten}] bước '{b.buoc}' báo {b.trang_thai} và trỏ tới {b.ma_check},"
                 f" nhưng {b.ma_check} không có dòng nào — kế toán bấm vào sẽ thấy bảng trống")
         else:
-            # Ngoại lệ DUY NHẤT và có chủ đích: kết chuyển vượt. C4.4/C5.2 chỉ bắt
-            # chiều thiếu (ps_no - ps_co > ngưỡng) nên không thể có dòng chứng minh.
-            assert "vượt" in b.tom_tat, f"[{ten}] bước '{b.buoc}' bỏ chứng minh mà không phải ca kết chuyển vượt"
+            # Hai ngoại lệ có chủ đích, đều vì C4.4 chỉ lập dòng khi ps_no > 0 và chỉ
+            # bắt chiều thiếu (ps_no - ps_co > ngưỡng):
+            #   1. kết chuyển vượt (net âm)      2. chỉ có phát sinh bên Có
+            assert any(x in b.tom_tat for x in ("vượt", "bút toán bất thường")), (
+                f"[{ten}] bước '{b.buoc}' bỏ chứng minh mà không thuộc hai ca đã khai báo:"
+                f" {b.tom_tat!r}")
             assert so_dong == 0
 
 
@@ -209,11 +222,34 @@ def test_ket_chuyen_trong_nguong_con_lai_thi_da_lam(ctx):
 
 
 def test_chua_tinh_gia_xuat_kho_thi_chua_lam(ctx):
-    """A1: cả kỳ không dòng kho nào có đơn giá -> một việc phải làm, không phải N lỗi rời rạc."""
+    """A1: phần lớn dòng xuất chưa có giá -> MỘT việc phải làm, không phải N lỗi rời rạc."""
     buoc = _suy(kb("chua_tinh_gia_xuat_kho"), ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]
     assert buoc.trang_thai == tt.CHUA_LAM
-    assert buoc.tom_tat == "Chưa tính giá xuất kho bình quân cuối kỳ — 2 dòng xuất kho chưa có đơn giá"
-    assert buoc.ma_check == "C4.1"
+    assert buoc.tom_tat == ("Chưa tính giá xuất kho bình quân cuối kỳ"
+                            " — 90/100 dòng xuất kho chưa có đơn giá")
+    assert buoc.ma_check == "C4.1" and buoc.co_chung_cu is True
+
+
+def test_duoi_nguong_ty_le_thi_van_la_can_ra(ctx):
+    """A1 chiều còn lại: 70/100 chưa đủ để kết luận cả kỳ chưa chạy tính giá."""
+    buoc = _suy(kb("sot_dong_xuat_chua_co_gia"), ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]
+    assert buoc.trang_thai == tt.CAN_RA
+    assert "Còn 70 dòng kho" in buoc.tom_tat
+
+
+def test_chi_co_phat_sinh_ben_co_thi_khong_goi_la_chua_ket_chuyen(ctx):
+    """Latent 1: không có Nợ 621 thì không có gì để tập hợp — C4.4 cũng không lập dòng."""
+    buoc = _suy(kb("621_chi_co_ben_co"), ctx)[0]["Tập hợp CP NVL trực tiếp 621 → 154"]
+    assert buoc.trang_thai == tt.CAN_RA            # trước đây: chua_lam kèm bảng rỗng
+    assert "Không có phát sinh Nợ 621" in buoc.tom_tat
+    assert buoc.co_chung_cu is False
+
+
+def test_khong_co_tk_5678_thi_buoc_11_khong_ap_dung(ctx):
+    """Latent 2: không có TK doanh thu/chi phí nào thì không thể nói 'đã về 0'."""
+    buoc = _suy(kb("khong_co_tk_pl"), ctx)[0]["TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)"]
+    assert buoc.trang_thai == tt.KHONG_AP_DUNG
+    assert "không có phát sinh TK đầu 5/6/7/8" in buoc.tom_tat
 
 
 def test_thieu_ket_qua_kiem_tra_thi_khong_ap_dung(ctx):
