@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Kiểm tra khóa sổ cuối kỳ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="header">
+  <div class="logo">KS</div>
+  <div class="header-text">
+    <h1>Kiểm tra khóa sổ cuối kỳ</h1>
+    <p>Doanh nghiệp sản xuất · Thông tư 200</p>
+  </div>
+  <div id="header-file" class="header-file"></div>
+</header>
+
+<!-- ===== MÀN HÌNH 1: CHỌN FILE ===== -->
+<main id="man-hinh-1" class="man-hinh">
+  <section id="vung-keo-tha" class="vung-keo-tha">
+    <div class="icon-file">📄</div>
+    <p class="keo-tha-text">Kéo file bảng kê chứng từ (.xlsx) vào đây</p>
+    <p class="keo-tha-phu">hoặc</p>
+    <button id="btn-chon-file" class="btn btn-phu">Chọn file…</button>
+  </section>
+
+  <section id="the-file" class="the-file an">
+    <div class="the-file-hang"><span>File</span><strong id="file-ten"></strong></div>
+    <div class="the-file-luoi">
+      <div><span>Kỳ</span><strong id="file-ky"></strong></div>
+      <div><span>Số dòng</span><strong id="file-so-dong"></strong></div>
+      <div><span>Tổng phát sinh</span><strong id="file-tong-ps"></strong></div>
+    </div>
+  </section>
+
+  <button id="btn-kiem-tra" class="btn btn-chinh btn-lon" disabled>Kiểm tra</button>
+
+  <section id="tien-trinh" class="tien-trinh an">
+    <div class="tien-trinh-nen"><div id="tien-trinh-thanh" class="tien-trinh-thanh"></div></div>
+    <p id="tien-trinh-ten"></p>
+  </section>
+</main>
+
+<!-- ===== MÀN HÌNH 2: KẾT QUẢ ===== -->
+<main id="man-hinh-2" class="man-hinh an">
+  <section id="banner" class="banner">
+    <div id="banner-ket-luan" class="banner-ket-luan"></div>
+    <div class="banner-so">
+      <span class="chip chip-do">🔴 <b id="so-do">0</b></span>
+      <span class="chip chip-vang">🟡 <b id="so-vang">0</b></span>
+      <span class="chip chip-xanh">🟢 <b id="so-xanh">0</b></span>
+    </div>
+  </section>
+
+  <nav class="tab-bar">
+    <button id="tab-a" class="tab dang-chon">Trạng thái khóa sổ</button>
+    <button id="tab-b" class="tab">Lỗi &amp; cảnh báo</button>
+  </nav>
+
+  <section id="noi-dung-a" class="noi-dung">
+    <ul id="ds-buoc" class="ds-buoc"></ul>
+  </section>
+
+  <section id="noi-dung-b" class="noi-dung an">
+    <div id="luoi-nhom" class="luoi-nhom"></div>
+  </section>
+
+  <section id="khung-chi-tiet" class="khung-chi-tiet an">
+    <div class="chi-tiet-dau">
+      <h3 id="chi-tiet-tieu-de"></h3>
+      <input id="o-tim-kiem" type="search" placeholder="Tìm trong kết quả…">
+    </div>
+    <div class="bang-cuon"><table id="bang-chi-tiet" class="bang"></table></div>
+    <div id="phan-trang" class="phan-trang"></div>
+  </section>
+
+  <footer class="footer">
+    <button id="btn-xuat" class="btn btn-chinh">Xuất báo cáo Excel</button>
+    <button id="btn-kiem-tra-lai" class="btn btn-phu">Kiểm tra lại</button>
+    <button id="btn-file-khac" class="btn btn-phu">Kiểm tra file khác</button>
+  </footer>
+</main>
+
+<div id="toast" class="toast an"></div>
+<script src="app.js"></script>
+</body>
+</html>
