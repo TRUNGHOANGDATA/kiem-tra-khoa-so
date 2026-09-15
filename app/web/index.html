@@ -107,7 +107,7 @@
     <button id="tab-b" class="tab" type="button" aria-pressed="false">Lỗi &amp; cảnh báo</button>
   </nav>
 
-  <div class="vung-cuon">
+  <div id="vung-cuon" class="vung-cuon">
     <section id="noi-dung-a" class="noi-dung">
       <div class="khoi">
         <div class="khoi-dau">
@@ -128,13 +128,30 @@
           <h3 id="chi-tiet-tieu-de"></h3>
           <p id="chi-tiet-dem" class="khoi-dau-phu so"></p>
         </div>
-        <div class="o-tim">
-          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9"/></svg>
-          <input id="o-tim-kiem" type="search" placeholder="Tìm trong kết quả…" aria-label="Tìm trong kết quả">
+        <div class="chi-tiet-cong-cu">
+          <div class="o-tim">
+            <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9"/></svg>
+            <input id="o-tim-kiem" type="search" placeholder="Tìm trong kết quả…" aria-label="Tìm trong kết quả">
+          </div>
+          <button id="btn-chep-trang" class="btn" type="button"
+                  title="Chép toàn bộ các dòng đang xem, kèm dòng tiêu đề — dán thẳng vào Excel">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Chép cả trang
+          </button>
+          <button id="btn-dong-chi-tiet" class="btn btn-phu" type="button" title="Đóng bảng, quay lại danh sách">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+            Danh sách
+          </button>
         </div>
       </div>
       <div class="bang-cuon"><table id="bang-chi-tiet" class="bang"></table></div>
-      <div id="phan-trang" class="phan-trang"></div>
+      <!-- Chân bảng: gợi ý cách sao chép đứng cùng hàng với phân trang, không
+           chiếm thêm một dòng chiều cao của bảng. Cách chép phải nói thẳng ra —
+           bấm một ô là thao tác mới, không ai đoán ra nếu không có dòng này. -->
+      <div class="chi-tiet-chan">
+        <p class="chi-tiet-goi-y">Bấm một ô để chép ô đó · bôi đen rồi Ctrl+C · nút đầu dòng chép cả dòng</p>
+        <div id="phan-trang" class="phan-trang"></div>
+      </div>
     </section>
   </div>
 

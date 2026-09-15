@@ -39,6 +39,41 @@ def test_c41_bao_khi_amount_0_du_unitcost_0(ctx):
     assert _kq(df, ctx)["C4.1"].so_loi == 1
 
 
+def test_c41_tien_am_la_gia_tri_khong_phai_thieu_gia_tri(ctx):
+    """Chốt vị từ mới: Amount == 0, KHÔNG phải Amount <= 0.
+
+    10 dòng cuối C4.1 còn báo trên sổ 08/2026 đều là bút toán điều chỉnh âm
+    (PX, Nợ 6214 / Có 1521, "TĐ từ phiếu TP số: TP2608-…", SL lẻ 0,16–2,429).
+    Số tiền âm LÀ một giá trị — nói "chưa xác định giá trị" về chúng là sai.
+    Cùng một dòng nhưng Amount = 0 thì mới thật sự chưa có giá trị và phải bị bắt.
+    """
+    am = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521",
+                  "Quantity9": 0.27, "UnitCost": 0, "Amount": -4638}])
+    khong = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521",
+                     "Quantity9": 0.27, "UnitCost": 0, "Amount": 0}])
+    assert _kq(am, ctx)["C4.1"].so_loi == 0
+    assert _kq(khong, ctx)["C4.1"].so_loi == 1
+
+
+def test_c41_ly_do_giu_so_luong_le(ctx):
+    """SL 0,16 từng in ra "SL 0" — đọc thành "không có số lượng", đúng ngược với
+    điều kiện đang báo ("có số lượng nhưng chưa có giá trị")."""
+    df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521",
+                  "Quantity9": 0.16, "UnitCost": 0, "Amount": 0}])
+    ly_do = _kq(df, ctx)["C4.1"].chi_tiet["ly_do"].iloc[0]
+    assert ly_do.startswith("Có SL 0,16 nhưng tiền = 0")
+
+
+def test_nghi_chua_tinh_gia_khong_bao_tren_dong_dieu_chinh_am(ctx):
+    """Quy tắc tỷ lệ hệ thống phải dùng cùng vị từ với C4.1: toàn bộ dòng xuất
+    mang số tiền âm (điều chỉnh) không được kết luận "cả kỳ chưa chạy tính giá"."""
+    df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 0.27,
+                  "UnitCost": 0, "Amount": -4638} for _ in range(200)])
+    assert g4.thong_ke_xuat_kho(df) == (0, 200)
+    assert g4.nghi_chua_tinh_gia(df) is False
+    assert _kq(df, ctx)["C4.1"].so_loi == 0 and _kq(df, ctx)["C4.1"].ghi_chu == ""
+
+
 def test_c42_lech_tien_sl_x_don_gia(ctx):
     df = tao_df([
         {"CreditAccount": "1551", "Quantity9": 10, "UnitCost": 100.4, "Amount": 1004},

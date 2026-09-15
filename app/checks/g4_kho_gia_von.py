@@ -2,7 +2,7 @@
 import pandas as pd
 
 from .base import (DO, VANG, NGUONG_CON_LAI, TK_KHO, BoiCanh, CheckResult, bat_dau, co_dong,
-                    fmt_so, phat_sinh_theo_prefix, tao_ket_qua)
+                    fmt_sl, fmt_so, phat_sinh_theo_prefix, tao_ket_qua)
 
 NHOM = "G4"
 TK_CO_HOP_LE_GIA_VON = ("152", "153", "154", "155", "156", "157", "627", "2294", "1381")
@@ -20,6 +20,11 @@ def _so(s: pd.Series) -> pd.Series:
     return s.map(fmt_so).astype("string")
 
 
+def _sl(s: pd.Series) -> pd.Series:
+    """Chuỗi số lượng đã định dạng (giữ phần thập phân) — xem fmt_sl."""
+    return s.map(fmt_sl).astype("string")
+
+
 def _bang_tong_hop(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["TK", "ps_no", "ps_co", "ly_do"])
 
@@ -34,9 +39,13 @@ def thong_ke_xuat_kho(df: pd.DataFrame) -> tuple[int, int]:
 
     Chỉ đếm dòng XUẤT (Có TK kho): dòng nhập mang giá mua nên luôn có giá trị,
     gộp chung vào mẫu số sẽ pha loãng tỷ lệ và che mất việc chưa chạy tính giá.
+
+    "Chưa có giá trị" là Amount ĐÚNG BẰNG 0, không phải Amount <= 0 — xem C4.1.
+    Tử số phải dùng cùng một vị từ với C4.1, nếu không tỷ lệ hệ thống lại đếm
+    các dòng điều chỉnh âm mà bảng chứng minh của C4.1 không còn liệt kê.
     """
     xuat = bat_dau(df["CreditAccount"], *TK_KHO) & (df["Quantity9"] > 0)
-    return int((xuat & (df["Amount"] <= 0)).sum()), int(xuat.sum())
+    return int((xuat & (df["Amount"] == 0)).sum()), int(xuat.sum())
 
 
 def nghi_chua_tinh_gia(df: pd.DataFrame) -> bool:
@@ -62,8 +71,14 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     # Bravo ghi thẳng giá vốn bình quân cuối kỳ vào Amount trên dòng xuất, không
     # restated thành đơn giá/dòng — UnitCost = 0 trên dòng xuất là bình thường và
     # không nói lên điều gì. Chỉ dòng thật sự không có Amount mới là chưa định giá.
-    gia_0 = co_sl & (df["Amount"] <= 0)
-    ly_do_c41 = ("Có SL " + _so(df["Quantity9"]) + " nhưng tiền = " + _so(df["Amount"]) +
+    #
+    # ĐÚNG BẰNG 0, không phải <= 0. Số tiền ÂM là một giá trị — bút toán đảo/điều
+    # chỉnh (trên sổ 08/2026: 10 dòng PX "TĐ từ phiếu TP số: TP…", Nợ 6214 / Có 1521,
+    # từ -41.722 đến -2.748). Gọi chúng là "chưa xác định giá trị" là sai sự thật với
+    # từng dòng một. Số tiền âm không mất khỏi báo cáo: C1.5 "Số tiền ≤ 0" đã liệt kê
+    # toàn bộ 243 dòng như vậy của file để rà soát.
+    gia_0 = co_sl & (df["Amount"] == 0)
+    ly_do_c41 = ("Có SL " + _sl(df["Quantity9"]) + " nhưng tiền = " + _so(df["Amount"]) +
                  " — có số lượng nhưng chưa xác định giá trị (chưa tính giá xuất kho)")
     kq.append(tao_ket_qua(df[gia_0], "C4.1", "Xuất/nhập kho chưa có giá trị", NHOM, DO,
                           ly_do_c41[gia_0], ghi_chu=ghi_chu_c41))
@@ -74,7 +89,7 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     co_gia = co_sl & (df["UnitCost"] > 0)
     tien_tinh = df["Quantity9"] * df["UnitCost"]
     lech = (df["Amount"] - tien_tinh).abs() > (df["Amount"].abs() * 0.001 + 1)
-    ly_do_c42 = ("SL " + _so(df["Quantity9"]) + " × đơn giá " + _so(df["UnitCost"]) +
+    ly_do_c42 = ("SL " + _sl(df["Quantity9"]) + " × đơn giá " + _so(df["UnitCost"]) +
                  " = " + _so(tien_tinh) + " nhưng Amount ghi " + _so(df["Amount"]) +
                  " — lệch vượt ngưỡng làm tròn 0,1% + 1đ")
     kq.append(tao_ket_qua(df[co_gia & lech], "C4.2",

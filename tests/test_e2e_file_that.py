@@ -27,6 +27,16 @@ def test_pipeline_file_that_chay_nhanh_va_hop_ly(tmp_path):
     tt = {b["buoc"]: b for b in kq["trang_thai"]}
     assert tt["Tập hợp CP NVL trực tiếp 621 → 154"]["trang_thai"] != "khong_ap_dung"
     assert tt["Kết chuyển giá vốn 632 → 911"]["trang_thai"] != "khong_ap_dung"
+    # C4.1: 10 dòng cuối nó còn báo trên sổ này đều mang số tiền ÂM (bút toán
+    # điều chỉnh "TĐ từ phiếu TP số: TP2608-…"), tức là ĐÃ có giá trị. Vị từ
+    # Amount == 0 phải đưa về 0 dòng và bước tính giá xuất kho về "đã làm".
+    # Các dòng âm không mất khỏi báo cáo: C1.5 "Số tiền ≤ 0" vẫn liệt kê đủ.
+    c41 = next(c for n in kq["nhom"] for c in n["checks"] if c["ma"] == "C4.1")
+    c15 = next(c for n in kq["nhom"] for c in n["checks"] if c["ma"] == "C1.5")
+    assert c41["so_loi"] == 0 and c41["ghi_chu"] == ""
+    assert c15["so_loi"] == 243
+    assert tt["Tính giá xuất kho (mọi dòng xuất có giá trị)"]["trang_thai"] == "da_lam"
+    assert kq["tomtat"]["con_viec"] == 2 and kq["tomtat"]["so_chua_lam"] == 0
     # chi tiết theo trang không đổ toàn bộ
     ct = api.lay_chi_tiet("C1.1", 1, 100)
     assert len(ct["dong"]) <= 100 and ct["tong"] > 0

@@ -30,6 +30,7 @@ const HINH = {
   "tai-ve": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
   "thu-muc": '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   "lam-lai": '<path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/>',
+  "chep": '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
 };
 const bieuTuong = (ten, lop = "icon") =>
   `<svg class="${lop}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"` +
@@ -100,6 +101,77 @@ async function taiFile(hamGoiApi, nhanBatDau) {
     anTienTrinh();
     nutKiemTra.disabled = dangDisable;   // hienFile() sẽ mở lại nếu nạp thành công
   }
+}
+
+/* ---------- sao chép ----------
+   Công việc thật của công cụ này kết thúc ở chỗ kế toán cầm được số chứng từ
+   (PX2608-000366) mang sang Bravo tra. Nguyên nhân gốc khiến trước đây không
+   chép được nằm ở app/main.py (pywebview tiêm user-select: none); phần dưới là
+   những lối chép NGẮN hơn cả bôi đen: bấm một ô, chép một dòng, chép cả trang.
+
+   navigator.clipboard trước, document.execCommand('copy') dự phòng: đây là
+   webview nhúng, không bảo đảm Async Clipboard API luôn có (ngữ cảnh không an
+   toàn, chính sách quyền của WebView2…). Cả hai hỏng thì PHẢI nói ra — im lặng
+   là kiểu hỏng tệ nhất cho thao tác chép. */
+function chepDuPhong(s) {
+  const o = document.createElement("textarea");
+  o.value = s;
+  o.setAttribute("readonly", "");
+  // Không dùng display:none / hidden: phần tử phải thật sự được vẽ thì select() mới chạy.
+  o.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0";
+  document.body.append(o);
+  const boiDen = document.getSelection();
+  const truoc = boiDen && boiDen.rangeCount ? boiDen.getRangeAt(0) : null;
+  o.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  o.remove();
+  if (truoc && boiDen) { boiDen.removeAllRanges(); boiDen.addRange(truoc); }
+  return ok;
+}
+
+async function chep(s) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(s);
+      return true;
+    }
+  } catch (e) { /* hết quyền hoặc không có ngữ cảnh an toàn -> thử execCommand */ }
+  return chepDuPhong(s);
+}
+
+/* Chép + báo thành lời. Phản hồi đi qua toast (role="status", aria-live) nên
+   trình đọc màn hình cũng nghe được, không chỉ thấy màu. */
+async function chepVaBao(s, moTa, nhayVao) {
+  if (!s) { toast("Ô này không có dữ liệu để chép"); return false; }
+  const ok = await chep(s);
+  if (ok) {
+    toast("Đã chép " + moTa);
+    if (nhayVao) {
+      nhayVao.classList.add("da-chep");
+      clearTimeout(nhayVao._tChep);
+      nhayVao._tChep = setTimeout(() => nhayVao.classList.remove("da-chep"), 800);
+    }
+  } else {
+    toast("Không chép được vào bộ nhớ tạm — hãy bôi đen bằng chuột rồi nhấn Ctrl+C");
+  }
+  return ok;
+}
+
+/* TAB phân tách + có dòng tiêu đề = dán thẳng vào Excel thành đúng cột.
+   Đọc ngược từ DOM chứ không từ dữ liệu thô: cái người dùng nhìn thấy (số đã
+   định dạng kiểu Việt Nam, ngày dd/mm/yyyy, "Có"/"Không") đúng là cái được chép.
+   Tab/xuống dòng lọt vào ô sẽ phá cấu trúc TSV nên bị gộp thành dấu cách. */
+const _sach = (v) => String(v).replace(/\s+/g, " ").trim();
+const _oCuaDong = (tr) =>
+  [...tr.children].filter((o) => !o.classList.contains("o-chep")).map((o) => _sach(o.textContent));
+function _tieuDeBang() {
+  const h = $("bang-chi-tiet").querySelector("thead tr");
+  return h ? _oCuaDong(h) : [];
+}
+function tsv(dsDong) {
+  const tieu = _tieuDeBang();
+  return [tieu, ...dsDong].filter((h) => h.length).map((h) => h.join("\t")).join("\n");
 }
 
 /* ---------- toast ---------- */
@@ -259,6 +331,7 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
   $("chi-tiet-tieu-de").textContent = tieuDe;
   $("chi-tiet-dem").textContent = `${fmt(kq.tong)} dòng${chiTiet.timKiem ? " khớp từ khóa" : ""}`;
   const tb = $("bang-chi-tiet");
+  $("btn-chep-trang").disabled = !kq.tong;
   if (!kq.tong) {
     tb.innerHTML = `<tbody><tr><td class="bang-trong">${bieuTuong("tim-kiem", "icon icon-to")}` +
       `<span>${chiTiet.timKiem ? "Không có dòng nào khớp từ khóa." : "Không có dòng nào."}</span></td></tr></tbody>`;
@@ -269,23 +342,63 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
     const soCot = new Set(kq.cot_so || []);
     // Diễn giải chứng từ có thể dài vài trăm ký tự: kẹp còn 3 dòng để nhịp hàng
     // không vỡ trên bảng 30.000 dòng, chuỗi đầy đủ đưa vào title để rê chuột đọc.
+    // Giá trị ngắn (số CT, ngày, số hiệu TK) không bao giờ được xuống dòng:
+    // "PX2608-000366" bị bẻ làm đôi vừa khó đọc vừa khó bôi đen trúng một mã —
+    // mà đây đúng là chuỗi kế toán cần mang sang Bravo.
     const oChu = (v) => {
       const s = String(v ?? "");
       const tip = s.length > 60 ? ` title="${esc(s)}"` : "";
-      return `<td><span class="o-chu"${tip}>${esc(v)}</span></td>`;
+      const lop = s.length <= 30 ? "o-chu o-ngan" : "o-chu";
+      return `<td><span class="${lop}"${tip}>${esc(v)}</span></td>`;
     };
     const oDuLieu = (r, c) => typeof r[c] === "boolean" ? `<td>${r[c] ? "Có" : "Không"}</td>`
       : soCot.has(c) && typeof r[c] === "number" ? `<td class="so">${fmt(r[c])}</td>`
       : oChu(r[c]);
-    tb.innerHTML = `<thead><tr>${cot.map((c, i) =>
+    // Cột đầu là nút chép cả dòng — <button> thật nên vào được bằng bàn phím và có
+    // focus ring; luôn hiện (không chỉ khi rê chuột) để người dùng còn biết là có.
+    // aria-label mang số thứ tự dòng do JS sinh, không phải chuỗi từ backend.
+    const nutChep = (i) =>
+      `<td class="o-chep"><button class="nut-chep" type="button" data-dong="${i}"` +
+      ` aria-label="Chép cả dòng ${i + 1}" title="Chép cả dòng này (kèm tiêu đề cột)">` +
+      `${bieuTuong("chep", "icon icon-nho")}</button></td>`;
+    tb.innerHTML = `<thead><tr><th scope="col" class="o-chep"><span class="an-chu">Chép dòng</span></th>${
+      cot.map((c, i) =>
         `<th scope="col" class="${soCot.has(c) ? "so" : ""}">${esc(nhan[i] ?? c)}</th>`).join("")}</tr></thead><tbody>${
-      kq.dong.map((r) => `<tr>${cot.map((c) => oDuLieu(r, c)).join("")}</tr>`).join("")}</tbody>`;
+      kq.dong.map((r, i) => `<tr>${nutChep(i)}${cot.map((c) => oDuLieu(r, c)).join("")}</tr>`).join("")}</tbody>`;
   }
   vePhanTrang(kq.tong, trang);
   $("khung-chi-tiet").classList.remove("an");
-  $("khung-chi-tiet").scrollIntoView({ behavior: "smooth", block: "start" });
+  // Bảng chiếm trọn vùng kết quả -> danh sách lui đi (xem style.css .co-chi-tiet).
+  $("vung-cuon").classList.add("co-chi-tiet");
 }
-function anChiTiet() { $("khung-chi-tiet").classList.add("an"); }
+function anChiTiet() {
+  $("khung-chi-tiet").classList.add("an");
+  $("vung-cuon").classList.remove("co-chi-tiet");
+}
+
+/* Bấm một ô = chép ô đó. Uỷ quyền trên <table> nên vẫn sống sau mỗi lần dựng lại
+   innerHTML, và chỉ gắn MỘT lần khi nạp trang.
+   Không được tranh chỗ với bôi đen: nếu con trỏ có di chuyển giữa mousedown và
+   click (kéo để chọn), hoặc đang có sẵn một vùng bôi đen, thì đây là thao tác
+   chọn chữ của người dùng — im lặng, không chép. */
+let _diemNhan = null;
+const _bang = $("bang-chi-tiet");
+_bang.addEventListener("mousedown", (ev) => { _diemNhan = [ev.clientX, ev.clientY]; });
+_bang.addEventListener("click", (ev) => {
+  const nut = ev.target.closest(".nut-chep");
+  if (nut) {
+    const tr = nut.closest("tr");
+    chepVaBao(tsv([_oCuaDong(tr)]), "cả dòng (kèm tiêu đề cột)", tr);
+    return;
+  }
+  const o = ev.target.closest("td");
+  if (!o || o.classList.contains("bang-trong")) return;
+  const keo = _diemNhan && (Math.abs(ev.clientX - _diemNhan[0]) > 4 || Math.abs(ev.clientY - _diemNhan[1]) > 4);
+  const dangBoiDen = !(document.getSelection()?.isCollapsed ?? true);
+  if (keo || dangBoiDen) return;
+  const gt = o.textContent.trim();
+  chepVaBao(gt, gt.length > 40 ? "ô này" : `“${gt}”`, o);
+});
 
 function vePhanTrang(tong, trang) {
   const soTrang = Math.max(1, Math.ceil(tong / KICH_THUOC));
@@ -314,6 +427,14 @@ $("o-tim-kiem").addEventListener("input", (ev) => {
   $("o-tim-kiem")._t = setTimeout(() => { chiTiet.timKiem = ev.target.value.trim();
     moChiTiet(chiTiet.ma, chiTiet.tieuDe, 1); }, 300);
 });
+
+$("btn-chep-trang").onclick = () => {
+  const ds = [...$("bang-chi-tiet").querySelectorAll("tbody tr")]
+    .filter((tr) => !tr.querySelector(".bang-trong")).map(_oCuaDong);
+  if (!ds.length) { toast("Trang này không có dòng nào để chép"); return; }
+  chepVaBao(tsv(ds), `${fmt(ds.length)} dòng của trang này (kèm tiêu đề cột)`);
+};
+$("btn-dong-chi-tiet").onclick = anChiTiet;
 
 /* ---------- tabs & footer ---------- */
 $("tab-a").onclick = () => chuyenTab("a"); $("tab-b").onclick = () => chuyenTab("b");

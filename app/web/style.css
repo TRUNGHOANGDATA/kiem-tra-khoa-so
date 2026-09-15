@@ -48,7 +48,26 @@ html, body {
   font-size: 14px; line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
+/* Vỏ ứng dụng: cột flex cao trọn cửa sổ. Không bao giờ có thanh cuộn cấp trang —
+   mọi vùng cuộn nằm bên trong khung của chính nó. */
 body { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ============================ Chọn & sao chép =============================
+   pywebview mặc định tiêm "body {user-select: none; cursor: default}" vào cuối
+   <head> (webview/js/customize.js, khi text_select=False) — nguyên nhân gốc của
+   việc khách không bôi đen / Ctrl+C được số chứng từ. app/main.py đã bật
+   text_select=True; hai dòng dưới là lớp phòng thủ thứ hai: "html body" có độ
+   đặc trưng (0,0,2) nên thắng "body" (0,0,1) dù thẻ <style> kia nằm sau.
+   Mặc định là CHỌN ĐƯỢC; chỉ phần vỏ điều khiển mới tắt đi để kéo chuột lên nút
+   không bôi đen nhãn nút. */
+html body { -webkit-user-select: text; user-select: text; cursor: auto; }
+.header, .footer, .tab-bar, .btn, .tab, .buoc, .the-nhom-dau, .check-nut,
+.phan-trang, .chi-tiet-goi-y, .logo, .chip-tt, .o-nhan {
+  -webkit-user-select: none; user-select: none;
+}
+.bang, .bang th, .bang td, .bang td .o-chu {
+  -webkit-user-select: text; user-select: text;
+}
 
 .an { display: none !important; }
 /* Nhãn chỉ dành cho trình đọc màn hình */
@@ -223,9 +242,19 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .tab:hover { color: var(--chu); }
 .tab.dang-chon { color: var(--chinh); border-bottom-color: var(--chinh); font-weight: 600; }
 
-/* Vùng cuộn: banner, tabs và footer đứng yên, chỉ phần này trôi. */
-.vung-cuon { flex: 1 1 auto; min-height: 0; overflow: auto; padding-right: 2px; display: flex; flex-direction: column; gap: 14px; }
-.noi-dung { flex: 0 0 auto; }
+/* ============================ Vùng kết quả ================================
+   Chiếm trọn chiều cao còn lại giữa tab bar và footer. Vùng này KHÔNG tự cuộn:
+   trước đây nó là một khung cuộn dài 1.094px trong cửa sổ cao 700px, nên bấm vào
+   một bước xong thì bảng chứng minh nằm hẳn dưới mép cửa sổ, phải cuộn tay mới
+   thấy. Nay mỗi khối con cuộn trong khung của chính nó và bảng luôn trong tầm mắt. */
+.vung-cuon { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px; }
+.noi-dung { flex: 1 1 auto; min-height: 0; overflow: auto; padding-right: 2px; }
+/* Khi bảng chi tiết mở, nó nhận TRỌN vùng kết quả và danh sách bước/thẻ nhóm lui
+   đi. Ở cỡ cửa sổ tối thiểu 1000x700 vùng này chỉ cao ~385px: chia đôi thì cả
+   danh sách lẫn bảng đều thành khe hẹp 2 dòng — đúng cái khách đang than. Ngữ
+   cảnh không mất: tiêu đề bảng ghi rõ đang xem bước/check nào, tab bar vẫn đó,
+   và nút "Danh sách" đưa về ngay. */
+.vung-cuon.co-chi-tiet .noi-dung { display: none; }
 
 /* ============================ Khối chung ================================== */
 .khoi { background: var(--be-mat); border: 1px solid var(--vien); border-radius: var(--r); box-shadow: var(--bong-the); }
@@ -314,16 +343,20 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .cham-do { background: var(--do); } .cham-vang { background: var(--vang); } .cham-xanh { background: var(--xanh); }
 
 /* ============================ Bảng chi tiết ==============================
-   Bảng cuộn trong khung của chính nó (cả dọc lẫn ngang) — banner, tabs và
-   footer không bao giờ bị đẩy ra ngoài cửa sổ 1000x700. */
+   Panel là cột flex: đầu bảng và phân trang cố định, khung bảng nở ra ăn hết
+   phần còn lại (không còn max-height cố định) và cuộn cả dọc lẫn ngang trong
+   chính nó — banner, tabs và footer không bao giờ bị đẩy ra ngoài cửa sổ. */
 .khung-chi-tiet {
-  flex: 0 0 auto;
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
   background: var(--be-mat); border: 1px solid var(--vien);
   border-radius: var(--r); box-shadow: var(--bong-the); padding: 12px 14px 10px;
 }
-.chi-tiet-dau { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.chi-tiet-dau { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .chi-tiet-tieu { min-width: 0; }
+.chi-tiet-cong-cu { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .chi-tiet-dau h3 { margin: 0; font-size: 14px; font-weight: 600; word-break: break-word; }
+.chi-tiet-chan { flex: 0 0 auto; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.chi-tiet-goi-y { flex: 0 1 auto; margin: 10px 0 0; font-size: 11.5px; color: var(--chu-phu); }
 .o-tim { position: relative; display: flex; align-items: center; flex: 0 0 auto; }
 .o-tim .icon { position: absolute; left: 9px; color: var(--chu-mo); pointer-events: none; }
 #o-tim-kiem {
@@ -336,7 +369,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 #o-tim-kiem::placeholder { color: var(--chu-phu); }
 
 .bang-cuon {
-  max-height: clamp(180px, 36vh, 420px); overflow: auto;
+  flex: 1 1 auto; min-height: 120px; overflow: auto;
   border: 1px solid var(--vien); border-radius: var(--r-nho);
 }
 .bang { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
@@ -346,20 +379,45 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   text-align: left; padding: 8px 10px; white-space: nowrap; font-weight: 600;
   border-bottom: 1px solid var(--chinh);
 }
-.bang td { padding: 6px 10px; border-bottom: 1px solid var(--vien); vertical-align: top; }
+/* cursor: copy nói ra cái mới — bấm một ô là chép ô đó. Bôi đen bằng chuột vẫn
+   chạy bình thường (user-select: text ở trên), và app.js không chép khi con trỏ
+   có di chuyển hoặc đang có vùng bôi đen. */
+.bang td { padding: 6px 10px; border-bottom: 1px solid var(--vien); vertical-align: top; cursor: copy; }
 /* Mô tả tiếng Việt dài (diễn giải chứng từ) bị chặn bề rộng bằng inline-block —
-   max-width đặt thẳng lên <td> không được trình duyệt tôn trọng ở table-layout: auto. */
+   max-width đặt thẳng lên <td> không được trình duyệt tôn trọng ở table-layout: auto.
+   Kẹp 2 dòng (trước là 3): ở cửa sổ 1000x700 mỗi dòng cao 67px chỉ hiện được 3
+   dòng dữ liệu; kẹp 2 đưa về ~48px. Chuỗi đầy đủ vẫn nằm trong title và vẫn được
+   chép nguyên văn khi bấm vào ô. */
 .bang td .o-chu {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   overflow: hidden; max-width: 340px; word-break: break-word;
 }
+.bang td .o-chu.o-ngan { white-space: nowrap; max-width: none; word-break: normal; }
 .bang tbody tr:nth-child(even) td { background: var(--be-mat-chim); }
 .bang tbody tr:hover td { background: var(--nen); }
 .bang td.so { white-space: nowrap; }
-.bang-trong { padding: 28px 16px; color: var(--chu-phu); text-align: center; max-width: none; }
+.bang-trong { padding: 28px 16px; color: var(--chu-phu); text-align: center; max-width: none; cursor: default; }
 .bang-trong .icon-to { margin: 0 auto 8px; }
 
+/* --- cột nút chép cả dòng --- */
+.bang th.o-chep, .bang td.o-chep { width: 30px; padding: 2px 4px; cursor: default; }
+.nut-chep {
+  font: inherit; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; margin: 2px auto; padding: 0;
+  background: none; border: 1px solid transparent; border-radius: var(--r-nho);
+  color: var(--chu-mo); cursor: pointer;
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.nut-chep:hover { color: var(--chinh); border-color: var(--vien-dam); background: var(--be-mat); }
+
+/* Báo đã chép: nền + viền đổi trong ~0,8s. Không bao giờ là tín hiệu duy nhất —
+   toast ở role="status" luôn đọc ra thành lời "Đã chép …". */
+.bang tbody tr td.da-chep, .bang tbody tr.da-chep td {
+  background: var(--xanh-nen); box-shadow: inset 0 0 0 1px var(--xanh-vien);
+}
+
 .phan-trang {
+  flex: 1 1 auto;
   display: flex; align-items: center; gap: 10px; margin-top: 10px;
   color: var(--chu-phu); font-size: 12.5px; flex-wrap: wrap;
 }

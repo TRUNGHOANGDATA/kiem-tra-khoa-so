@@ -104,3 +104,20 @@ def tao_ket_qua(df_vi_pham: pd.DataFrame, ma: str, ten: str, nhom: str, muc_do: 
 
 def fmt_so(x: float) -> str:
     return f"{x:,.0f}".replace(",", ".")
+
+
+def fmt_sl(x: float) -> str:
+    """Số lượng — giữ phần thập phân, ngăn cách kiểu Việt Nam (1.234,567).
+
+    fmt_so làm tròn 0 chữ số thập phân, nên số lượng 0,16 in ra thành "SL 0" —
+    đọc đúng thành "không có số lượng", tức là ngược hẳn với điều kiện đang được
+    báo ("có số lượng nhưng chưa có giá trị"). Cột Quantity9 của Bravo mang tới
+    9 chữ số thập phân; ở đây in đủ 9 rồi cắt các số 0 thừa, nên số nguyên vẫn
+    hiện gọn ("10") còn số lẻ hiện đúng ("0,16" / "2,429").
+    """
+    if pd.isna(x):
+        return ""
+    s = f"{x:,.9f}".rstrip("0").rstrip(".")
+    nguyen, _, le = s.partition(".")
+    nguyen = nguyen.replace(",", ".")
+    return f"{nguyen},{le}" if le else nguyen

@@ -55,3 +55,16 @@ def test_muc_do_thuc_xanh_khi_khong_loi():
 
 def test_fmt_so():
     assert base.fmt_so(1234567.4) == "1.234.567"
+
+
+def test_fmt_sl_giu_phan_thap_phan():
+    """Số lượng lẻ phải in ra đúng: fmt_so(0.16) = "0" đọc thành "không có số lượng"."""
+    assert base.fmt_sl(0.16) == "0,16"
+    assert base.fmt_sl(2.429) == "2,429"
+    assert base.fmt_sl(0.334) == "0,334"
+    # số nguyên vẫn gọn, không đuôi 0 thừa; ngăn cách nghìn kiểu Việt Nam
+    assert base.fmt_sl(10) == "10"
+    assert base.fmt_sl(0) == "0"
+    assert base.fmt_sl(1234.5) == "1.234,5"
+    assert base.fmt_sl(-0.27) == "-0,27"
+    assert base.fmt_sl(float("nan")) == ""
