@@ -9,8 +9,8 @@ TK_CO_HOP_LE_GIA_VON = ("152", "153", "154", "155", "156", "157", "627", "2294",
 TK_CHI_PHI_SX = ("621", "622", "627")
 GHI_CHU_THIEU_SL = "File không có dữ liệu số lượng/đơn giá — không kiểm tra được giá xuất kho"
 GHI_CHU_CHUA_TINH_GIA = ("Nghi chưa chạy tính giá xuất kho bình quân cuối kỳ "
-                         "— phần lớn dòng xuất kho chưa có đơn giá")
-TY_LE_NGHI_CHUA_TINH_GIA = 0.8   # tỷ lệ dòng xuất kho không có đơn giá đủ để nghi chưa chạy tính giá
+                         "— phần lớn dòng xuất kho chưa có giá trị")
+TY_LE_NGHI_CHUA_TINH_GIA = 0.8   # tỷ lệ dòng xuất kho không có giá trị đủ để nghi chưa chạy tính giá
 SO_DONG_XUAT_TOI_THIEU = 100     # dưới mức này tỷ lệ không nói lên điều gì
 
 
@@ -25,20 +25,25 @@ def _bang_tong_hop(rows: list[dict]) -> pd.DataFrame:
 
 
 def thong_ke_xuat_kho(df: pd.DataFrame) -> tuple[int, int]:
-    """(số dòng xuất kho có SL mà chưa có đơn giá, tổng số dòng xuất kho có SL).
+    """(số dòng xuất kho có SL mà chưa có giá trị, tổng số dòng xuất kho có SL).
 
-    Chỉ đếm dòng XUẤT (Có TK kho): dòng nhập mang giá mua nên luôn có đơn giá,
+    Dùng Amount, không dùng UnitCost: Bravo không ghi đơn giá trên dòng xuất kho —
+    giá vốn bình quân cuối kỳ được ghi thẳng vào Amount, không restated thành đơn
+    giá/dòng. UnitCost = 0 trên dòng xuất không có nghĩa gì; Amount mới là cột
+    mang câu trả lời "giá xuất kho đã được xác định hay chưa".
+
+    Chỉ đếm dòng XUẤT (Có TK kho): dòng nhập mang giá mua nên luôn có giá trị,
     gộp chung vào mẫu số sẽ pha loãng tỷ lệ và che mất việc chưa chạy tính giá.
     """
     xuat = bat_dau(df["CreditAccount"], *TK_KHO) & (df["Quantity9"] > 0)
-    return int((xuat & (df["UnitCost"] <= 0)).sum()), int(xuat.sum())
+    return int((xuat & (df["Amount"] <= 0)).sum()), int(xuat.sum())
 
 
 def nghi_chua_tinh_gia(df: pd.DataFrame) -> bool:
-    """Phần lớn dòng xuất kho không có đơn giá -> nghi chưa chạy tính giá bình quân cuối kỳ.
+    """Phần lớn dòng xuất kho không có giá trị -> nghi chưa chạy tính giá bình quân cuối kỳ.
 
     Là MỘT việc phải làm, không phải hàng chục nghìn lỗi rời rạc. Dùng tỷ lệ chứ không
-    đòi tuyệt đối: trên sổ thật vẫn có một thiểu số dòng xuất mang đơn giá đích danh.
+    đòi tuyệt đối: trên sổ thật vẫn có một thiểu số dòng xuất mang giá trị đích danh.
     """
     chua_gia, tong = thong_ke_xuat_kho(df)
     return tong >= SO_DONG_XUAT_TOI_THIEU and chua_gia / tong >= TY_LE_NGHI_CHUA_TINH_GIA
@@ -53,20 +58,27 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
 
     ghi_chu_c41 = GHI_CHU_CHUA_TINH_GIA if nghi_chua_tinh_gia(df) else ghi_chu_sl
 
-    gia_0 = co_sl & ((df["UnitCost"] <= 0) | (df["Amount"] <= 0))
-    ly_do_c41 = ("Có SL " + _so(df["Quantity9"]) + ", đơn giá " + _so(df["UnitCost"]) +
-                 ", tiền " + _so(df["Amount"]) +
-                 " — có số lượng nhưng đơn giá hoặc tiền = 0 (chưa tính giá xuất kho)")
-    kq.append(tao_ket_qua(df[gia_0], "C4.1", "Xuất/nhập kho giá = 0", NHOM, DO, ly_do_c41[gia_0],
-                          ghi_chu=ghi_chu_c41))
+    # Amount, không phải UnitCost, là cột quyết định "đã xác định giá trị hay chưa":
+    # Bravo ghi thẳng giá vốn bình quân cuối kỳ vào Amount trên dòng xuất, không
+    # restated thành đơn giá/dòng — UnitCost = 0 trên dòng xuất là bình thường và
+    # không nói lên điều gì. Chỉ dòng thật sự không có Amount mới là chưa định giá.
+    gia_0 = co_sl & (df["Amount"] <= 0)
+    ly_do_c41 = ("Có SL " + _so(df["Quantity9"]) + " nhưng tiền = " + _so(df["Amount"]) +
+                 " — có số lượng nhưng chưa xác định giá trị (chưa tính giá xuất kho)")
+    kq.append(tao_ket_qua(df[gia_0], "C4.1", "Xuất/nhập kho chưa có giá trị", NHOM, DO,
+                          ly_do_c41[gia_0], ghi_chu=ghi_chu_c41))
 
+    # Chỉ xét được dòng có đơn giá (UnitCost > 0) — thiểu số trong dữ liệu thật, vì
+    # Bravo không ghi đơn giá trên phần lớn dòng xuất kho (xem C4.1). Tên check nêu
+    # rõ phạm vi này để không bị hiểu nhầm là đã đối chiếu toàn bộ dòng kho.
     co_gia = co_sl & (df["UnitCost"] > 0)
     tien_tinh = df["Quantity9"] * df["UnitCost"]
     lech = (df["Amount"] - tien_tinh).abs() > (df["Amount"].abs() * 0.001 + 1)
     ly_do_c42 = ("SL " + _so(df["Quantity9"]) + " × đơn giá " + _so(df["UnitCost"]) +
                  " = " + _so(tien_tinh) + " nhưng Amount ghi " + _so(df["Amount"]) +
                  " — lệch vượt ngưỡng làm tròn 0,1% + 1đ")
-    kq.append(tao_ket_qua(df[co_gia & lech], "C4.2", "Tiền ≠ Số lượng × Đơn giá", NHOM, VANG,
+    kq.append(tao_ket_qua(df[co_gia & lech], "C4.2",
+                          "Tiền ≠ Số lượng × Đơn giá (chỉ dòng có đơn giá > 0)", NHOM, VANG,
                           ly_do_c42[co_gia & lech], ghi_chu=ghi_chu_sl))
 
     gv_sai = bat_dau(df["DebitAccount"], "632") & ~bat_dau(df["CreditAccount"], *TK_CO_HOP_LE_GIA_VON)

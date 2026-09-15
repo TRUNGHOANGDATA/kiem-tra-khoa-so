@@ -32,6 +32,10 @@ KICH_BAN = {
     "sot_dong_xuat_chua_co_gia": (
         [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0}] * 70
         + [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 7, "Amount": 70}] * 30),
+    # Hồi quy gốc: Bravo không ghi đơn giá trên dòng xuất (UnitCost=0) nhưng Amount
+    # đã mang giá trị thật -> KHÔNG được coi là "chưa tính giá xuất kho".
+    "xuat_kho_amount_du_khong_don_gia": (
+        [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 264_000}] * 100),
     # chỉ có phát sinh Có 621, không có Nợ 621 -> C4.4 không lập dòng nào
     "621_chi_co_ben_co": [{"DebitAccount": "1111", "CreditAccount": "6211", "Amount": 100}],
     # không có TK đầu 5/6/7/8 nào -> bước 11 không thể nói "đã về 0"
@@ -226,8 +230,15 @@ def test_chua_tinh_gia_xuat_kho_thi_chua_lam(ctx):
     buoc = _suy(kb("chua_tinh_gia_xuat_kho"), ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]
     assert buoc.trang_thai == tt.CHUA_LAM
     assert buoc.tom_tat == ("Chưa tính giá xuất kho bình quân cuối kỳ"
-                            " — 90/100 dòng xuất kho chưa có đơn giá")
+                            " — 90/100 dòng xuất kho chưa có giá trị")
     assert buoc.ma_check == "C4.1" and buoc.co_chung_cu is True
+
+
+def test_amount_du_khong_don_gia_thi_da_lam(ctx):
+    """Hồi quy: UnitCost=0 trên toàn bộ dòng xuất không còn khiến bước 5 báo
+    chưa_lam nếu Amount đã mang giá trị thật — đúng hình dạng dữ liệu Bravo thật."""
+    buoc = _suy(kb("xuat_kho_amount_du_khong_don_gia"), ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]
+    assert buoc.trang_thai == tt.DA_LAM
 
 
 def test_duoi_nguong_ty_le_thi_van_la_can_ra(ctx):

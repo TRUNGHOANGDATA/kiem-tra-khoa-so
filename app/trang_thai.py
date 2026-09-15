@@ -7,7 +7,7 @@ from .checks.base import (DO, NGUONG_CON_LAI, TK_KHO, VANG, CheckResult, bat_dau
                           phat_sinh_theo_prefix)
 from .checks.g4_kho_gia_von import GHI_CHU_CHUA_TINH_GIA, GHI_CHU_THIEU_SL, thong_ke_xuat_kho
 
-BUOC_TINH_GIA_XUAT_KHO = "Tính giá xuất kho (mọi dòng xuất có đơn giá)"
+BUOC_TINH_GIA_XUAT_KHO = "Tính giá xuất kho (mọi dòng xuất có giá trị)"
 
 DA_LAM, CHUA_LAM, CAN_RA, KHONG_AP_DUNG = "da_lam", "chua_lam", "can_ra", "khong_ap_dung"
 CHUA_SAN_SANG, CAN_RA_SOAT, SAN_SANG = "chua_san_sang", "can_ra_soat", "san_sang"
@@ -108,12 +108,14 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
             so_chua_gia, tong_dong_kho = thong_ke_xuat_kho(df)
             ds.append(BuocKhoaSo(ten_gia, CHUA_LAM,
                                  f"Chưa tính giá xuất kho bình quân cuối kỳ —"
-                                 f" {so_chua_gia}/{tong_dong_kho} dòng xuất kho chưa có đơn giá",
+                                 f" {so_chua_gia}/{tong_dong_kho} dòng xuất kho chưa có giá trị",
                                  "C4.1"))
         elif c41.so_loi == 0:
-            ds.append(BuocKhoaSo(ten_gia, DA_LAM, f"{int(dong_kho.sum())} dòng kho, không dòng giá = 0", "C4.1"))
+            ds.append(BuocKhoaSo(ten_gia, DA_LAM, f"{int(dong_kho.sum())} dòng kho, không dòng nào chưa có giá trị", "C4.1"))
         else:
-            ds.append(BuocKhoaSo(ten_gia, CAN_RA, f"Còn {c41.so_loi} dòng kho có số lượng nhưng giá = 0", "C4.1"))
+            ds.append(BuocKhoaSo(ten_gia, CAN_RA,
+                                 f"Còn {c41.so_loi} dòng kho có số lượng nhưng chưa có giá trị (Amount = 0)",
+                                 "C4.1"))
 
     ds.append(_ket_chuyen(df, "Kết chuyển giá vốn 632 → 911", "632", ("911",), ("632",), "C5.2"))
     ds.append(_nhom_ve_911(df, "Kết chuyển doanh thu 511/515/711 → 911", ("511", "515", "711"), "nguon->911", "C5.3"))

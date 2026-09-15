@@ -21,6 +21,24 @@ def test_c41_xuat_kho_gia_0(ctx):
     assert kq.chi_tiet["Amount"].tolist() == [0]  # đúng dòng đầu tiên (giá 0) bị gắn cờ, không phải dòng thứ 2
 
 
+def test_c41_khong_bao_khi_unitcost_0_nhung_amount_duong(ctx):
+    """Hồi quy đúng nguyên nhân gốc: Bravo không ghi đơn giá trên dòng xuất kho
+    (UnitCost=0) nhưng giá vốn bình quân cuối kỳ đã được ghi thẳng vào Amount —
+    dòng này đã có giá trị, không được coi là "chưa tính giá xuất kho"."""
+    df = tao_df([
+        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 60, "UnitCost": 0, "Amount": 1_466_848},
+    ])
+    assert _kq(df, ctx)["C4.1"].so_loi == 0
+
+
+def test_c41_bao_khi_amount_0_du_unitcost_0(ctx):
+    """Cùng hình dạng dòng trên nhưng Amount = 0 — thật sự chưa có giá trị -> phải bắt."""
+    df = tao_df([
+        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 60, "UnitCost": 0, "Amount": 0},
+    ])
+    assert _kq(df, ctx)["C4.1"].so_loi == 1
+
+
 def test_c42_lech_tien_sl_x_don_gia(ctx):
     df = tao_df([
         {"CreditAccount": "1551", "Quantity9": 10, "UnitCost": 100.4, "Amount": 1004},
@@ -64,6 +82,18 @@ def test_c41_it_dong_thi_khong_ket_luan_theo_ty_le(ctx):
     df = tao_df(dong_xuat(g4.SO_DONG_XUAT_TOI_THIEU - 1, False))
     kq = _kq(df, ctx)["C4.1"]
     assert kq.so_loi == g4.SO_DONG_XUAT_TOI_THIEU - 1 and kq.ghi_chu == ""
+
+
+def test_nghi_chua_tinh_gia_khong_bao_khi_co_gia_tri_du_khong_co_don_gia(ctx):
+    """Rebase trên Amount: toàn bộ dòng xuất không có UnitCost nhưng đều có Amount
+    dương (đúng hình dạng dữ liệu thật của Bravo) không được kết luận "nghi chưa
+    chạy tính giá" — vì giá trị đã được xác định, chỉ là không restated đơn giá."""
+    df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10,
+                  "UnitCost": 0, "Amount": 264_000} for _ in range(200)])
+    assert g4.thong_ke_xuat_kho(df) == (0, 200)
+    assert g4.nghi_chua_tinh_gia(df) is False
+    kq = _kq(df, ctx)["C4.1"]
+    assert kq.so_loi == 0 and kq.ghi_chu == ""
 
 
 def test_thong_ke_xuat_kho_chi_dem_dong_xuat(ctx):
