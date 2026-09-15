@@ -8,6 +8,8 @@ import pandas as pd
 DO, VANG, XANH = "do", "vang", "xanh"
 THU_TU_MUC_DO = {DO: 0, VANG: 1, XANH: 2}
 COT_CHUAN = ["DocNo", "DocDate", "DebitAccount", "CreditAccount", "Amount", "Description", "ly_do"]
+NGUONG_CON_LAI = 0.5
+TK_KHO = ("152", "153", "155", "156")
 
 
 @dataclass

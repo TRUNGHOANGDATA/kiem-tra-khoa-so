@@ -1,7 +1,7 @@
 """Nhóm 5 — Kết chuyển cuối kỳ: phát hiện thiếu bút toán kết chuyển và TK 5/6/7/8 chưa về 0."""
 import pandas as pd
 
-from .base import (DO, VANG, BoiCanh, CheckResult, bat_dau, co_dong, fmt_so,
+from .base import (DO, VANG, NGUONG_CON_LAI, BoiCanh, CheckResult, bat_dau, co_dong, fmt_so,
                    phat_sinh_theo_prefix, so_phat_sinh_tai_khoan)
 
 NHOM = "G5"
@@ -9,7 +9,6 @@ TK_DOANH_THU = ("511", "515", "711")
 TK_CHI_PHI_911 = ("635", "641", "642", "811")
 TK_TU_KET_CHUYEN_CUOI_KY = ("621", "622", "627")
 COT_TH = ["TK", "ps_no", "ps_co", "ly_do"]
-NGUONG_CON_LAI = 0.5
 
 
 def _bang(rows: list[dict]) -> pd.DataFrame:

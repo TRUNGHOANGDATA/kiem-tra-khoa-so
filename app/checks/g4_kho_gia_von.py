@@ -1,13 +1,12 @@
 """Nhóm 4 — Kho & giá vốn (đặc thù sản xuất)."""
 import pandas as pd
 
-from .base import DO, VANG, BoiCanh, CheckResult, bat_dau, co_dong, fmt_so, phat_sinh_theo_prefix, tao_ket_qua
+from .base import (DO, VANG, NGUONG_CON_LAI, TK_KHO, BoiCanh, CheckResult, bat_dau, co_dong,
+                    fmt_so, phat_sinh_theo_prefix, tao_ket_qua)
 
 NHOM = "G4"
-TK_KHO = ("152", "153", "155", "156")
 TK_CO_HOP_LE_GIA_VON = ("152", "153", "154", "155", "156", "157", "627", "2294", "1381")
 TK_CHI_PHI_SX = ("621", "622", "627")
-NGUONG_CON_LAI = 0.5
 GHI_CHU_THIEU_SL = "File không có dữ liệu số lượng/đơn giá — không kiểm tra được giá xuất kho"
 
 
