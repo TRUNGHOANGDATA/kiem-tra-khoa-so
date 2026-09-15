@@ -6,8 +6,12 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- Mọi <svg> trong file này là biểu tượng nội tuyến (không xmlns, không CDN):
+     24x24 viewBox, stroke="currentColor", stroke-width 1.75, fill="none" — để
+     biểu tượng thừa hưởng đúng màu của trạng thái bao quanh nó. Biểu tượng chỉ
+     đi kèm chữ đã hiện -> aria-hidden="true". -->
 <header class="header">
-  <div class="logo">KS</div>
+  <div class="logo" aria-hidden="true">KS</div>
   <div class="header-text">
     <h1>Kiểm tra khóa sổ cuối kỳ</h1>
     <p>Doanh nghiệp sản xuất · Thông tư 200</p>
@@ -16,72 +20,141 @@
 </header>
 
 <!-- ===== MÀN HÌNH 1: CHỌN FILE ===== -->
-<main id="man-hinh-1" class="man-hinh">
-  <section id="vung-keo-tha" class="vung-keo-tha">
-    <div class="icon-file">📄</div>
-    <p class="keo-tha-text">Kéo file bảng kê chứng từ (.xlsx) vào đây</p>
-    <p class="keo-tha-phu">hoặc</p>
-    <button id="btn-chon-file" class="btn btn-phu">Chọn file…</button>
-  </section>
+<main id="man-hinh-1" class="man-hinh man-hinh-1">
+  <div class="cot-hep">
+    <section id="vung-keo-tha" class="vung-keo-tha">
+      <svg class="icon icon-to" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+      <p class="keo-tha-text">Kéo file bảng kê chứng từ (.xlsx) vào đây</p>
+      <p class="keo-tha-phu">hoặc</p>
+      <button id="btn-chon-file" class="btn btn-phu" type="button">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+        Chọn file…
+      </button>
+    </section>
 
-  <section id="the-file" class="the-file an">
-    <div class="the-file-hang"><span>File</span><strong id="file-ten"></strong></div>
-    <div class="the-file-luoi">
-      <div><span>Kỳ</span><strong id="file-ky"></strong></div>
-      <div><span>Số dòng</span><strong id="file-so-dong"></strong></div>
-      <div><span>Tổng phát sinh</span><strong id="file-tong-ps"></strong></div>
-    </div>
-  </section>
+    <section id="the-file" class="the-file an" aria-live="polite">
+      <div class="the-file-dau">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+        <div class="the-file-ten">
+          <span class="nhan-nho">File</span>
+          <strong id="file-ten"></strong>
+        </div>
+      </div>
+      <dl class="the-file-luoi">
+        <div class="o-so"><dt>Kỳ</dt><dd id="file-ky" class="so"></dd></div>
+        <div class="o-so"><dt>Số dòng</dt><dd id="file-so-dong" class="so"></dd></div>
+        <div class="o-so"><dt>Tổng phát sinh</dt><dd id="file-tong-ps" class="so"></dd></div>
+      </dl>
+    </section>
 
-  <button id="btn-kiem-tra" class="btn btn-chinh btn-lon" disabled>Kiểm tra</button>
+    <button id="btn-kiem-tra" class="btn btn-chinh btn-lon" type="button" disabled>Kiểm tra</button>
 
-  <section id="tien-trinh" class="tien-trinh an">
-    <div class="tien-trinh-nen"><div id="tien-trinh-thanh" class="tien-trinh-thanh"></div></div>
-    <p id="tien-trinh-ten"></p>
-  </section>
+    <!-- Tiến trình: hai chế độ trên cùng một khung.
+         - Chế độ KHÔNG XÁC ĐỊNH (.khong-xac-dinh): giai đoạn Python chặn luồng
+           (đọc Excel ~8,4s) — không callback nào tới được, nên chuyển động do
+           CSS của trình duyệt sinh ra, không do phần trăm từ Python.
+         - Chế độ xác định: giai đoạn chạy 29 check, callback tới thật.
+         Chữ ở #tien-trinh-ten và #tien-trinh-pct luôn nói rõ pha đang chạy —
+         không bao giờ chỉ dựa vào chuyển động để báo "đang làm việc". -->
+    <section id="tien-trinh" class="tien-trinh an">
+      <div class="tien-trinh-hang">
+        <p id="tien-trinh-ten" class="tien-trinh-ten"></p>
+        <span id="tien-trinh-pct" class="tien-trinh-pct so"></span>
+      </div>
+      <div id="tien-trinh-nen" class="tien-trinh-nen khong-xac-dinh" role="progressbar"
+           aria-label="Tiến trình xử lý" aria-valuemin="0" aria-valuemax="100" aria-busy="false">
+        <div id="tien-trinh-thanh" class="tien-trinh-thanh"></div>
+      </div>
+    </section>
+  </div>
 </main>
 
 <!-- ===== MÀN HÌNH 2: KẾT QUẢ ===== -->
-<main id="man-hinh-2" class="man-hinh an">
-  <section id="banner" class="banner">
-    <div id="banner-ket-luan" class="banner-ket-luan"></div>
-    <div class="banner-so">
-      <span class="chip chip-do">🔴 <b id="so-do">0</b></span>
-      <span class="chip chip-vang">🟡 <b id="so-vang">0</b></span>
-      <span class="chip chip-xanh">🟢 <b id="so-xanh">0</b></span>
+<main id="man-hinh-2" class="man-hinh man-hinh-2 an">
+  <section id="banner" class="banner chua-san-sang" aria-live="polite">
+    <div id="banner-icon" class="banner-icon" aria-hidden="true"></div>
+    <div class="banner-chu">
+      <h2 id="banner-ket-luan" class="banner-ket-luan"></h2>
+      <p id="banner-ky" class="banner-ky"></p>
+    </div>
+    <div class="banner-o">
+      <div class="o-thong-ke o-do">
+        <div class="o-nhan">
+          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+          Nghiêm trọng
+        </div>
+        <b id="so-do" class="o-so-lieu so">0</b>
+      </div>
+      <div class="o-thong-ke o-vang">
+        <div class="o-nhan">
+          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4.2"/><path d="M12 17.2h.01"/></svg>
+          Cảnh báo
+        </div>
+        <b id="so-vang" class="o-so-lieu so">0</b>
+      </div>
+      <div class="o-thong-ke o-xanh">
+        <div class="o-nhan">
+          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.4 12.3 2.5 2.5 4.7-5.1"/></svg>
+          Đạt
+        </div>
+        <b id="so-xanh" class="o-so-lieu so">0</b>
+      </div>
     </div>
   </section>
 
-  <nav class="tab-bar">
-    <button id="tab-a" class="tab dang-chon">Trạng thái khóa sổ</button>
-    <button id="tab-b" class="tab">Lỗi &amp; cảnh báo</button>
+  <nav class="tab-bar" aria-label="Khu vực kết quả">
+    <button id="tab-a" class="tab dang-chon" type="button" aria-pressed="true">Trạng thái khóa sổ</button>
+    <button id="tab-b" class="tab" type="button" aria-pressed="false">Lỗi &amp; cảnh báo</button>
   </nav>
 
-  <section id="noi-dung-a" class="noi-dung">
-    <ul id="ds-buoc" class="ds-buoc"></ul>
-  </section>
+  <div class="vung-cuon">
+    <section id="noi-dung-a" class="noi-dung">
+      <div class="khoi">
+        <div class="khoi-dau">
+          <h3>11 bước khóa sổ cuối kỳ</h3>
+          <p id="dem-buoc" class="khoi-dau-phu"></p>
+        </div>
+        <ul id="ds-buoc" class="ds-buoc"></ul>
+      </div>
+    </section>
 
-  <section id="noi-dung-b" class="noi-dung an">
-    <div id="luoi-nhom" class="luoi-nhom"></div>
-  </section>
+    <section id="noi-dung-b" class="noi-dung an">
+      <div id="luoi-nhom" class="luoi-nhom"></div>
+    </section>
 
-  <section id="khung-chi-tiet" class="khung-chi-tiet an">
-    <div class="chi-tiet-dau">
-      <h3 id="chi-tiet-tieu-de"></h3>
-      <input id="o-tim-kiem" type="search" placeholder="Tìm trong kết quả…">
-    </div>
-    <div class="bang-cuon"><table id="bang-chi-tiet" class="bang"></table></div>
-    <div id="phan-trang" class="phan-trang"></div>
-  </section>
+    <section id="khung-chi-tiet" class="khung-chi-tiet an">
+      <div class="chi-tiet-dau">
+        <div class="chi-tiet-tieu">
+          <h3 id="chi-tiet-tieu-de"></h3>
+          <p id="chi-tiet-dem" class="khoi-dau-phu so"></p>
+        </div>
+        <div class="o-tim">
+          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9"/></svg>
+          <input id="o-tim-kiem" type="search" placeholder="Tìm trong kết quả…" aria-label="Tìm trong kết quả">
+        </div>
+      </div>
+      <div class="bang-cuon"><table id="bang-chi-tiet" class="bang"></table></div>
+      <div id="phan-trang" class="phan-trang"></div>
+    </section>
+  </div>
 
   <footer class="footer">
-    <button id="btn-xuat" class="btn btn-chinh">Xuất báo cáo Excel</button>
-    <button id="btn-kiem-tra-lai" class="btn btn-phu">Kiểm tra lại</button>
-    <button id="btn-file-khac" class="btn btn-phu">Kiểm tra file khác</button>
+    <button id="btn-xuat" class="btn btn-chinh" type="button">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+      Xuất báo cáo Excel
+    </button>
+    <button id="btn-kiem-tra-lai" class="btn btn-phu" type="button">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/></svg>
+      Kiểm tra lại
+    </button>
+    <button id="btn-file-khac" class="btn btn-phu" type="button">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+      Kiểm tra file khác
+    </button>
   </footer>
 </main>
 
-<div id="toast" class="toast an"></div>
+<div id="toast" class="toast an" role="status" aria-live="polite"></div>
 <script src="app.js"></script>
 </body>
 </html>
