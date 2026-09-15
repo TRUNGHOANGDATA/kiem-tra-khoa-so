@@ -18,12 +18,17 @@ THU_MUC_SOURCE = str(GOC / "1. Source")
 THU_MUC_REPORT = str(GOC / "2. Report")
 
 
-def _records(df: pd.DataFrame) -> list[dict]:
+def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
+    """Đổi cột ngày sang dd/mm/yyyy — dùng chung cho cả tìm kiếm và hiển thị."""
     df = df.copy()
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].dt.strftime("%d/%m/%Y")
-    return json.loads(df.to_json(orient="records", force_ascii=False))
+    return df
+
+
+def _records(df: pd.DataFrame) -> list[dict]:
+    return json.loads(_dinh_dang_ngay(df).to_json(orient="records", force_ascii=False))
 
 
 class JsApi:
@@ -70,13 +75,16 @@ class JsApi:
     def chon_file(self):
         if self._window is None:
             return {"loi": "Chưa có cửa sổ"}
-        import webview
-        loai = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
-        chon = self._window.create_file_dialog(loai, directory=self.thu_muc_source,
-                                               file_types=("Excel (*.xlsx;*.xls;*.xlsm)",))
-        if not chon:
-            return None
-        return self.nap_file(chon[0])
+        try:
+            import webview
+            loai = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+            chon = self._window.create_file_dialog(loai, directory=self.thu_muc_source,
+                                                   file_types=("Excel (*.xlsx;*.xls;*.xlsm)",))
+            if not chon:
+                return None
+            return self.nap_file(chon[0])
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được hộp thoại chọn file: {e}"}
 
     # ---- kiểm tra ----
     def chay_kiem_tra(self, path: str | None = None):
@@ -120,15 +128,16 @@ class JsApi:
         r = self._kq.get(ma_check)
         if r is None:
             return {"loi": f"Không có kết quả {ma_check}"}
-        df = r.chi_tiet
+        df = _dinh_dang_ngay(r.chi_tiet)
         if tim_kiem:
             tk = tim_kiem.lower()
             mask = df.astype(str).apply(lambda s: s.str.lower().str.contains(tk, regex=False)).any(axis=1)
             df = df[mask]
         tong = int(len(df))
-        a = max(0, (int(trang) - 1) * int(kich_thuoc))
+        kich_thuoc = max(1, min(int(kich_thuoc), 500))
+        a = max(0, (int(trang) - 1) * kich_thuoc)
         return {"tong": tong, "trang": int(trang), "cot": list(df.columns),
-                "dong": _records(df.iloc[a:a + int(kich_thuoc)])}
+                "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
 
     # ---- xuất & mở ----
     def xuat_bao_cao(self):
