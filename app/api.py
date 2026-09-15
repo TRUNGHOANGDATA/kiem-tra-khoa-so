@@ -27,6 +27,11 @@ def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _dinh_dang_so(n: int) -> str:
+    """1234567 -> '1.234.567' (kiểu Việt Nam), dùng cho thông báo tiến trình."""
+    return f"{n:,}".replace(",", ".")
+
+
 class JsApi:
     def __init__(self):
         self._window = None
@@ -48,10 +53,33 @@ class JsApi:
 
     # ---- nạp file ----
     def _nap_file(self, path: str) -> dict:
+        # Đọc Excel là phần chậm (~85% thời gian chờ) — phải báo tiến trình quanh nó,
+        # nếu không cửa sổ đứng im suốt lúc đọc rồi mới nhảy tiến trình ở phần kiểm tra.
+        self._tien_trinh("Đang đọc file…", 0)
         self._df, self._tt = doc_bang_ke(path)
         self._kq, self._ket_qua, self._trang_thai = {}, [], []
         t = self._tt
+        self._tien_trinh(f"Đã đọc {_dinh_dang_so(t.so_dong)} dòng", 85)
         return {"path": t.path, "ten": t.ten, "ky": t.ky, "so_dong": t.so_dong, "tong_ps": t.tong_ps}
+
+    def _chay_lai_kiem_tra(self, on_progress=None) -> None:
+        """Chạy 29 check + suy trạng thái từ self._df đã nạp sẵn — dùng chung bởi
+        chay_kiem_tra và cơ chế tự phục hồi của lay_chi_tiet."""
+        ctx = BoiCanh(self._tt.ky_thang, self._tt.ky_nam)
+        self._ket_qua = checks.chay_tat_ca(self._df, ctx, on_progress=on_progress)
+        self._kq = {r.ma: r for r in self._ket_qua}
+        self._trang_thai = suy_trang_thai(self._df, self._kq)
+
+    def _tien_trinh_kiem_tra(self, ti_le_bat_dau: int):
+        """Bọc on_progress của chay_tat_ca (0..100 theo 6 nhóm) vào khoảng
+        [ti_le_bat_dau, 100] của thanh tiến trình tổng — để phần đọc file (nếu vừa
+        đọc lại) và phần kiểm tra cùng chia sẻ một thanh theo đúng tỉ lệ thời gian."""
+        khoang = 100 - ti_le_bat_dau
+
+        def _goi(ten: str, pct: int):
+            nhan = "Hoàn tất" if pct >= 100 else f"Đang kiểm tra: {ten}…"
+            self._tien_trinh(nhan, ti_le_bat_dau + pct * khoang // 100)
+        return _goi
 
     def lay_file_moi_nhat(self):
         p = tim_file_moi_nhat(self.thu_muc_source)
@@ -85,14 +113,22 @@ class JsApi:
     # ---- kiểm tra ----
     def chay_kiem_tra(self, path: str | None = None):
         try:
+            # Đã xác nhận trên file thật: chuỗi path do lay_file_moi_nhat/chon_file/nap_file
+            # trả về luôn được _nap_file gán y hệt vào self._tt.path, và JS chỉ lưu rồi trả
+            # lại nguyên văn (JSON round-trip không đổi nội dung chuỗi) — nên so sánh chuỗi
+            # trực tiếp là đủ, không cần chuẩn hóa (xem docs/ket-qua/sua-tien-trinh-va-trang-thai.md).
+            vua_doc_lai = False
             if path and (self._tt is None or self._tt.path != path):
                 self._nap_file(path)
+                vua_doc_lai = True
             if self._df is None:
                 return {"loi": "Chưa chọn file bảng kê"}
-            ctx = BoiCanh(self._tt.ky_thang, self._tt.ky_nam)
-            self._ket_qua = checks.chay_tat_ca(self._df, ctx, on_progress=self._tien_trinh)
-            self._kq = {r.ma: r for r in self._ket_qua}
-            self._trang_thai = suy_trang_thai(self._df, self._kq)
+            # Nếu vừa đọc lại file, phần đọc đã chiếm 0-85% thanh tiến trình —
+            # phần kiểm tra chỉ còn 85-100%. Nếu file đã có sẵn (trường hợp thường
+            # gặp khi bấm "Kiểm tra" ngay sau khi màn 1 đã nạp xong), kiểm tra là
+            # toàn bộ việc của lần gọi này nên được trọn 0-100%.
+            on_progress = self._tien_trinh_kiem_tra(85 if vua_doc_lai else 0)
+            self._chay_lai_kiem_tra(on_progress=on_progress)
             return self._tom_tat()
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không đọc/kiểm tra được file: {e}"}
@@ -120,7 +156,15 @@ class JsApi:
     def lay_chi_tiet(self, ma_check: str, trang: int = 1, kich_thuoc: int = 100, tim_kiem: str = ""):
         r = self._kq.get(ma_check)
         if r is None:
-            return {"loi": f"Không có kết quả {ma_check}"}
+            # _kq có thể đã bị xóa (nạp file khác) trong khi màn hình vẫn còn hiển thị
+            # kết quả cũ — tự chạy lại kiểm tra từ dữ liệu đã đọc sẵn thay vì báo lỗi
+            # bằng mã nội bộ mà người dùng không hiểu được.
+            if self._df is None or self._tt is None:
+                return {"loi": "Chưa có dữ liệu — hãy chọn file và bấm Kiểm tra"}
+            self._chay_lai_kiem_tra()
+            r = self._kq.get(ma_check)
+            if r is None:
+                return {"loi": f"Không tìm thấy kết quả {ma_check} sau khi chạy lại kiểm tra"}
         df = _dinh_dang_ngay(r.chi_tiet)
         if tim_kiem:
             tk = tim_kiem.lower()

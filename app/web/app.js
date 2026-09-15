@@ -19,9 +19,25 @@ const CLASS_KET_LUAN = { chua_san_sang: "chua-san-sang", can_ra_soat: "can-ra-so
 function onTienTrinh(ten, pct) {
   $("tien-trinh").classList.remove("an");
   $("tien-trinh-thanh").style.width = pct + "%";
-  $("tien-trinh-ten").textContent = pct < 100 ? `Đang kiểm tra: ${ten}…` : "Hoàn tất";
+  $("tien-trinh-ten").textContent = ten;   // backend đã ghép sẵn câu hiển thị đầy đủ
 }
 window.onTienTrinh = onTienTrinh;
+
+/* Đọc file (~85% thời gian chờ) không tự phát tiến trình cho tới khi xong — phải mở
+   thanh & khóa nút "Kiểm tra" TRƯỚC khi await, nếu không cửa sổ đứng im suốt lúc đó.
+   hamGoiApi có thể trả về null (vd người dùng bấm Huỷ hộp thoại chọn file) hoặc {loi}. */
+async function taiFile(hamGoiApi, nhanBatDau) {
+  const nutKiemTra = $("btn-kiem-tra");
+  const dangDisable = nutKiemTra.disabled;
+  nutKiemTra.disabled = true;
+  onTienTrinh(nhanBatDau, 0);
+  try {
+    return await hamGoiApi();
+  } finally {
+    $("tien-trinh").classList.add("an");
+    nutKiemTra.disabled = dangDisable;   // hienFile() sẽ mở lại nếu nạp thành công
+  }
+}
 
 /* ---------- toast ---------- */
 function toast(msg, nut = []) {
@@ -47,12 +63,12 @@ function hienFile(info) {
 
 async function khoiTao() {
   api = window.pywebview.api;
-  const info = await api.lay_file_moi_nhat();
+  const info = await taiFile(() => api.lay_file_moi_nhat(), "Đang đọc file…");
   if (info) hienFile(info); else toast("Chưa có file trong thư mục '1. Source' — hãy chọn hoặc kéo file vào.");
 }
 
 $("btn-chon-file").onclick = async () => {
-  const info = await api.chon_file();
+  const info = await taiFile(() => api.chon_file(), "Đang đọc file…");
   if (!info) return;              // người dùng bấm Huỷ — không phải lỗi
   hienFile(info);
 };
@@ -64,16 +80,19 @@ vung.addEventListener("drop", async (ev) => {
   const f = ev.dataTransfer.files[0];
   const path = f && f.pywebviewFullPath;            // pywebview gắn đường dẫn thật vào File
   if (!path) { toast("Không lấy được đường dẫn file — hãy dùng nút 'Chọn file…'"); return; }
-  hienFile(await api.nap_file(path));
+  hienFile(await taiFile(() => api.nap_file(path), "Đang đọc file…"));
 });
 
 $("btn-kiem-tra").onclick = chayKiemTra;
 async function chayKiemTra() {
   $("btn-kiem-tra").disabled = true; onTienTrinh("Bắt đầu", 0);
-  const kq = await api.chay_kiem_tra(fileHienTai?.path || null);
-  $("btn-kiem-tra").disabled = false; $("tien-trinh").classList.add("an");
-  if (kq.loi) { toast(kq.loi); return; }
-  ketQua = kq; veKetQua(); chuyenManHinh(2);
+  try {
+    const kq = await api.chay_kiem_tra(fileHienTai?.path || null);
+    if (kq.loi) { toast(kq.loi); return; }
+    ketQua = kq; veKetQua(); chuyenManHinh(2);
+  } finally {
+    $("btn-kiem-tra").disabled = false; $("tien-trinh").classList.add("an");
+  }
 }
 
 function chuyenManHinh(n) {

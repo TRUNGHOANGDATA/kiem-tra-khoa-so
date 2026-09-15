@@ -184,6 +184,73 @@ def test_moi_cot_cac_check_sinh_ra_deu_co_nhan_tieng_viet(tmp_path):
     assert thieu == {}, f"cột chưa có trong TEN_COT: {thieu}"
 
 
+def test_lay_chi_tiet_tu_phuc_hoi_khi_kq_bi_xoa(tmp_path):
+    """B1: _kq có thể bị xóa (nạp file khác) trong khi màn hình vẫn hiển thị kết quả
+    cũ — lay_chi_tiet phải tự chạy lại kiểm tra từ self._df thay vì báo lỗi mã nội bộ."""
+    api = JsApi()
+    api.chay_kiem_tra(_xlsx(tmp_path))
+    api._kq = {}  # mô phỏng đúng triệu chứng người dùng gặp: cache bị xóa nhưng vẫn còn file
+    ct = api.lay_chi_tiet("C1.1")
+    assert "loi" not in ct
+    assert ct["tong"] == 1 and ct["dong"][0]["DocNo"] == "B"
+    assert "C1.1" in api._kq and api._ket_qua and api._trang_thai  # đã dựng lại toàn bộ
+
+
+def test_lay_chi_tiet_bao_loi_ro_rang_khi_chua_co_du_lieu():
+    """B1: chưa từng chọn/kiểm tra file nào — lỗi phải hướng dẫn hành động, không nêu mã nội bộ."""
+    kq = JsApi().lay_chi_tiet("C4.1")
+    assert kq["loi"] == "Chưa có dữ liệu — hãy chọn file và bấm Kiểm tra"
+
+
+def test_lay_chi_tiet_ma_khong_ton_tai_sau_khi_chay_lai_khong_lap_vo_han(tmp_path):
+    """B1: bảo vệ khỏi vòng lặp dựng lại vô ích — mã không tồn tại thì báo lỗi rõ ràng
+    một lần, không tự gọi lại chính nó."""
+    api = JsApi()
+    api.chay_kiem_tra(_xlsx(tmp_path))
+    api._kq = {}
+    kq = api.lay_chi_tiet("KHONG_TON_TAI")
+    assert kq["loi"] == "Không tìm thấy kết quả KHONG_TON_TAI sau khi chạy lại kiểm tra"
+
+
+def test_chay_kiem_tra_lan_2_cung_duong_dan_khong_doc_lai_file(tmp_path, monkeypatch):
+    """B3: đường dẫn không đổi thì không được đọc lại Excel lần hai."""
+    p = _xlsx(tmp_path)
+    goc = api_module.doc_bang_ke
+    so_lan_doc = []
+
+    def dem(path):
+        so_lan_doc.append(path)
+        return goc(path)
+
+    monkeypatch.setattr(api_module, "doc_bang_ke", dem)
+    api = JsApi()
+    api.chay_kiem_tra(p)
+    api.chay_kiem_tra(p)  # y hệt path đã trả về trước đó — mô phỏng nút "Kiểm tra"
+    assert len(so_lan_doc) == 1
+
+
+def test_man_hinh_1_roi_kiem_tra_khong_doc_lai_file(tmp_path, monkeypatch):
+    """B3: mô phỏng đúng luồng thật — lay_file_moi_nhat() nạp file, JS lưu lại info.path
+    rồi trả nguyên văn cho chay_kiem_tra() khi bấm 'Kiểm tra'. Vì JsApi luôn gán path đầu
+    vào y hệt vào self._tt.path, và JSON round-trip qua JS không đổi nội dung chuỗi, hai
+    lần gọi này không được đọc Excel hai lần."""
+    _xlsx(tmp_path)  # tạo sẵn file trong thư mục nguồn giả lập
+    goc = api_module.doc_bang_ke
+    so_lan_doc = []
+
+    def dem(path):
+        so_lan_doc.append(path)
+        return goc(path)
+
+    monkeypatch.setattr(api_module, "doc_bang_ke", dem)
+    api = JsApi()
+    api.thu_muc_source = str(tmp_path)
+    info = api.lay_file_moi_nhat()
+    kq = api.chay_kiem_tra(info["path"])  # đúng chuỗi JS nhận lại và gửi lên
+    assert "loi" not in kq
+    assert len(so_lan_doc) == 1
+
+
 def test_kich_thuoc_gioi_han_toi_da_500():
     api = JsApi()
     df = pd.DataFrame({"DocNo": [f"D{i}" for i in range(600)]})
