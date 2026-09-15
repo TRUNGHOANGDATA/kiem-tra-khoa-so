@@ -55,9 +55,11 @@ html, body { margin: 0; height: 100%; background: var(--nen-phu); color: var(--c
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 16px;
   border-radius: 14px; padding: 18px 22px; border: 1px solid var(--vien); }
 .banner.san-sang { background: var(--xanh-nhat); border-color: #86EFAC; }
+.banner.can-ra-soat { background: var(--vang-nhat); border-color: #FDE68A; }
 .banner.chua-san-sang { background: var(--do-nhat); border-color: #FCA5A5; }
 .banner-ket-luan { font-size: 20px; font-weight: 700; }
 .banner.san-sang .banner-ket-luan { color: #166534; }
+.banner.can-ra-soat .banner-ket-luan { color: #D97706; }
 .banner.chua-san-sang .banner-ket-luan { color: #991B1B; }
 .chip { padding: 6px 12px; border-radius: 99px; background: var(--nen); border: 1px solid var(--vien); margin-left: 6px; }
 .chip-do { background: var(--do-nhat); border-color: #FCA5A5; color: #991B1B; }
@@ -75,6 +77,8 @@ html, body { margin: 0; height: 100%; background: var(--nen-phu); color: var(--c
 .buoc { display: grid; grid-template-columns: 36px 1fr auto 20px; align-items: center; gap: 12px;
   background: var(--nen); border: 1px solid var(--vien); border-radius: 12px; padding: 12px 16px; cursor: pointer; }
 .buoc:hover { border-color: var(--chinh-hover); }
+.buoc.khong-bam { cursor: default; }
+.buoc.khong-bam:hover { border-color: var(--vien); }
 .buoc .icon { font-size: 20px; text-align: center; }
 .buoc .ten { font-weight: 600; }
 .buoc .tom-tat { color: var(--chu-phu); font-size: 13px; }

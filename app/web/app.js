@@ -3,7 +3,7 @@ const $ = (id) => document.getElementById(id);
 let api = null;
 let ketQua = null;              // kết quả chay_kiem_tra
 let fileHienTai = null;         // {path, ten, ky, so_dong, tong_ps}
-let chiTiet = { ma: null, trang: 1, timKiem: "" };
+let chiTiet = { ma: null, tieuDe: "", trang: 1, timKiem: "" };
 const KICH_THUOC = 100;
 
 const fmt = (n) => Number(n || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 });
@@ -13,6 +13,7 @@ const ICON_TT = { da_lam: "✅", chua_lam: "❌", can_ra: "⚠️", khong_ap_dun
 const NHAN_TT = { da_lam: "Đã làm", chua_lam: "Chưa làm", can_ra: "Cần rà", khong_ap_dung: "Không áp dụng" };
 const NHAN_MD = { do: "Nghiêm trọng", vang: "Cảnh báo", xanh: "Đạt" };
 const CLASS_MD = { do: "muc-do-", vang: "muc-vang", xanh: "muc-xanh" };
+const CLASS_KET_LUAN = { chua_san_sang: "chua-san-sang", can_ra_soat: "can-ra-soat", san_sang: "san-sang" };
 
 /* ---------- tiến trình (backend gọi) ---------- */
 function onTienTrinh(ten, pct) {
@@ -84,8 +85,8 @@ function chuyenManHinh(n) {
 function veKetQua() {
   const t = ketQua.tomtat;
   const b = $("banner");
-  b.className = "banner " + (t.san_sang ? "san-sang" : "chua-san-sang");
-  $("banner-ket-luan").textContent = t.san_sang ? "SẴN SÀNG KHÓA SỔ" : `CHƯA SẴN SÀNG — còn ${t.con_viec} việc`;
+  b.className = "banner " + (CLASS_KET_LUAN[t.muc_do_ket_luan] || "chua-san-sang");
+  $("banner-ket-luan").textContent = t.cau_ket_luan;
   $("so-do").textContent = t.so_do; $("so-vang").textContent = t.so_vang;
   const tongCheck = ketQua.nhom.flatMap((n) => n.checks).filter((c) => !c.la_thong_ke).length;
   $("so-xanh").textContent = tongCheck - t.so_do - t.so_vang;
@@ -95,11 +96,15 @@ function veKetQua() {
 function veTabA() {
   const ul = $("ds-buoc"); ul.innerHTML = "";
   ketQua.trang_thai.forEach((b) => {
-    const li = document.createElement("li"); li.className = `buoc tt-${b.trang_thai}`;
+    // Bước "không áp dụng" (và bước suy ra không có bảng chứng minh) luôn mở ra bảng
+    // rỗng — không gắn handler lẫn mũi tên ›, để người dùng không bấm vào ngõ cụt.
+    const bamDuoc = b.trang_thai !== "khong_ap_dung" && b.co_chung_cu !== false;
+    const li = document.createElement("li");
+    li.className = `buoc tt-${b.trang_thai}` + (bamDuoc ? "" : " khong-bam");
     li.innerHTML = `<div class="icon">${ICON_TT[b.trang_thai]}</div>
       <div><div class="ten">${esc(b.buoc)}</div><div class="tom-tat">${esc(b.tom_tat)}</div></div>
-      <span class="nhan">${NHAN_TT[b.trang_thai]}</span><span>›</span>`;
-    li.onclick = () => moChiTiet(b.ma_check, b.buoc + ` — chứng minh (${b.ma_check})`);
+      <span class="nhan">${NHAN_TT[b.trang_thai]}</span><span>${bamDuoc ? "›" : ""}</span>`;
+    if (bamDuoc) li.onclick = () => moChiTiet(b.ma_check, b.buoc + ` — chứng minh (${b.ma_check})`);
     ul.append(li);
   });
 }
@@ -124,7 +129,8 @@ function chonThe(d) { document.querySelectorAll(".the-nhom").forEach((x) => x.cl
 
 /* ---------- chi tiết ---------- */
 async function moChiTiet(ma, tieuDe, trang = 1) {
-  chiTiet = { ma, trang, timKiem: chiTiet.ma === ma ? chiTiet.timKiem : "" };
+  // Giữ tiêu đề gốc trong state: tách lại từ DOM sẽ nuốt mất tên check ngay khi gõ tìm kiếm.
+  chiTiet = { ma, tieuDe, trang, timKiem: chiTiet.ma === ma ? chiTiet.timKiem : "" };
   $("o-tim-kiem").value = chiTiet.timKiem;
   const kq = await api.lay_chi_tiet(ma, trang, KICH_THUOC, chiTiet.timKiem);
   if (kq.loi) { toast(kq.loi); return; }
@@ -137,17 +143,17 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
       kq.dong.map((r) => `<tr>${kq.cot.map((c) => soCot.has(c) && typeof r[c] === "number"
         ? `<td class="so">${fmt(r[c])}</td>` : `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
   }
-  vePhanTrang(kq.tong, trang, tieuDe);
+  vePhanTrang(kq.tong, trang);
   $("khung-chi-tiet").classList.remove("an");
   $("khung-chi-tiet").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function anChiTiet() { $("khung-chi-tiet").classList.add("an"); }
 
-function vePhanTrang(tong, trang, tieuDe) {
+function vePhanTrang(tong, trang) {
   const soTrang = Math.max(1, Math.ceil(tong / KICH_THUOC));
   const p = $("phan-trang"); p.innerHTML = "";
   const nut = (ten, t, tat) => { const b = document.createElement("button"); b.className = "btn"; b.textContent = ten;
-    b.disabled = tat; b.onclick = () => moChiTiet(chiTiet.ma, tieuDe.replace(/ · .*dòng$/, ""), t); return b; };
+    b.disabled = tat; b.onclick = () => moChiTiet(chiTiet.ma, chiTiet.tieuDe, t); return b; };
   p.append(nut("‹ Trước", trang - 1, trang <= 1),
     Object.assign(document.createElement("span"), { textContent: `Trang ${trang}/${soTrang}` }),
     nut("Sau ›", trang + 1, trang >= soTrang));
@@ -156,7 +162,7 @@ function vePhanTrang(tong, trang, tieuDe) {
 $("o-tim-kiem").addEventListener("input", (ev) => {
   clearTimeout($("o-tim-kiem")._t);
   $("o-tim-kiem")._t = setTimeout(() => { chiTiet.timKiem = ev.target.value.trim();
-    moChiTiet(chiTiet.ma, $("chi-tiet-tieu-de").textContent.replace(/ · .*dòng$/, ""), 1); }, 300);
+    moChiTiet(chiTiet.ma, chiTiet.tieuDe, 1); }, 300);
 });
 
 /* ---------- tabs & footer ---------- */
@@ -169,9 +175,12 @@ function chuyenTab(t) {
 $("btn-xuat").onclick = async () => {
   const kq = await api.xuat_bao_cao();
   if (kq.loi) { toast(kq.loi); return; }
+  // api.mo_file/mo_thu_muc trả {loi} khi file đã bị xóa/di chuyển — phải nói ra,
+  // nếu không người dùng bấm nút và không thấy gì xảy ra.
+  const baoLoi = (r) => { if (r && r.loi) toast(r.loi); };
   toast("Đã xuất báo cáo Excel", [
-    { ten: "Mở file Excel", onClick: () => api.mo_file(kq.path) },
-    { ten: "Mở thư mục", onClick: () => api.mo_thu_muc(kq.path) },
+    { ten: "Mở file Excel", onClick: async () => baoLoi(await api.mo_file(kq.path)) },
+    { ten: "Mở thư mục", onClick: async () => baoLoi(await api.mo_thu_muc(kq.path)) },
   ]);
 };
 $("btn-kiem-tra-lai").onclick = async () => { chuyenManHinh(1); await chayKiemTra(); };

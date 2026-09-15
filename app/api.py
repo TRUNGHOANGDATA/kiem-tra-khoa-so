@@ -11,7 +11,7 @@ import pandas as pd
 from . import checks, report
 from .checks.base import DO, VANG, THU_TU_MUC_DO, BoiCanh, CheckResult
 from .loader import ThongTinFile, doc_bang_ke, tim_file_moi_nhat
-from .trang_thai import suy_trang_thai
+from .trang_thai import suy_trang_thai, tinh_ket_luan
 
 GOC = Path(__file__).resolve().parents[1]
 THU_MUC_SOURCE = str(GOC / "1. Source")
@@ -25,10 +25,6 @@ def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].dt.strftime("%d/%m/%Y")
     return df
-
-
-def _records(df: pd.DataFrame) -> list[dict]:
-    return json.loads(_dinh_dang_ngay(df).to_json(orient="records", force_ascii=False))
 
 
 class JsApi:
@@ -102,10 +98,7 @@ class JsApi:
             return {"loi": f"Không đọc/kiểm tra được file: {e}"}
 
     def _tom_tat(self) -> dict:
-        loi = [r for r in self._ket_qua if not r.la_thong_ke]
-        so_do = sum(r.muc_do_thuc == DO for r in loi)
-        so_vang = sum(r.muc_do_thuc == VANG for r in loi)
-        chua = sum(b.trang_thai == "chua_lam" for b in self._trang_thai)
+        ket_luan = tinh_ket_luan(self._ket_qua, self._trang_thai)
         nhom = []
         for ma, ten in checks.TEN_NHOM.items():
             cs = [r for r in self._ket_qua if r.nhom == ma]
@@ -117,10 +110,10 @@ class JsApi:
         t = self._tt
         return {
             "tomtat": {"ky": t.ky, "ten": t.ten, "so_dong": t.so_dong, "tong_ps": t.tong_ps,
-                       "so_do": so_do, "so_vang": so_vang, "so_chua_lam": chua,
-                       "con_viec": so_do + chua, "san_sang": so_do == 0 and chua == 0},
+                       **ket_luan},
             "trang_thai": [{"buoc": b.buoc, "trang_thai": b.trang_thai, "tom_tat": b.tom_tat,
-                            "ma_check": b.ma_check} for b in self._trang_thai],
+                            "ma_check": b.ma_check, "co_chung_cu": b.co_chung_cu}
+                           for b in self._trang_thai],
             "nhom": nhom,
         }
 
@@ -149,14 +142,22 @@ class JsApi:
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không xuất được báo cáo: {e}"}
 
+    # Mọi phương thức công khai đều trả lỗi thay vì ném — phía JS không bắt reject,
+    # người dùng đã xóa/di chuyển file mà bấm "Mở file Excel" sẽ im lặng hoàn toàn.
     def mo_file(self, path: str):
-        os.startfile(path)  # noqa: S606
-        return True
+        try:
+            os.startfile(path)  # noqa: S606
+            return True
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được file: {e}"}
 
     def mo_thu_muc(self, path: str):
-        p = Path(path)
-        if p.is_file():
-            subprocess.Popen(["explorer", "/select,", str(p)])  # noqa: S603,S607
-        else:
-            os.startfile(str(p))  # noqa: S606
-        return True
+        try:
+            p = Path(path)
+            if p.is_file():
+                subprocess.Popen(["explorer", "/select,", str(p)])  # noqa: S603,S607
+            else:
+                os.startfile(str(p))  # noqa: S606
+            return True
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được thư mục: {e}"}

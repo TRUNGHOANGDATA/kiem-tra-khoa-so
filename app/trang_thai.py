@@ -3,13 +3,14 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .checks.base import (NGUONG_CON_LAI, TK_KHO, CheckResult, bat_dau, co_dong, fmt_so,
+from .checks.base import (DO, NGUONG_CON_LAI, TK_KHO, VANG, CheckResult, bat_dau, co_dong, fmt_so,
                           phat_sinh_theo_prefix)
 from .checks.g4_kho_gia_von import GHI_CHU_CHUA_TINH_GIA, GHI_CHU_THIEU_SL
 
 BUOC_TINH_GIA_XUAT_KHO = "Tính giá xuất kho (mọi dòng xuất có đơn giá)"
 
 DA_LAM, CHUA_LAM, CAN_RA, KHONG_AP_DUNG = "da_lam", "chua_lam", "can_ra", "khong_ap_dung"
+CHUA_SAN_SANG, CAN_RA_SOAT, SAN_SANG = "chua_san_sang", "can_ra_soat", "san_sang"
 
 
 @dataclass
@@ -18,6 +19,9 @@ class BuocKhoaSo:
     trang_thai: str
     tom_tat: str
     ma_check: str
+    # False = bước được suy ra trực tiếp từ phát sinh, check được trích dẫn không có
+    # dòng chứng minh nào (xem nhánh "kết chuyển vượt" dưới đây) -> không cho bấm vào.
+    co_chung_cu: bool = True
 
 
 def _ket_chuyen(df, ten, tk, no, co, ma) -> BuocKhoaSo:
@@ -27,9 +31,15 @@ def _ket_chuyen(df, ten, tk, no, co, ma) -> BuocKhoaSo:
         return BuocKhoaSo(ten, KHONG_AP_DUNG, f"Kỳ này không có phát sinh {tk}", ma)
     if not co_dong(df, no=no, co=co):
         return BuocKhoaSo(ten, CHUA_LAM, f"Phát sinh {tk}: Nợ {fmt_so(ps_no)} / Có {fmt_so(ps_co)} — chưa có bút toán kết chuyển", ma)
+    # Dùng số dư CÓ DẤU, đúng như C4.4/C5.2 — hai check đó chỉ bắt chiều thiếu
+    # (ps_no - ps_co > ngưỡng), nên chiều vượt phải nói khác đi và không có bảng chứng minh.
     net = ps_no - ps_co
-    if abs(net) > 0.5:
-        return BuocKhoaSo(ten, CAN_RA, f"Đã kết chuyển nhưng còn net {fmt_so(net)} chưa về 0", ma)
+    if net > NGUONG_CON_LAI:
+        return BuocKhoaSo(ten, CAN_RA, f"Đã kết chuyển nhưng còn {fmt_so(net)} chưa về 0", ma)
+    if net < -NGUONG_CON_LAI:
+        return BuocKhoaSo(ten, CAN_RA,
+                          f"Đã kết chuyển vượt {fmt_so(-net)} — phát sinh Có {tk} lớn hơn phát sinh Nợ",
+                          ma, co_chung_cu=False)
     return BuocKhoaSo(ten, DA_LAM, f"Nợ {fmt_so(ps_no)} / Có {fmt_so(ps_co)} — đã về 0", ma)
 
 
@@ -120,6 +130,32 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
     else:
         ds.append(BuocKhoaSo("TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)", CAN_RA, f"Còn {c51.so_loi} tài khoản có net ≠ 0", "C5.1"))
     return ds
+
+
+def tinh_ket_luan(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo]) -> dict:
+    """Kết luận sẵn sàng khóa sổ — ba mức, dùng chung cho cả giao diện và báo cáo Excel.
+
+    Một check vàng hoặc một bước 'cần rà' vẫn là việc chưa xong: không được rơi vào
+    băng xanh 'SẴN SÀNG KHÓA SỔ' chỉ vì không còn lỗi đỏ.
+    """
+    loi = [r for r in ket_qua if not r.la_thong_ke]
+    so_do = sum(r.muc_do_thuc == DO for r in loi)
+    so_vang = sum(r.muc_do_thuc == VANG for r in loi)
+    so_chua_lam = sum(b.trang_thai == CHUA_LAM for b in trang_thai)
+    so_can_ra = sum(b.trang_thai == CAN_RA for b in trang_thai)
+
+    if so_do or so_chua_lam:
+        muc_do, con_viec = CHUA_SAN_SANG, so_do + so_chua_lam
+        cau = f"CHƯA SẴN SÀNG KHÓA SỔ — còn {con_viec} việc phải xử lý"
+    elif so_vang or so_can_ra:
+        muc_do, con_viec = CAN_RA_SOAT, so_vang + so_can_ra
+        cau = f"CÒN {con_viec} MỤC CẦN RÀ SOÁT"
+    else:
+        muc_do, con_viec = SAN_SANG, 0
+        cau = "SẴN SÀNG KHÓA SỔ"
+    return {"so_do": so_do, "so_vang": so_vang, "so_chua_lam": so_chua_lam, "so_can_ra": so_can_ra,
+            "con_viec": con_viec, "muc_do_ket_luan": muc_do, "cau_ket_luan": cau,
+            "san_sang": muc_do == SAN_SANG}
 
 
 def loc_tong(df, no: tuple[str, ...], co: str) -> float:

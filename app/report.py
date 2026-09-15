@@ -8,9 +8,9 @@ from pathlib import Path
 import pandas as pd
 
 from .checks import TEN_NHOM
-from .checks.base import DO, VANG, XANH, CheckResult
+from .checks.base import DO, VANG, XANH, CheckResult, fmt_so
 from .loader import ThongTinFile
-from .trang_thai import BuocKhoaSo
+from .trang_thai import BuocKhoaSo, tinh_ket_luan
 
 TEN_MUC_DO = {DO: "Nghiêm trọng", VANG: "Cảnh báo", XANH: "Đạt"}
 TEN_TRANG_THAI = {"da_lam": "Đã làm", "chua_lam": "CHƯA LÀM", "can_ra": "Cần rà", "khong_ap_dung": "Không áp dụng"}
@@ -64,18 +64,17 @@ def xuat_bao_cao(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo],
 
         # --- Tổng quan ---
         loi = [r for r in ket_qua if not r.la_thong_ke]
-        so_do = sum(r.muc_do_thuc == DO for r in loi)
-        so_vang = sum(r.muc_do_thuc == VANG for r in loi)
-        chua = sum(b.trang_thai == "chua_lam" for b in trang_thai)
+        ket_luan = tinh_ket_luan(ket_qua, trang_thai)
         tq = pd.DataFrame([{
             "Mã": r.ma, "Nhóm": TEN_NHOM[r.nhom], "Kiểm tra": r.ten,
             "Số dòng vi phạm": r.so_loi, "Mức độ": TEN_MUC_DO[r.muc_do_thuc], "Ghi chú": r.ghi_chu,
         } for r in loi])
         ws = _ghi_bang(writer, "Tong quan", tq, fmt, dong_dau=4)
         ws.write(0, 0, f"BÁO CÁO KIỂM TRA KHÓA SỔ — KỲ {thong_tin.ky}", fmt["tieu_de"])
-        ws.write(1, 0, f"File: {thong_tin.ten} · {thong_tin.so_dong:,} dòng · Tổng phát sinh {thong_tin.tong_ps:,.0f}")
-        ket_luan = "SẴN SÀNG KHÓA SỔ" if so_do == 0 and chua == 0 else f"CHƯA SẴN SÀNG — {so_do} lỗi nghiêm trọng, {chua} bước chưa làm"
-        ws.write(2, 0, f"Kết luận: {ket_luan}  ·  🔴 {so_do}  🟡 {so_vang}", fmt["tieu_de"])
+        ws.write(1, 0, f"File: {thong_tin.ten} · {fmt_so(thong_tin.so_dong)} dòng"
+                       f" · Tổng phát sinh {fmt_so(thong_tin.tong_ps)}")
+        ws.write(2, 0, f"Kết luận: {ket_luan['cau_ket_luan']}"
+                       f"  ·  🔴 {ket_luan['so_do']}  🟡 {ket_luan['so_vang']}", fmt["tieu_de"])
         for i, r in enumerate(loi, start=5):
             ws.write(i, 4, TEN_MUC_DO[r.muc_do_thuc], fmt[r.muc_do_thuc])
 

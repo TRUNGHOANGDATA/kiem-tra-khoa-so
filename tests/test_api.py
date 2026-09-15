@@ -108,6 +108,29 @@ def test_mo_file_goi_os_startfile(monkeypatch):
     assert calls == ["C:/mot/file.xlsx"]
 
 
+def test_mo_file_tra_loi_khi_file_da_bi_xoa(tmp_path):
+    """B3: JS không bắt reject — ném ở đây là người dùng bấm nút và không thấy gì."""
+    p = tmp_path / "da-xoa.xlsx"
+    p.write_text("x")
+    p.unlink()
+    kq = JsApi().mo_file(str(p))
+    assert isinstance(kq, dict) and "loi" in kq
+
+
+def test_mo_thu_muc_tra_loi_khi_duong_dan_khong_ton_tai(tmp_path):
+    kq = JsApi().mo_thu_muc(str(tmp_path / "khong-co" / "bao-cao.xlsx"))
+    assert isinstance(kq, dict) and "loi" in kq
+
+
+def test_moi_phuong_thuc_nhan_duong_dan_deu_tra_loi_thay_vi_nem(tmp_path):
+    """B3: cầu nối pywebview phải trả {loi}, không ném — JS phía kia không bắt reject."""
+    api = JsApi()
+    khong_co = str(tmp_path / "khong-co.xlsx")
+    for ten in ("nap_file", "chay_kiem_tra", "mo_file", "mo_thu_muc"):
+        kq = getattr(api, ten)(khong_co)          # ném là test đỏ ngay tại đây
+        assert isinstance(kq, dict) and "loi" in kq, ten
+
+
 def test_mo_thu_muc_goi_popen_khi_la_file(monkeypatch, tmp_path):
     p = tmp_path / "bk.xlsx"
     p.write_text("x")

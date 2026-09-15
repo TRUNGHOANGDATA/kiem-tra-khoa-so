@@ -26,6 +26,25 @@ class ThongTinFile:
     nhat_ky: list[str] = field(default_factory=list)
 
 
+def doc_ngay(s: pd.Series) -> pd.Series:
+    """Đọc cột ngày chứng từ, chấp nhận cả datetime thật, "dd/mm/yyyy" và "yyyy-mm-dd".
+
+    Xuất Bravo bình thường mang datetime thật, nhưng chỉ cần lưu lại file một lần là
+    ngày thành chuỗi "dd/mm/yyyy". Mặc định pandas đọc tháng trước -> "05/08/2026"
+    hóa 08/05, cả kỳ bị suy sai mà không có một dòng cảnh báo nào.
+
+    Không thể bật dayfirst cho toàn cột: pandas áp cờ này cho cả chuỗi bắt đầu bằng
+    năm, biến "2026-08-05" thành 08/05 và "2026-08-20" thành NaT. Chuỗi năm-trước vốn
+    không nhập nhằng, nên chỉ những giá trị còn lại mới cần dayfirst.
+    """
+    if pd.api.types.is_datetime64_any_dtype(s):
+        return s
+    txt = s.astype("string").str.strip()
+    nam_truoc = txt.str.match(r"\d{4}[-/.]").fillna(False)
+    return (pd.to_datetime(txt.where(nam_truoc), errors="coerce")
+            .fillna(pd.to_datetime(txt.where(~nam_truoc), errors="coerce", dayfirst=True)))
+
+
 def chuan_hoa(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     log: list[str] = []
     df = df.copy()
@@ -49,7 +68,11 @@ def chuan_hoa(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
         if hong > 0:
             log.append(f"Cột {c}: {hong} giá trị không phải số, đã ép về 0")
         df[c] = so.fillna(0.0).astype(float)
-    df["DocDate"] = pd.to_datetime(df["DocDate"], errors="coerce")
+    ngay = doc_ngay(df["DocDate"])
+    hong_ngay = int(ngay.isna().sum() - pd.isna(df["DocDate"]).sum())
+    if hong_ngay > 0:
+        log.append(f"Cột DocDate: {hong_ngay} giá trị không phải ngày hợp lệ, đã để trống")
+    df["DocDate"] = ngay
     return df, log
 
 
@@ -70,6 +93,8 @@ def doc_bang_ke(path: str) -> tuple[pd.DataFrame, ThongTinFile]:
     if thieu:
         raise ValueError(f"Thiếu cột bắt buộc: {', '.join(thieu)}")
     df, log = chuan_hoa(raw)
+    if df.empty:
+        raise ValueError("Bảng kê không có dòng dữ liệu nào để kiểm tra")
     thang, nam = xac_dinh_ky(df)
     tt = ThongTinFile(path=path, ten=Path(path).name, ky=f"{thang:02d}/{nam}",
                       ky_thang=thang, ky_nam=nam, so_dong=len(df),

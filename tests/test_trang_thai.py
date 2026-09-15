@@ -125,6 +125,32 @@ def test_c41_co_ghi_chu_thi_khong_ap_dung(ctx):
     assert "không kiểm tra được" in buoc.tom_tat
 
 
+def test_ket_chuyen_vuot_noi_dung_dung_chieu(ctx):
+    """B2: over-transfer — abs(net) báo "còn net -800", vô nghĩa và C4.4 lại rỗng."""
+    df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521", "Amount": 200},
+                 {"DebitAccount": "154", "CreditAccount": "6214", "Amount": 1000}])
+    buoc = _suy(df, ctx)[0]["Tập hợp CP NVL trực tiếp 621 → 154"]
+    assert buoc.trang_thai == tt.CAN_RA
+    assert "vượt 800" in buoc.tom_tat and "-800" not in buoc.tom_tat
+    # C4.4 chỉ bắt chiều thiếu -> bước này không có bảng chứng minh, không cho bấm
+    assert buoc.co_chung_cu is False
+
+
+def test_ket_chuyen_thieu_van_bao_so_duong_va_co_chung_cu(ctx):
+    df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521", "Amount": 1000},
+                 {"DebitAccount": "154", "CreditAccount": "6214", "Amount": 200}])
+    buoc = _suy(df, ctx)[0]["Tập hợp CP NVL trực tiếp 621 → 154"]
+    assert buoc.trang_thai == tt.CAN_RA and "còn 800" in buoc.tom_tat
+    assert buoc.co_chung_cu is True
+
+
+def test_ket_chuyen_trong_nguong_con_lai_thi_da_lam(ctx):
+    """Dùng chung NGUONG_CON_LAI với các check, không phải 0.5 viết cứng."""
+    df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521", "Amount": 1000.0},
+                 {"DebitAccount": "154", "CreditAccount": "6214", "Amount": 1000.4}])
+    assert _suy(df, ctx)[0]["Tập hợp CP NVL trực tiếp 621 → 154"].trang_thai == tt.DA_LAM
+
+
 def test_chua_tinh_gia_xuat_kho_thi_chua_lam(ctx):
     """A1: cả kỳ không dòng kho nào có đơn giá -> một việc phải làm, không phải N lỗi rời rạc."""
     df = tao_df([
