@@ -38,6 +38,28 @@ def test_c41_c42_ghi_chu_khi_khong_co_du_lieu_sl(ctx):
     assert kq42.so_loi == 0 and kq42.ghi_chu == g4.GHI_CHU_THIEU_SL
 
 
+def test_c41_ghi_chu_chua_tinh_gia_khi_khong_dong_kho_nao_co_don_gia(ctx):
+    """A1: có dòng kho kèm số lượng nhưng không một dòng nào có đơn giá -> nghi chưa tính giá."""
+    df = tao_df([
+        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0},
+        {"DebitAccount": "6214", "CreditAccount": "1552", "Quantity9": 5, "UnitCost": 0, "Amount": 0},
+        {"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 9},
+    ])
+    kq = _kq(df, ctx)["C4.1"]
+    assert kq.so_loi == 2 and kq.muc_do_thuc == "do"
+    assert kq.ghi_chu == g4.GHI_CHU_CHUA_TINH_GIA
+
+
+def test_c41_khong_ghi_chu_chua_tinh_gia_khi_co_dong_co_don_gia(ctx):
+    """Chỉ một dòng kho có đơn giá là đủ để bác giả thiết 'chưa chạy tính giá cả kỳ'."""
+    df = tao_df([
+        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0},
+        {"DebitAccount": "1521", "CreditAccount": "3311", "Quantity9": 10, "UnitCost": 7, "Amount": 70},
+    ])
+    kq = _kq(df, ctx)["C4.1"]
+    assert kq.so_loi == 1 and kq.ghi_chu == ""
+
+
 def test_c43_gia_von_khong_di_kem_kho(ctx):
     df = tao_df([
         {"DebitAccount": "632111", "CreditAccount": "1551"},

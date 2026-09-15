@@ -4,7 +4,8 @@ import pytest
 from app.checks.base import BoiCanh
 
 MAC_DINH = {
-    "DocCode": "BT", "DocNo": "BT2608-000001", "DocDate": "2026-08-15",
+    # PC = phiếu chi, cố ý KHÔNG thuộc DOC_DIEU_CHUYEN để dòng mặc định vẫn bị C1.4 soi
+    "DocCode": "PC", "DocNo": "PC2608-000001", "DocDate": "2026-08-15",
     "DebitAccount": "6421", "CreditAccount": "1111", "Amount": 1_000_000.0,
     "Description": "Chi phí", "TaxCode": None, "CustomerCode": None,
     "CustomerName": None, "CurrencyCode": "VND", "OriginalAmount": 0.0,

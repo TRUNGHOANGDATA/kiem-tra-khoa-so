@@ -37,9 +37,12 @@ def b_ma(b):
 
 def test_xuat_kho_gia_va_tk_pl_ve_0(ctx):
     df = tao_df([{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 1, "UnitCost": 0, "Amount": 0},
+                 # đã có dòng kho tính được giá -> không phải "cả kỳ chưa chạy tính giá" (A1),
+                 # chỉ còn sót dòng giá 0 -> cần rà soát
+                 {"DebitAccount": "1521", "CreditAccount": "3311", "Quantity9": 2, "UnitCost": 5, "Amount": 10},
                  {"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 10}])
     b, _ = _suy(df, ctx)
-    assert b["Xuất kho có đầy đủ giá"].trang_thai == tt.CAN_RA
+    assert b[tt.BUOC_TINH_GIA_XUAT_KHO].trang_thai == tt.CAN_RA
     assert b["TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)"].trang_thai == tt.CAN_RA
 
 
@@ -117,14 +120,26 @@ def test_c41_co_ghi_chu_thi_khong_ap_dung(ctx):
     """F2/F7: C4.1 không kiểm tra được (thiếu dữ liệu số lượng) phải báo không_áp_dụng, không phải đã làm."""
     df = tao_df([{"DebitAccount": "155", "CreditAccount": "154", "Amount": 100}])
     b, _ = _suy(df, ctx)
-    buoc = b["Xuất kho có đầy đủ giá"]
+    buoc = b[tt.BUOC_TINH_GIA_XUAT_KHO]
     assert buoc.trang_thai == tt.KHONG_AP_DUNG
     assert "không kiểm tra được" in buoc.tom_tat
+
+
+def test_chua_tinh_gia_xuat_kho_thi_chua_lam(ctx):
+    """A1: cả kỳ không dòng kho nào có đơn giá -> một việc phải làm, không phải N lỗi rời rạc."""
+    df = tao_df([
+        {"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 10, "UnitCost": 0, "Amount": 0},
+        {"DebitAccount": "6214", "CreditAccount": "1552", "Quantity9": 5, "UnitCost": 0, "Amount": 0},
+    ])
+    buoc = _suy(df, ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]
+    assert buoc.trang_thai == tt.CHUA_LAM
+    assert buoc.tom_tat == "Chưa tính giá xuất kho bình quân cuối kỳ — 2 dòng xuất kho chưa có đơn giá"
+    assert buoc.ma_check == "C4.1"
 
 
 def test_thieu_ket_qua_kiem_tra_thi_khong_ap_dung(ctx):
     """F5/F7: nếu ket_qua không có C4.1/C5.1 (chưa chạy kiểm tra), không được coi là đã làm."""
     df = tao_df([{}])
     b = {buoc.buoc: buoc for buoc in tt.suy_trang_thai(df, {})}
-    assert b["Xuất kho có đầy đủ giá"].trang_thai == tt.KHONG_AP_DUNG
+    assert b[tt.BUOC_TINH_GIA_XUAT_KHO].trang_thai == tt.KHONG_AP_DUNG
     assert b["TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)"].trang_thai == tt.KHONG_AP_DUNG

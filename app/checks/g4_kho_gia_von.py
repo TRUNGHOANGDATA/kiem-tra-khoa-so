@@ -8,6 +8,8 @@ NHOM = "G4"
 TK_CO_HOP_LE_GIA_VON = ("152", "153", "154", "155", "156", "157", "627", "2294", "1381")
 TK_CHI_PHI_SX = ("621", "622", "627")
 GHI_CHU_THIEU_SL = "File không có dữ liệu số lượng/đơn giá — không kiểm tra được giá xuất kho"
+GHI_CHU_CHUA_TINH_GIA = ("Nghi chưa chạy tính giá xuất kho bình quân cuối kỳ "
+                         "— toàn bộ dòng xuất kho đều không có đơn giá")
 
 
 def _bang_tong_hop(rows: list[dict]) -> pd.DataFrame:
@@ -21,12 +23,18 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     khong_co_du_lieu_sl = not bool((df["Quantity9"] > 0).any())
     ghi_chu_sl = GHI_CHU_THIEU_SL if khong_co_du_lieu_sl else ""
 
+    # Cả kỳ có dòng kho kèm số lượng nhưng không một dòng nào có đơn giá dương
+    # -> nghi chưa chạy tính giá xuất kho bình quân cuối kỳ (một việc phải làm,
+    #    không phải hàng chục nghìn lỗi rời rạc).
+    chua_tinh_gia = bool(co_sl.any()) and not bool((co_sl & (df["UnitCost"] > 0)).any())
+    ghi_chu_c41 = GHI_CHU_CHUA_TINH_GIA if chua_tinh_gia else ghi_chu_sl
+
     gia_0 = co_sl & ((df["UnitCost"] <= 0) | (df["Amount"] <= 0))
     ly_do_c41 = ("Có SL " + df["Quantity9"].map(fmt_so) + ", đơn giá " + df["UnitCost"].map(fmt_so) +
                  ", tiền " + df["Amount"].map(fmt_so) +
                  " — có số lượng nhưng đơn giá hoặc tiền = 0 (chưa tính giá xuất kho)")
     kq.append(tao_ket_qua(df[gia_0], "C4.1", "Xuất/nhập kho giá = 0", NHOM, DO, ly_do_c41[gia_0],
-                          ghi_chu=ghi_chu_sl))
+                          ghi_chu=ghi_chu_c41))
 
     co_gia = co_sl & (df["UnitCost"] > 0)
     tien_tinh = df["Quantity9"] * df["UnitCost"]

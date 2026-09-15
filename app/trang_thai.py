@@ -5,6 +5,9 @@ import pandas as pd
 
 from .checks.base import (NGUONG_CON_LAI, TK_KHO, CheckResult, bat_dau, co_dong, fmt_so,
                           phat_sinh_theo_prefix)
+from .checks.g4_kho_gia_von import GHI_CHU_CHUA_TINH_GIA, GHI_CHU_THIEU_SL
+
+BUOC_TINH_GIA_XUAT_KHO = "Tính giá xuất kho (mọi dòng xuất có đơn giá)"
 
 DA_LAM, CHUA_LAM, CAN_RA, KHONG_AP_DUNG = "da_lam", "chua_lam", "can_ra", "khong_ap_dung"
 
@@ -70,19 +73,24 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
     else:
         ds.append(BuocKhoaSo("Nhập kho thành phẩm 154 → 155 (tính giá thành)", CHUA_LAM, "Có Nợ 154 nhưng chưa có Nợ 155/157/632 / Có 154", "C4.5"))
 
+    ten_gia = BUOC_TINH_GIA_XUAT_KHO
     c41 = ket_qua.get("C4.1")
     if c41 is None:
-        ds.append(BuocKhoaSo("Xuất kho có đầy đủ giá", KHONG_AP_DUNG, "Chưa chạy kiểm tra C4.1", "C4.1"))
+        ds.append(BuocKhoaSo(ten_gia, KHONG_AP_DUNG, "Chưa chạy kiểm tra C4.1", "C4.1"))
     else:
         dong_kho = bat_dau(df["DebitAccount"], *TK_KHO) | bat_dau(df["CreditAccount"], *TK_KHO)
         if not dong_kho.any():
-            ds.append(BuocKhoaSo("Xuất kho có đầy đủ giá", KHONG_AP_DUNG, "Không có bút toán kho", "C4.1"))
-        elif c41.ghi_chu:
-            ds.append(BuocKhoaSo("Xuất kho có đầy đủ giá", KHONG_AP_DUNG, c41.ghi_chu, "C4.1"))
+            ds.append(BuocKhoaSo(ten_gia, KHONG_AP_DUNG, "Không có bút toán kho", "C4.1"))
+        elif c41.ghi_chu == GHI_CHU_THIEU_SL:
+            ds.append(BuocKhoaSo(ten_gia, KHONG_AP_DUNG, c41.ghi_chu, "C4.1"))
+        elif c41.ghi_chu == GHI_CHU_CHUA_TINH_GIA:
+            ds.append(BuocKhoaSo(ten_gia, CHUA_LAM,
+                                 f"Chưa tính giá xuất kho bình quân cuối kỳ — {c41.so_loi} dòng xuất kho chưa có đơn giá",
+                                 "C4.1"))
         elif c41.so_loi == 0:
-            ds.append(BuocKhoaSo("Xuất kho có đầy đủ giá", DA_LAM, f"{int(dong_kho.sum())} dòng kho, không dòng giá = 0", "C4.1"))
+            ds.append(BuocKhoaSo(ten_gia, DA_LAM, f"{int(dong_kho.sum())} dòng kho, không dòng giá = 0", "C4.1"))
         else:
-            ds.append(BuocKhoaSo("Xuất kho có đầy đủ giá", CAN_RA, f"Còn {c41.so_loi} dòng kho có số lượng nhưng giá = 0", "C4.1"))
+            ds.append(BuocKhoaSo(ten_gia, CAN_RA, f"Còn {c41.so_loi} dòng kho có số lượng nhưng giá = 0", "C4.1"))
 
     ds.append(_ket_chuyen(df, "Kết chuyển giá vốn 632 → 911", "632", ("911",), ("632",), "C5.2"))
     ds.append(_nhom_ve_911(df, "Kết chuyển doanh thu 511/515/711 → 911", ("511", "515", "711"), "nguon->911", "C5.3"))
