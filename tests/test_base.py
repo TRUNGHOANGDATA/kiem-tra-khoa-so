@@ -1,0 +1,57 @@
+import pandas as pd
+
+from app.checks import base
+from tests.conftest import tao_df
+
+
+def test_bat_dau_theo_prefix():
+    s = pd.Series(["6214", "632211", "1551", None])
+    assert base.bat_dau(s, "621", "632").tolist() == [True, True, False, False]
+
+
+def test_loc_dong_va_co_dong():
+    df = tao_df([
+        {"DebitAccount": "154", "CreditAccount": "6214"},
+        {"DebitAccount": "911", "CreditAccount": "632111"},
+    ])
+    assert len(base.loc_dong(df, no=("154",), co=("621",))) == 1
+    assert base.co_dong(df, no=("911",), co=("632",)) is True
+    assert base.co_dong(df, no=("155",), co=("154",)) is False
+
+
+def test_phat_sinh_theo_prefix():
+    df = tao_df([
+        {"DebitAccount": "6214", "CreditAccount": "1521", "Amount": 100},
+        {"DebitAccount": "154", "CreditAccount": "6214", "Amount": 100},
+    ])
+    assert base.phat_sinh_theo_prefix(df, "621") == (100.0, 100.0)
+
+
+def test_so_phat_sinh_tai_khoan_co_net():
+    df = tao_df([
+        {"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 300},
+        {"DebitAccount": "911", "CreditAccount": "6421", "Amount": 200},
+    ])
+    bang = base.so_phat_sinh_tai_khoan(df).set_index("TK")
+    assert bang.loc["6421", "ps_no"] == 300
+    assert bang.loc["6421", "ps_co"] == 200
+    assert bang.loc["6421", "net"] == 100
+
+
+def test_tao_ket_qua_them_ly_do_va_dem_loi():
+    df = tao_df([{"Description": ""}, {"Description": ""}])
+    kq = base.tao_ket_qua(df, "C1.1", "Thiếu diễn giải", "G1", base.VANG, "Diễn giải trống")
+    assert kq.so_loi == 2
+    assert list(kq.chi_tiet.columns) == base.COT_CHUAN
+    assert kq.chi_tiet["ly_do"].iloc[0] == "Diễn giải trống"
+    assert kq.muc_do_thuc == base.VANG
+
+
+def test_muc_do_thuc_xanh_khi_khong_loi():
+    df = tao_df([]) if False else tao_df([{"Amount": 1}]).iloc[0:0]
+    kq = base.tao_ket_qua(df, "C1.5", "Số tiền ≤ 0", "G1", base.DO, "x")
+    assert kq.so_loi == 0 and kq.muc_do_thuc == base.XANH
+
+
+def test_fmt_so():
+    assert base.fmt_so(1234567.4) == "1.234.567"
