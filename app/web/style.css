@@ -60,6 +60,9 @@ html, body { margin: 0; height: 100%; background: var(--nen-phu); color: var(--c
 .banner.san-sang .banner-ket-luan { color: #166534; }
 .banner.chua-san-sang .banner-ket-luan { color: #991B1B; }
 .chip { padding: 6px 12px; border-radius: 99px; background: var(--nen); border: 1px solid var(--vien); margin-left: 6px; }
+.chip-do { background: var(--do-nhat); border-color: #FCA5A5; color: #991B1B; }
+.chip-vang { background: var(--vang-nhat); border-color: #FDE68A; color: #92400E; }
+.chip-xanh { background: var(--xanh-nhat); border-color: #86EFAC; color: #166534; }
 
 /* Tabs */
 .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--vien); }
@@ -106,6 +109,7 @@ html, body { margin: 0; height: 100%; background: var(--nen-phu); color: var(--c
 .bang tr:nth-child(even) td { background: var(--nen-phu); }
 .bang td.so { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .phan-trang { display: flex; align-items: center; gap: 10px; margin-top: 10px; color: var(--chu-phu); font-size: 13px; }
+.bang-trong { padding: 16px; color: var(--chu-phu); }
 
 /* Footer & toast */
 .footer { display: flex; gap: 10px; padding-top: 6px; }

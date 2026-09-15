@@ -7,6 +7,8 @@ let chiTiet = { ma: null, trang: 1, timKiem: "" };
 const KICH_THUOC = 100;
 
 const fmt = (n) => Number(n || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 });
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const ICON_TT = { da_lam: "✅", chua_lam: "❌", can_ra: "⚠️", khong_ap_dung: "➖" };
 const NHAN_TT = { da_lam: "Đã làm", chua_lam: "Chưa làm", can_ra: "Cần rà", khong_ap_dung: "Không áp dụng" };
 const NHAN_MD = { do: "Nghiêm trọng", vang: "Cảnh báo", xanh: "Đạt" };
@@ -48,7 +50,11 @@ async function khoiTao() {
   if (info) hienFile(info); else toast("Chưa có file trong thư mục '1. Source' — hãy chọn hoặc kéo file vào.");
 }
 
-$("btn-chon-file").onclick = async () => hienFile(await api.chon_file());
+$("btn-chon-file").onclick = async () => {
+  const info = await api.chon_file();
+  if (!info) return;              // người dùng bấm Huỷ — không phải lỗi
+  hienFile(info);
+};
 
 const vung = $("vung-keo-tha");
 ["dragenter", "dragover"].forEach((e) => vung.addEventListener(e, (ev) => { ev.preventDefault(); vung.classList.add("keo-qua"); }));
@@ -91,9 +97,9 @@ function veTabA() {
   ketQua.trang_thai.forEach((b) => {
     const li = document.createElement("li"); li.className = `buoc tt-${b.trang_thai}`;
     li.innerHTML = `<div class="icon">${ICON_TT[b.trang_thai]}</div>
-      <div><div class="ten">${b.buoc}</div><div class="tom-tat">${b.tom_tat}</div></div>
+      <div><div class="ten">${esc(b.buoc)}</div><div class="tom-tat">${esc(b.tom_tat)}</div></div>
       <span class="nhan">${NHAN_TT[b.trang_thai]}</span><span>›</span>`;
-    li.onclick = () => moChiTiet(b.ma_check, `${b.buoc} — chứng minh (${b.ma_check})`);
+    li.onclick = () => moChiTiet(b.ma_check, `${esc(b.buoc)} — chứng minh (${b.ma_check})`);
     ul.append(li);
   });
 }
@@ -101,16 +107,16 @@ function veTabA() {
 function veTabB() {
   const luoi = $("luoi-nhom"); luoi.innerHTML = "";
   ketQua.nhom.forEach((n) => {
-    const d = document.createElement("div"); d.className = `the-nhom nhom-${n.muc_do}`; d.dataset.ma = n.ma;
+    const d = document.createElement("div"); d.className = `the-nhom nhom-${n.muc_do}`;
     const ds = n.checks.map((c) =>
-      `<li data-ma="${c.ma}"><span><i class="muc-do ${CLASS_MD[c.muc_do]}"></i>${c.ma} ${c.ten}</span><b>${c.la_thong_ke ? "📊" : fmt(c.so_loi)}</b></li>`).join("");
-    d.innerHTML = `<div class="so">${n.ma === "G6" ? "📊" : fmt(n.so_loi)}</div><div class="ten">${n.ten}</div>
+      `<li data-ma="${esc(c.ma)}"><span><i class="muc-do ${CLASS_MD[c.muc_do]}"></i>${esc(c.ma)} ${esc(c.ten)}</span><b>${c.la_thong_ke ? "📊" : fmt(c.so_loi)}</b></li>`).join("");
+    d.innerHTML = `<div class="so">${n.ma === "G6" ? "📊" : fmt(n.so_loi)}</div><div class="ten">${esc(n.ten)}</div>
       <div class="tom-tat">${n.ma === "G6" ? "Bảng thống kê" : NHAN_MD[n.muc_do]}</div><ul class="ds-check">${ds}</ul>`;
     d.querySelectorAll("li").forEach((li) => li.onclick = (ev) => {
       ev.stopPropagation(); const c = n.checks.find((x) => x.ma === li.dataset.ma);
-      chonThe(d); moChiTiet(c.ma, `${c.ma} · ${c.ten}${c.ghi_chu ? " — " + c.ghi_chu : ""}`);
+      chonThe(d); moChiTiet(c.ma, `${esc(c.ma)} · ${esc(c.ten)}${c.ghi_chu ? " — " + esc(c.ghi_chu) : ""}`);
     });
-    d.onclick = () => { const c = n.checks.find((x) => x.so_loi > 0) || n.checks[0]; chonThe(d); moChiTiet(c.ma, `${c.ma} · ${c.ten}`); };
+    d.onclick = () => { const c = n.checks.find((x) => x.so_loi > 0) || n.checks[0]; chonThe(d); moChiTiet(c.ma, `${esc(c.ma)} · ${esc(c.ten)}`); };
     luoi.append(d);
   });
 }
@@ -124,12 +130,12 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
   if (kq.loi) { toast(kq.loi); return; }
   $("chi-tiet-tieu-de").textContent = `${tieuDe} · ${fmt(kq.tong)} dòng`;
   const tb = $("bang-chi-tiet");
-  if (!kq.tong) { tb.innerHTML = `<tr><td style="padding:16px;color:#6B7280">Không có dòng nào.</td></tr>`; }
+  if (!kq.tong) { tb.innerHTML = `<tr><td class="bang-trong">Không có dòng nào.</td></tr>`; }
   else {
     const soCot = new Set(["Amount", "ps_no", "ps_co", "net", "tong", "so_dong", "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9"]);
-    tb.innerHTML = `<thead><tr>${kq.cot.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${
+    tb.innerHTML = `<thead><tr>${kq.cot.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
       kq.dong.map((r) => `<tr>${kq.cot.map((c) => soCot.has(c) && typeof r[c] === "number"
-        ? `<td class="so">${fmt(r[c])}</td>` : `<td>${r[c] ?? ""}</td>`).join("")}</tr>`).join("")}</tbody>`;
+        ? `<td class="so">${fmt(r[c])}</td>` : `<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
   }
   vePhanTrang(kq.tong, trang, tieuDe);
   $("khung-chi-tiet").classList.remove("an");
