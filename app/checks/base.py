@@ -23,10 +23,24 @@ TEN_COT = {
     "net": "Chênh lệch Nợ − Có", "so_dong": "Số dòng", "tong": "Tổng tiền",
     "thue_vao_1331": "Thuế vào (1331)", "thue_ra_33311": "Thuế ra (33311)",
     "bat_thuong": "Bất thường",
+    "ItemCode": "Mã hàng", "ItemName": "Tên hàng", "Quantity9": "Số lượng",
+    "UnitCost": "Đơn giá", "WarehouseName": "Kho",
+    "don_gia": "Đơn giá suy ra", "don_gia_pho_bien": "Đơn giá phổ biến của mã hàng",
+    "so_lan_xuat": "Số lần xuất trong kỳ",
+    "chi_nhanh": "Chi nhánh", "ky": "Kỳ", "ket_luan": "Kết luận",
+    "so_do": "Nghiêm trọng", "so_vang": "Cảnh báo",
+    "so_chua_lam": "Bước chưa làm", "so_can_ra": "Bước cần rà",
+    "tong_ps": "Tổng phát sinh", "cac_file": "Nguồn dữ liệu",
 }
 # Cột canh phải & định dạng số — một danh sách duy nhất cho cả giao diện lẫn Excel.
 COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",
-                   "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9")
+                   "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9",
+                   "don_gia", "don_gia_pho_bien", "so_lan_xuat", "tong_ps",
+                   "so_do", "so_vang", "so_chua_lam", "so_can_ra")
+# Cột số CÓ PHẦN THẬP PHÂN — làm tròn 0 chữ số ở đây là nói sai sự thật: số lượng
+# 0,059 in ra "0" đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được
+# nêu. Cột Quantity9 của Bravo mang tới 9 chữ số thập phân (xem fmt_sl).
+COT_SO_LE = ("Quantity9",)
 
 
 def ten_cot(cot) -> list[str]:

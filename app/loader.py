@@ -11,7 +11,13 @@ COT_BAT_BUOC = ["DocNo", "DocDate", "DebitAccount", "CreditAccount", "Amount"]
 COT_SO = ["Amount", "OriginalAmount", "ExchangeRate", "Quantity9", "UnitCost"]
 COT_CHUOI = ["DocCode", "DocNo", "Description", "DebitAccount", "CreditAccount", "TaxCode",
              "CustomerCode", "CustomerName", "ItemCode", "ItemName", "WarehouseName",
-             "CurrencyCode", "CreatedByName", "CashFlowName", "ExpenseCatgName", "DeptName"]
+             "CurrencyCode", "CreatedByName", "CashFlowName", "ExpenseCatgName", "DeptName",
+             "BranchCode"]
+# Chi nhánh nằm ở cột BranchCode của bảng kê Bravo (file 08/2026: "A01" cho cả 79.450 dòng).
+# Một file có thể chứa nhiều chi nhánh, và một chi nhánh có thể trải trên nhiều file —
+# nên đơn vị kiểm tra được suy từ giá trị cột này, không phải từ tên file.
+COT_CHI_NHANH = "BranchCode"
+CHI_NHANH_KHONG_RO = "(không có mã chi nhánh)"
 
 
 @dataclass
@@ -24,6 +30,9 @@ class ThongTinFile:
     so_dong: int
     tong_ps: float
     nhat_ky: list[str] = field(default_factory=list)
+    chi_nhanh: str = ""
+    # Mọi file đã góp dòng vào đơn vị này — một chi nhánh có thể được xuất làm nhiều lần.
+    cac_file: list[str] = field(default_factory=list)
 
 
 def doc_ngay(s: pd.Series) -> pd.Series:
@@ -96,17 +105,96 @@ def doc_bang_ke(path: str) -> tuple[pd.DataFrame, ThongTinFile]:
     if df.empty:
         raise ValueError("Bảng kê không có dòng dữ liệu nào để kiểm tra")
     thang, nam = xac_dinh_ky(df)
-    tt = ThongTinFile(path=path, ten=Path(path).name, ky=f"{thang:02d}/{nam}",
+    ten = Path(path).name
+    tt = ThongTinFile(path=path, ten=ten, ky=f"{thang:02d}/{nam}",
                       ky_thang=thang, ky_nam=nam, so_dong=len(df),
-                      tong_ps=float(df["Amount"].sum()), nhat_ky=log)
+                      tong_ps=float(df["Amount"].sum()), nhat_ky=log,
+                      chi_nhanh=mot_chi_nhanh(df), cac_file=[ten])
     return df, tt
 
 
-def tim_file_moi_nhat(thu_muc: str) -> str | None:
+def ma_chi_nhanh(df: pd.DataFrame) -> pd.Series:
+    """Cột mã chi nhánh đã điền chỗ trống — dòng không có mã vẫn phải thuộc một đơn vị,
+    nếu không chúng lặng lẽ biến mất khỏi mọi kiểm tra khi tách theo chi nhánh.
+
+    Tự cắt khoảng trắng thay vì tin rằng chuan_hoa đã chạy: một mã toàn dấu cách
+    lọt qua sẽ thành một chi nhánh mang nhãn rỗng — trên thanh chọn chi nhánh nó
+    là một nút không có chữ, không cách nào biết đang xem sổ của ai.
+    """
+    if COT_CHI_NHANH not in df.columns:
+        return pd.Series(CHI_NHANH_KHONG_RO, index=df.index, dtype="object")
+    s = df[COT_CHI_NHANH].astype("string").str.strip()
+    return s.mask(s.isna() | s.eq("")).fillna(CHI_NHANH_KHONG_RO).astype("object")
+
+
+def mot_chi_nhanh(df: pd.DataFrame) -> str:
+    """Nhãn chi nhánh của một frame đã thuần nhất (rỗng nếu frame còn lẫn nhiều chi nhánh)."""
+    ds = ma_chi_nhanh(df).unique()
+    return str(ds[0]) if len(ds) == 1 else ""
+
+
+def tach_theo_chi_nhanh(df: pd.DataFrame) -> list[tuple[str, pd.DataFrame]]:
+    """Tách frame đã gộp thành từng đơn vị kế toán, sắp theo mã chi nhánh.
+
+    Mỗi chi nhánh khóa sổ trên sổ của chính mình: 911 phải cân trong phạm vi một
+    chi nhánh, kết chuyển 642 của chi nhánh này không bù được phần thiếu của chi
+    nhánh kia. Vì vậy 30 bộ kiểm tra phải chạy trên từng frame con, không bao giờ
+    trên frame đã gộp.
+    """
+    cn = ma_chi_nhanh(df)
+    return [(ten, df[cn == ten].reset_index(drop=True)) for ten in sorted(cn.unique())]
+
+
+def doc_nhieu_bang_ke(paths, on_file=None) -> list[tuple[pd.DataFrame, ThongTinFile]]:
+    """Đọc nhiều file bảng kê -> danh sách (frame, thông tin) theo TỪNG CHI NHÁNH.
+
+    Cùng một chi nhánh nằm ở hai file thì được gộp làm một đơn vị; một file chứa
+    hai chi nhánh thì được tách làm hai. Đường dẫn trùng bị bỏ qua để bấm nhầm hai
+    lần không nhân đôi phát sinh của cả chi nhánh.
+    """
+    khung, nhat_ky, nguon = [], [], {}
+    da_doc: set[str] = set()
+    for p in paths:
+        khoa = os.path.normcase(os.path.abspath(p))
+        if khoa in da_doc:
+            nhat_ky.append(f"Bỏ qua file trùng: {Path(p).name}")
+            continue
+        da_doc.add(khoa)
+        if on_file:
+            on_file(Path(p).name)
+        df, tt = doc_bang_ke(p)
+        khung.append(df)
+        nhat_ky += [f"{tt.ten}: {m}" for m in tt.nhat_ky]
+        for cn in ma_chi_nhanh(df).unique():
+            nguon.setdefault(str(cn), []).append((tt.ten, p))
+    if not khung:
+        raise ValueError("Chưa chọn file bảng kê nào")
+    gop = pd.concat(khung, ignore_index=True) if len(khung) > 1 else khung[0]
+
+    ds = []
+    for cn, con in tach_theo_chi_nhanh(gop):
+        thang, nam = xac_dinh_ky(con)
+        goc = nguon.get(cn) or []
+        ten_file = [t for t, _ in goc]
+        duong_dan = [p for _, p in goc]
+        ds.append((con, ThongTinFile(
+            path=duong_dan[0] if duong_dan else "",
+            ten=" + ".join(ten_file), ky=f"{thang:02d}/{nam}",
+            ky_thang=thang, ky_nam=nam, so_dong=len(con),
+            tong_ps=float(con["Amount"].sum()), nhat_ky=nhat_ky,
+            chi_nhanh=cn, cac_file=list(ten_file))))
+    return ds
+
+
+def tim_file_excel(thu_muc: str) -> list[str]:
+    """Mọi bảng kê trong thư mục, mới nhất trước — bỏ file tạm ~$ của Excel."""
     p = Path(thu_muc)
     if not p.is_dir():
-        return None
+        return []
     files = [f for f in p.glob("*.xls*") if not f.name.startswith("~$")]
-    if not files:
-        return None
-    return str(max(files, key=os.path.getmtime))
+    return [str(f) for f in sorted(files, key=os.path.getmtime, reverse=True)]
+
+
+def tim_file_moi_nhat(thu_muc: str) -> str | None:
+    ds = tim_file_excel(thu_muc)
+    return ds[0] if ds else None

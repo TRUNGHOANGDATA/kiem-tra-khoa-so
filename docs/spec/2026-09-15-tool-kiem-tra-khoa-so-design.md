@@ -190,6 +190,10 @@ Cột chuẩn cho mọi sheet chi tiết lỗi: `DocNo | DocDate | DebitAccount 
 | C4.3 | Giá vốn không đi kèm kho | Nợ `632*` nhưng TK Có không thuộc `155/156/154` | 🟡 |
 | C4.4 | Chưa tập hợp chi phí SX về 154 | Có phát sinh `621/622/627` nhưng **thiếu bút toán kết chuyển sang `154`** (không có dòng Nợ `154`/Có `621|622|627`) | 🔴 |
 | C4.5 | Chưa nhập kho thành phẩm | Có Nợ `154` (kết chuyển) nhưng **thiếu** dòng Nợ `155`/Có `154` | 🟡 |
+| C4.6 | Đơn giá xuất kho lệch mặt bằng mã hàng | Đơn giá suy ra (`Amount/Quantity9`) trên dòng xuất gấp ≥10 lần hoặc ≤1/10 **trung vị của chính mã hàng đó** trong kỳ; chỉ xét mã xuất ≥3 lần | 🟡 |
+
+> C4.1 và C4.6 đã được sửa sau khi đối chiếu dữ liệu thật — xem
+> `docs/ket-qua/sua-c41-gia-xuat-kho.md` và `docs/ket-qua/nhieu-chi-nhanh-va-don-gia.md`.
 
 ### Nhóm 5 — Kết chuyển cuối kỳ ⭐ (`g5_ket_chuyen.py`)
 Xây "sổ phát sinh theo TK" (net theo mỗi TK = Σ phát sinh Nợ − Σ phát sinh Có, khớp theo prefix).

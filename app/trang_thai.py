@@ -105,13 +105,20 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
         elif c41.ghi_chu == GHI_CHU_THIEU_SL:
             ds.append(BuocKhoaSo(ten_gia, KHONG_AP_DUNG, c41.ghi_chu, "C4.1"))
         elif c41.ghi_chu == GHI_CHU_CHUA_TINH_GIA:
-            so_chua_gia, tong_dong_kho = thong_ke_xuat_kho(df)
+            so_chua_gia, tong_xuat = thong_ke_xuat_kho(df)
             ds.append(BuocKhoaSo(ten_gia, CHUA_LAM,
                                  f"Chưa tính giá xuất kho bình quân cuối kỳ —"
-                                 f" {so_chua_gia}/{tong_dong_kho} dòng xuất kho chưa có giá trị",
+                                 f" {fmt_so(so_chua_gia)}/{fmt_so(tong_xuat)}"
+                                 f" dòng xuất kho chưa có giá trị",
                                  "C4.1"))
         elif c41.so_loi == 0:
-            ds.append(BuocKhoaSo(ten_gia, DA_LAM, f"{int(dong_kho.sum())} dòng kho, không dòng nào chưa có giá trị", "C4.1"))
+            # Phải đếm dòng XUẤT, không phải mọi dòng kho: bước này nói về giá xuất kho,
+            # nên gộp cả dòng nhập vào mẫu số là nói một con số không trả lời câu đang hỏi
+            # (sổ 08/2026: 46.522 dòng kho nhưng chỉ 32.519 dòng xuất).
+            _, tong_xuat = thong_ke_xuat_kho(df)
+            ds.append(BuocKhoaSo(ten_gia, DA_LAM,
+                                 f"{fmt_so(tong_xuat)} dòng xuất kho, mọi dòng đều đã có giá trị",
+                                 "C4.1"))
         else:
             ds.append(BuocKhoaSo(ten_gia, CAN_RA,
                                  f"Còn {c41.so_loi} dòng kho có số lượng nhưng chưa có giá trị (Amount = 0)",

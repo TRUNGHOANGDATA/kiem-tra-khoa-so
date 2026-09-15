@@ -12,6 +12,9 @@ MAC_DINH = {
     "ExchangeRate": 1.0, "Quantity9": 0.0, "UnitCost": 0.0,
     "ItemCode": None, "ItemName": None, "WarehouseName": None,
     "CreatedByName": "Kế toán A",
+    # Mặc định để trống: phần lớn test chỉ quan tâm một đơn vị, các test nhiều chi
+    # nhánh tự ghi đè cột này (xem tests/test_nhieu_chi_nhanh.py).
+    "BranchCode": None,
 }
 
 

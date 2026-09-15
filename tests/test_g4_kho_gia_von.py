@@ -6,8 +6,9 @@ def _kq(df, ctx):
     return {r.ma: r for r in g4.kiem_tra(df, ctx)}
 
 
-def test_du_5_ma(ctx):
-    assert [r.ma for r in g4.kiem_tra(tao_df([{}]), ctx)] == ["C4.1", "C4.2", "C4.3", "C4.4", "C4.5"]
+def test_du_6_ma(ctx):
+    assert [r.ma for r in g4.kiem_tra(tao_df([{}]), ctx)] == [
+        "C4.1", "C4.2", "C4.3", "C4.4", "C4.5", "C4.6"]
 
 
 def test_c41_xuat_kho_gia_0(ctx):
@@ -196,3 +197,89 @@ def test_so_sach_sach_thi_xanh(ctx):
     df = tao_df([{}])
     kq = _kq(df, ctx)
     assert all(kq[ma].muc_do_thuc == "xanh" for ma in ["C4.1", "C4.2", "C4.3", "C4.4", "C4.5"])
+
+
+# ============================ C4.6 — đơn giá xuất kho ============================
+def _xuat(ma: str, sl: float, tien: float, **kw) -> dict:
+    """Một dòng xuất kho (Có TK kho) của mã hàng `ma`."""
+    return {"DebitAccount": "6214", "CreditAccount": "1521", "ItemCode": ma,
+            "ItemName": f"Hàng {ma}" if ma else None,
+            "Quantity9": sl, "Amount": tien, **kw}
+
+
+def _c46(rows, ctx):
+    return g4.don_gia_bat_thuong(tao_df(rows))
+
+
+def test_c46_bat_don_gia_gap_nhieu_lan_mat_bang(ctx):
+    """Mặt bằng của mã A là 10.000/đơn vị; một dòng ra 1.000.000 là gấp 100 lần."""
+    rows = [_xuat("A", 10, 100_000) for _ in range(5)]
+    rows.append(_xuat("A", 1, 1_000_000, DocNo="LECH"))
+    kq = _c46(rows, ctx)
+    assert kq.so_loi == 1
+    r = kq.chi_tiet.iloc[0]
+    assert r["DocNo"] == "LECH" and r["don_gia"] == 1_000_000 and r["don_gia_pho_bien"] == 10_000
+    assert "gấp 100 lần" in r["ly_do"] and r["so_lan_xuat"] == 6
+
+
+def test_c46_bat_ca_chieu_don_gia_qua_thap(ctx):
+    rows = [_xuat("A", 1, 10_000) for _ in range(5)]
+    rows.append(_xuat("A", 1000, 10_000, DocNo="RE"))
+    kq = _c46(rows, ctx)
+    assert kq.so_loi == 1
+    assert "chỉ bằng 1/1.000" in kq.chi_tiet.iloc[0]["ly_do"]
+
+
+def test_c46_trong_nguong_thi_khong_bao(ctx):
+    """Chênh 9 lần vẫn dưới ngưỡng 10 — giá vốn bình quân dao động là chuyện thường."""
+    rows = [_xuat("A", 1, 10_000) for _ in range(5)] + [_xuat("A", 1, 90_000)]
+    assert _c46(rows, ctx).so_loi == 0
+
+
+def test_c46_bo_qua_ma_hang_it_lan_xuat_va_noi_ro(ctx):
+    """Mã hàng xuất 1-2 lần chưa có mặt bằng để so. TSCĐ 2,3 tỷ/đơn vị xuất đúng
+    một lần trong kỳ là hợp lệ — không được gọi là bất thường chỉ vì số to."""
+    rows = [_xuat("TSCD", 1, 2_347_789_345), _xuat("TSCD", 1, 10_000)]
+    kq = _c46(rows, ctx)
+    assert kq.so_loi == 0
+    assert "2 dòng chưa đủ cơ sở so sánh" in kq.ghi_chu
+
+
+def test_c46_moi_ma_hang_so_voi_mat_bang_cua_chinh_no(ctx):
+    """Mã B đắt gấp 1.000 lần mã A nhưng nhất quán với chính nó -> không phải lỗi."""
+    rows = ([_xuat("A", 1, 1_000) for _ in range(3)]
+            + [_xuat("B", 1, 1_000_000) for _ in range(3)])
+    assert _c46(rows, ctx).so_loi == 0
+
+
+def test_c46_dung_trung_vi_khong_dung_trung_binh(ctx):
+    """Một dòng lệch 251 lần kéo trung bình lên theo mình rồi tự che mất —
+    trung vị thì không."""
+    rows = [_xuat("A", 1, 1_000) for _ in range(4)] + [_xuat("A", 1, 251_000, DocNo="X")]
+    kq = _c46(rows, ctx)
+    assert kq.so_loi == 1 and kq.chi_tiet.iloc[0]["DocNo"] == "X"
+
+
+def test_c46_bo_qua_dong_nhap_kho(ctx):
+    """Chỉ soi dòng XUẤT (Có TK kho): dòng nhập mang giá mua, không phải giá vốn tính ra."""
+    rows = ([_xuat("A", 1, 1_000) for _ in range(3)]
+            + [{"DebitAccount": "1521", "CreditAccount": "331", "ItemCode": "A",
+                "Quantity9": 1, "Amount": 900_000}])
+    assert _c46(rows, ctx).so_loi == 0
+
+
+def test_c46_bo_qua_dong_khong_co_ma_hang_hoac_khong_co_tien(ctx):
+    rows = ([_xuat("A", 1, 1_000) for _ in range(3)]
+            + [_xuat(None, 1, 900_000), _xuat("A", 1, 0), _xuat("A", 0, 900_000)])
+    assert _c46(rows, ctx).so_loi == 0
+
+
+def test_c46_frame_rong_khong_no(ctx):
+    kq = _c46([], ctx)
+    assert kq.so_loi == 0 and kq.muc_do_thuc == "xanh"
+    assert list(kq.chi_tiet.columns) == g4.COT_C46
+
+
+def test_c46_la_canh_bao_khong_phai_nghiem_trong(ctx):
+    rows = [_xuat("A", 10, 100_000) for _ in range(5)] + [_xuat("A", 1, 1_000_000)]
+    assert _c46(rows, ctx).muc_do_thuc == "vang"

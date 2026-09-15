@@ -23,9 +23,28 @@ def test_css_segoe_ui_light_mode():
 def test_app_js_co_ham_tien_trinh_va_goi_api():
     js = (WEB / "app.js").read_text(encoding="utf-8")
     assert "function onTienTrinh" in js
-    for f in ["lay_file_moi_nhat", "chon_file", "nap_file", "chay_kiem_tra", "lay_chi_tiet", "xuat_bao_cao", "mo_file", "mo_thu_muc"]:
+    for f in ["lay_file_moi_nhat", "chon_nhieu_file", "nap_nhieu_file", "quet_thu_muc",
+              "chay_kiem_tra", "chon_don_vi", "lay_chi_tiet", "xuat_bao_cao",
+              "xuat_tong_hop", "mo_file", "mo_thu_muc"]:
         assert f"api.{f}(" in js, f
     assert "pywebviewFullPath" in js   # kéo-thả lấy đường dẫn thật
+    # Mọi phương thức JS gọi phải thật sự tồn tại trên JsApi — pywebview không báo
+    # lỗi khi gọi tên không có, lời gọi chỉ lặng lẽ trả về undefined.
+    from app.api import JsApi
+    for f in sorted(set(re.findall(r"api\.([a-z_]+)\(", js))):
+        assert callable(getattr(JsApi, f, None)), f"JsApi thiếu phương thức {f}"
+
+
+def test_keo_nhieu_file_va_thanh_chi_nhanh():
+    """Nhiều chi nhánh: kéo-thả phải nhận CẢ danh sách file, và nút 'Kiểm tra' phải
+    gửi lại cả danh sách — gửi mỗi file đầu sẽ vứt mất các chi nhánh còn lại."""
+    js = (WEB / "app.js").read_text(encoding="utf-8")
+    html = (WEB / "index.html").read_text(encoding="utf-8")
+    assert "[...ev.dataTransfer.files]" in js          # không chỉ files[0]
+    assert "api.chay_kiem_tra(fileHienTai?.cac_path" in js
+    assert "function veThanhDonVi" in js and "doiDonVi" in js
+    for i in ("thanh-don-vi", "ds-don-vi-nap", "btn-quet-thu-muc", "btn-xuat-tong-hop"):
+        assert f'id="{i}"' in html, i
 
 
 def test_moi_id_app_js_dung_deu_ton_tai_trong_html():

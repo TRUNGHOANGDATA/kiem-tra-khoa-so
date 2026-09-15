@@ -195,10 +195,30 @@ function toast(msg, nut = []) {
 function hienFile(info) {
   if (!info || info.loi) { toast(info?.loi || "Không đọc được file"); return; }
   fileHienTai = info;
-  $("file-ten").textContent = info.ten; $("file-ky").textContent = info.ky;
+  const dv = info.don_vi || [];
+  const nhieu = dv.length > 1;
+  // Tên thẻ nói theo cái người dùng vừa làm: một chi nhánh thì nêu tên chi nhánh,
+  // nhiều chi nhánh thì nêu số lượng — không dồn 12 mã vào một dòng rồi tràn.
+  $("file-ten").textContent = nhieu
+    ? `${dv.length} chi nhánh · ${info.so_file} file` : info.ten;
+  $("file-ky").textContent = info.ky;
   $("file-so-dong").textContent = fmt(info.so_dong); $("file-tong-ps").textContent = fmt(info.tong_ps);
+
+  const ul = $("ds-don-vi-nap"); ul.innerHTML = "";
+  ul.classList.toggle("an", !nhieu);
+  if (nhieu) {
+    dv.forEach((u) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="dv-ma">${esc(u.ma)}</span>
+        <span class="dv-nguon">${esc(u.nguon)}</span>
+        <span class="dv-so so">${fmt(u.so_dong)} dòng</span>
+        <span class="dv-ky so">kỳ ${esc(u.ky)}</span>`;
+      ul.append(li);
+    });
+  }
   $("the-file").classList.remove("an"); $("btn-kiem-tra").disabled = false;
-  $("header-file").textContent = `${info.ten} · kỳ ${info.ky}`;
+  $("header-file").textContent = nhieu
+    ? `${dv.length} chi nhánh · kỳ ${info.ky}` : `${info.ten} · kỳ ${info.ky}`;
 }
 
 async function khoiTao() {
@@ -208,19 +228,29 @@ async function khoiTao() {
 }
 
 $("btn-chon-file").onclick = async () => {
-  const info = await taiFile(() => api.chon_file(), "Đang đọc file…");
+  // allow_multiple: chọn được nhiều file trong cùng một lần mở hộp thoại.
+  const info = await taiFile(() => api.chon_nhieu_file(), "Đang đọc file…");
   if (!info) return;              // người dùng bấm Huỷ — không phải lỗi
   hienFile(info);
+};
+
+$("btn-quet-thu-muc").onclick = async () => {
+  hienFile(await taiFile(() => api.quet_thu_muc(), "Đang quét thư mục '1. Source'…"));
 };
 
 const vung = $("vung-keo-tha");
 ["dragenter", "dragover"].forEach((e) => vung.addEventListener(e, (ev) => { ev.preventDefault(); vung.classList.add("keo-qua"); }));
 ["dragleave", "drop"].forEach((e) => vung.addEventListener(e, (ev) => { ev.preventDefault(); vung.classList.remove("keo-qua"); }));
 vung.addEventListener("drop", async (ev) => {
-  const f = ev.dataTransfer.files[0];
-  const path = f && f.pywebviewFullPath;            // pywebview gắn đường dẫn thật vào File
-  if (!path) { toast("Không lấy được đường dẫn file — hãy dùng nút 'Chọn file…'"); return; }
-  hienFile(await taiFile(() => api.nap_file(path), "Đang đọc file…"));
+  // Kéo NHIỀU file cùng lúc = nhiều chi nhánh. Chỉ lấy file có đường dẫn thật;
+  // nếu kéo 5 file mà chỉ 3 file lấy được đường dẫn thì phải nói ra, không thể
+  // lặng lẽ kiểm tra 3 chi nhánh rồi để người dùng tưởng đã đủ 5.
+  const ds = [...ev.dataTransfer.files];
+  const path = ds.map((f) => f.pywebviewFullPath).filter(Boolean);
+  if (!path.length) { toast("Không lấy được đường dẫn file — hãy dùng nút 'Chọn file…'"); return; }
+  if (path.length < ds.length) toast(`Chỉ lấy được đường dẫn của ${path.length}/${ds.length} file đã kéo`);
+  hienFile(await taiFile(() => api.nap_nhieu_file(path),
+    path.length > 1 ? `Đang đọc ${path.length} file…` : "Đang đọc file…"));
 });
 
 $("btn-kiem-tra").onclick = chayKiemTra;
@@ -230,7 +260,9 @@ async function chayKiemTra() {
   // không xác định; onTienTrinh sẽ tự chuyển sang phần trăm khi số thật tới.
   datTienTrinh("Đang chuẩn bị kiểm tra…");
   try {
-    const kq = await api.chay_kiem_tra(fileHienTai?.path || null);
+    // Gửi CẢ danh sách đường dẫn: gửi mỗi file đầu sẽ khiến backend coi là đã đổi
+    // lựa chọn rồi nạp lại một mình nó, vứt mất các chi nhánh còn lại.
+    const kq = await api.chay_kiem_tra(fileHienTai?.cac_path || null);
     if (kq.loi) { toast(kq.loi); return; }
     ketQua = kq; veKetQua(); chuyenManHinh(2);
   } finally {
@@ -250,11 +282,51 @@ function veKetQua() {
   $("banner").className = "banner " + CLASS_KET_LUAN[muc];
   $("banner-icon").innerHTML = bieuTuong(ICON_KET_LUAN[muc], "icon icon-banner");
   $("banner-ket-luan").textContent = t.cau_ket_luan;
-  $("banner-ky").textContent = `Kỳ ${t.ky} · ${t.ten} · ${fmt(t.so_dong)} dòng`;
+  const nhieu = (ketQua.don_vi || []).length > 1;
+  // Khi có nhiều chi nhánh, tên chi nhánh phải đứng đầu dòng phụ: mọi con số bên
+  // dưới chỉ đúng cho MỘT chi nhánh, đọc nhầm sang chi nhánh khác là sai hoàn toàn.
+  $("banner-ky").textContent = (nhieu ? `Chi nhánh ${t.chi_nhanh} · ` : "")
+    + `Kỳ ${t.ky} · ${t.ten} · ${fmt(t.so_dong)} dòng`;
   $("so-do").textContent = fmt(t.so_do); $("so-vang").textContent = fmt(t.so_vang);
   const tongCheck = ketQua.nhom.flatMap((n) => n.checks).filter((c) => !c.la_thong_ke).length;
   $("so-xanh").textContent = fmt(tongCheck - t.so_do - t.so_vang);
-  veTabA(); veTabB(); anChiTiet();
+  veThanhDonVi(); veTabA(); veTabB(); anChiTiet();
+}
+
+/* Thanh chọn chi nhánh. Ẩn hẳn khi chỉ có một chi nhánh — không bắt người dùng
+   một chi nhánh phải nhìn một thanh điều hướng chỉ có đúng một mục. */
+function veThanhDonVi() {
+  const ds = ketQua.don_vi || [];
+  const nhieu = ds.length > 1;
+  const thanh = $("thanh-don-vi");
+  thanh.classList.toggle("an", !nhieu);
+  $("btn-xuat-tong-hop").classList.toggle("an", !nhieu);
+  if (!nhieu) return;
+  thanh.innerHTML = "";
+  ds.forEach((u) => {
+    const muc = khoaKL(u.muc_do_ket_luan);
+    const dangXem = u.i === ketQua.dang_xem;
+    const b = document.createElement("button");
+    b.className = `chip-dv kl-${CLASS_KET_LUAN[muc]}` + (dangXem ? " dang-chon" : "");
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(dangXem));
+    b.innerHTML = `${bieuTuong(ICON_KET_LUAN[muc], "icon icon-nho")}
+      <span class="chip-dv-ma">${esc(u.ma)}</span>
+      <span class="chip-dv-so so">${fmt((u.so_do || 0) + (u.so_chua_lam || 0))}</span>`;
+    b.title = `${u.ma} · kỳ ${u.ky} · ${u.cau_ket_luan}`;
+    b.onclick = () => doiDonVi(u.i);
+    thanh.append(b);
+  });
+}
+
+async function doiDonVi(i) {
+  if (i === ketQua.dang_xem) return;
+  const kq = await api.chon_don_vi(i);
+  if (kq.loi) { toast(kq.loi); return; }
+  ketQua = kq; veKetQua();
+  // Vùng cuộn giữ nguyên vị trí cũ sẽ khiến chi nhánh mới mở ra ở giữa danh sách —
+  // đưa về đầu để bước 1 luôn là thứ nhìn thấy trước.
+  $("vung-cuon").scrollTop = 0;
 }
 
 function veTabA() {
@@ -340,6 +412,11 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
     const cot = kq.cot || [];
     const nhan = kq.nhan || cot;
     const soCot = new Set(kq.cot_so || []);
+    // Cột có phần thập phân (số lượng): làm tròn 0 chữ số biến 0,059 thành "0" —
+    // đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được nêu.
+    const soLe = new Set(kq.cot_so_le || []);
+    const fmtSo = (c, v) => soLe.has(c)
+      ? Number(v).toLocaleString("vi-VN", { maximumFractionDigits: 9 }) : fmt(v);
     // Diễn giải chứng từ có thể dài vài trăm ký tự: kẹp còn 3 dòng để nhịp hàng
     // không vỡ trên bảng 30.000 dòng, chuỗi đầy đủ đưa vào title để rê chuột đọc.
     // Giá trị ngắn (số CT, ngày, số hiệu TK) không bao giờ được xuống dòng:
@@ -352,7 +429,7 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
       return `<td><span class="${lop}"${tip}>${esc(v)}</span></td>`;
     };
     const oDuLieu = (r, c) => typeof r[c] === "boolean" ? `<td>${r[c] ? "Có" : "Không"}</td>`
-      : soCot.has(c) && typeof r[c] === "number" ? `<td class="so">${fmt(r[c])}</td>`
+      : soCot.has(c) && typeof r[c] === "number" ? `<td class="so">${fmtSo(c, r[c])}</td>`
       : oChu(r[c]);
     // Cột đầu là nút chép cả dòng — <button> thật nên vào được bằng bàn phím và có
     // focus ring; luôn hiện (không chỉ khi rê chuột) để người dùng còn biết là có.
@@ -445,17 +522,26 @@ function chuyenTab(t) {
   $("noi-dung-a").classList.toggle("an", t !== "a"); $("noi-dung-b").classList.toggle("an", t !== "b");
   anChiTiet();
 }
-$("btn-xuat").onclick = async () => {
-  const kq = await api.xuat_bao_cao();
+async function xuat(goiApi, nhan) {
+  const kq = await goiApi();
   if (kq.loi) { toast(kq.loi); return; }
   // api.mo_file/mo_thu_muc trả {loi} khi file đã bị xóa/di chuyển — phải nói ra,
   // nếu không người dùng bấm nút và không thấy gì xảy ra.
   const baoLoi = (r) => { if (r && r.loi) toast(r.loi); };
-  toast("Đã xuất báo cáo Excel", [
+  toast(nhan, [
     { ten: "Mở file Excel", icon: "bang-tinh", onClick: async () => baoLoi(await api.mo_file(kq.path)) },
     { ten: "Mở thư mục", icon: "thu-muc", onClick: async () => baoLoi(await api.mo_thu_muc(kq.path)) },
   ]);
+}
+$("btn-xuat").onclick = () => {
+  const cn = ketQua?.tomtat?.chi_nhanh;
+  const nhieu = (ketQua?.don_vi || []).length > 1;
+  return xuat(() => api.xuat_bao_cao(),
+    nhieu ? `Đã xuất báo cáo chi nhánh ${cn}` : "Đã xuất báo cáo Excel");
 };
+$("btn-xuat-tong-hop").onclick = () =>
+  xuat(() => api.xuat_tong_hop(),
+    `Đã xuất báo cáo tổng hợp ${(ketQua?.don_vi || []).length} chi nhánh`);
 $("btn-kiem-tra-lai").onclick = async () => { chuyenManHinh(1); await chayKiemTra(); };
 $("btn-file-khac").onclick = () => { chuyenManHinh(1); anChiTiet(); };
 

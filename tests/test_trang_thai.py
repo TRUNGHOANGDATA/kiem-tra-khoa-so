@@ -241,6 +241,18 @@ def test_amount_du_khong_don_gia_thi_da_lam(ctx):
     assert buoc.trang_thai == tt.DA_LAM
 
 
+def test_buoc_tinh_gia_dem_dong_xuat_khong_dem_ca_dong_nhap(ctx):
+    """Bước này nói về giá XUẤT kho, nên con số đi kèm phải là số dòng xuất.
+    Gộp cả dòng nhập vào mẫu số là nêu một con số không trả lời câu đang hỏi
+    (trên sổ 08/2026: 46.522 dòng kho nhưng chỉ 32.519 dòng xuất)."""
+    df = tao_df(
+        [{"DebitAccount": "6214", "CreditAccount": "1521", "Quantity9": 1, "Amount": 100}] * 3
+        + [{"DebitAccount": "1521", "CreditAccount": "3311", "Quantity9": 5, "Amount": 500}] * 7)
+    buoc = _suy(df, ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]
+    assert buoc.trang_thai == tt.DA_LAM
+    assert buoc.tom_tat == "3 dòng xuất kho, mọi dòng đều đã có giá trị"
+
+
 def test_duoi_nguong_ty_le_thi_van_la_can_ra(ctx):
     """A1 chiều còn lại: 70/100 chưa đủ để kết luận cả kỳ chưa chạy tính giá."""
     buoc = _suy(kb("sot_dong_xuat_chua_co_gia"), ctx)[0][tt.BUOC_TINH_GIA_XUAT_KHO]

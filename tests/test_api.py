@@ -3,8 +3,14 @@ import json
 import pandas as pd
 
 import app.api as api_module
-from app.api import JsApi
+from app.api import DonVi, JsApi
 from app.checks.base import CheckResult
+from app.loader import ThongTinFile
+
+
+def _thong_tin_gia() -> ThongTinFile:
+    return ThongTinFile(path="", ten="gia-lap.xlsx", ky="08/2026", ky_thang=8, ky_nam=2026,
+                        so_dong=0, tong_ps=0.0, chi_nhanh="A01")
 
 
 def _xlsx(tmp_path):
@@ -172,7 +178,7 @@ def test_lay_chi_tiet_kem_nhan_tieng_viet_va_cot_so(tmp_path):
 
 
 def test_moi_cot_cac_check_sinh_ra_deu_co_nhan_tieng_viet(tmp_path):
-    """C4: quét toàn bộ 29 check — không cột nào rơi lại tên tiếng Anh."""
+    """C4: quét toàn bộ 30 check — không cột nào rơi lại tên tiếng Anh."""
     api = JsApi()
     api.chay_kiem_tra(_xlsx(tmp_path))
     thieu = {}
@@ -189,7 +195,7 @@ def test_lay_chi_tiet_tu_phuc_hoi_khi_kq_bi_xoa(tmp_path):
     cũ — lay_chi_tiet phải tự chạy lại kiểm tra từ self._df thay vì báo lỗi mã nội bộ."""
     api = JsApi()
     api.chay_kiem_tra(_xlsx(tmp_path))
-    api._kq = {}  # mô phỏng đúng triệu chứng người dùng gặp: cache bị xóa nhưng vẫn còn file
+    api._dv[0].kq = {}  # mô phỏng đúng triệu chứng: cache bị xóa nhưng vẫn còn dữ liệu
     ct = api.lay_chi_tiet("C1.1")
     assert "loi" not in ct
     assert ct["tong"] == 1 and ct["dong"][0]["DocNo"] == "B"
@@ -207,7 +213,7 @@ def test_lay_chi_tiet_ma_khong_ton_tai_sau_khi_chay_lai_khong_lap_vo_han(tmp_pat
     một lần, không tự gọi lại chính nó."""
     api = JsApi()
     api.chay_kiem_tra(_xlsx(tmp_path))
-    api._kq = {}
+    api._dv[0].kq = {}
     kq = api.lay_chi_tiet("KHONG_TON_TAI")
     assert kq["loi"] == "Không tìm thấy kết quả KHONG_TON_TAI sau khi chạy lại kiểm tra"
 
@@ -215,14 +221,14 @@ def test_lay_chi_tiet_ma_khong_ton_tai_sau_khi_chay_lai_khong_lap_vo_han(tmp_pat
 def test_chay_kiem_tra_lan_2_cung_duong_dan_khong_doc_lai_file(tmp_path, monkeypatch):
     """B3: đường dẫn không đổi thì không được đọc lại Excel lần hai."""
     p = _xlsx(tmp_path)
-    goc = api_module.doc_bang_ke
+    goc = api_module.doc_nhieu_bang_ke
     so_lan_doc = []
 
-    def dem(path):
-        so_lan_doc.append(path)
-        return goc(path)
+    def dem(paths, on_file=None):
+        so_lan_doc.extend(paths)
+        return goc(paths, on_file=on_file)
 
-    monkeypatch.setattr(api_module, "doc_bang_ke", dem)
+    monkeypatch.setattr(api_module, "doc_nhieu_bang_ke", dem)
     api = JsApi()
     api.chay_kiem_tra(p)
     api.chay_kiem_tra(p)  # y hệt path đã trả về trước đó — mô phỏng nút "Kiểm tra"
@@ -235,14 +241,14 @@ def test_man_hinh_1_roi_kiem_tra_khong_doc_lai_file(tmp_path, monkeypatch):
     vào y hệt vào self._tt.path, và JSON round-trip qua JS không đổi nội dung chuỗi, hai
     lần gọi này không được đọc Excel hai lần."""
     _xlsx(tmp_path)  # tạo sẵn file trong thư mục nguồn giả lập
-    goc = api_module.doc_bang_ke
+    goc = api_module.doc_nhieu_bang_ke
     so_lan_doc = []
 
-    def dem(path):
-        so_lan_doc.append(path)
-        return goc(path)
+    def dem(paths, on_file=None):
+        so_lan_doc.extend(paths)
+        return goc(paths, on_file=on_file)
 
-    monkeypatch.setattr(api_module, "doc_bang_ke", dem)
+    monkeypatch.setattr(api_module, "doc_nhieu_bang_ke", dem)
     api = JsApi()
     api.thu_muc_source = str(tmp_path)
     info = api.lay_file_moi_nhat()
@@ -254,8 +260,25 @@ def test_man_hinh_1_roi_kiem_tra_khong_doc_lai_file(tmp_path, monkeypatch):
 def test_kich_thuoc_gioi_han_toi_da_500():
     api = JsApi()
     df = pd.DataFrame({"DocNo": [f"D{i}" for i in range(600)]})
-    api._kq = {"CX": CheckResult(ma="CX", ten="t", nhom="G1", muc_do="do", chi_tiet=df)}
+    api._dv = [DonVi(df, _thong_tin_gia())]
+    api._dv[0].kq = {"CX": CheckResult(ma="CX", ten="t", nhom="G1", muc_do="do", chi_tiet=df)}
     ct = api.lay_chi_tiet("CX", kich_thuoc=10_000)
     assert ct["tong"] == 600 and len(ct["dong"]) == 500
     ct2 = api.lay_chi_tiet("CX", trang=2, kich_thuoc=10_000)
     assert len(ct2["dong"]) == 100
+
+
+def test_cot_so_luong_giu_phan_thap_phan(tmp_path):
+    """Số lượng 0,059 làm tròn 0 chữ số thành "0" — đọc đúng thành "không có số
+    lượng", ngược hẳn với dòng đang được nêu. Giao diện và Excel phải biết cột nào
+    có phần thập phân, không thể đoán từ giá trị."""
+    from app.checks.base import COT_SO_LE
+    api = JsApi()
+    df = pd.DataFrame({"DocNo": ["X"], "Quantity9": [0.059], "Amount": [450878.0]})
+    api._dv = [DonVi(df, _thong_tin_gia())]
+    api._dv[0].kq = {"CX": CheckResult(ma="CX", ten="t", nhom="G4", muc_do="vang", chi_tiet=df)}
+    ct = api.lay_chi_tiet("CX")
+    assert "Quantity9" in COT_SO_LE
+    assert ct["cot_so_le"] == ["Quantity9"]
+    assert ct["dong"][0]["Quantity9"] == 0.059      # không bị làm tròn ở backend
+    assert "Amount" not in ct["cot_so_le"]          # tiền vẫn làm tròn về đồng

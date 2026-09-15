@@ -25,11 +25,18 @@
     <section id="vung-keo-tha" class="vung-keo-tha">
       <svg class="icon icon-to" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
       <p class="keo-tha-text">Kéo file bảng kê chứng từ (.xlsx) vào đây</p>
-      <p class="keo-tha-phu">hoặc</p>
-      <button id="btn-chon-file" class="btn btn-phu" type="button">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
-        Chọn file…
-      </button>
+      <p class="keo-tha-phu">nhiều chi nhánh thì kéo nhiều file cùng lúc — hoặc</p>
+      <div class="keo-tha-nut">
+        <button id="btn-chon-file" class="btn btn-phu" type="button">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+          Chọn file…
+        </button>
+        <button id="btn-quet-thu-muc" class="btn btn-phu" type="button"
+                title="Nạp mọi bảng kê đang có trong thư mục '1. Source'">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+          Nạp cả thư mục
+        </button>
+      </div>
     </section>
 
     <section id="the-file" class="the-file an" aria-live="polite">
@@ -45,6 +52,10 @@
         <div class="o-so"><dt>Số dòng</dt><dd id="file-so-dong" class="so"></dd></div>
         <div class="o-so"><dt>Tổng phát sinh</dt><dd id="file-tong-ps" class="so"></dd></div>
       </dl>
+      <!-- Chỉ hiện khi có từ 2 chi nhánh trở lên: một file có thể chứa nhiều chi
+           nhánh và một chi nhánh có thể nằm ở nhiều file, nên phải cho xem đúng
+           danh sách đơn vị sẽ được kiểm tra trước khi bấm. -->
+      <ul id="ds-don-vi-nap" class="ds-don-vi-nap an"></ul>
     </section>
 
     <button id="btn-kiem-tra" class="btn btn-chinh btn-lon" type="button" disabled>Kiểm tra</button>
@@ -71,6 +82,11 @@
 
 <!-- ===== MÀN HÌNH 2: KẾT QUẢ ===== -->
 <main id="man-hinh-2" class="man-hinh man-hinh-2 an">
+  <!-- Thanh chọn chi nhánh — chỉ hiện khi có từ 2 chi nhánh trở lên. Mỗi chi nhánh
+       khóa sổ trên sổ của chính mình, nên mọi thứ dưới thanh này (băng kết luận,
+       11 bước, 30 check, bảng chi tiết) đều thuộc về đúng một chi nhánh. -->
+  <nav id="thanh-don-vi" class="thanh-don-vi an" aria-label="Chọn chi nhánh"></nav>
+
   <section id="banner" class="banner chua-san-sang" aria-live="polite">
     <div id="banner-icon" class="banner-icon" aria-hidden="true"></div>
     <div class="banner-chu">
@@ -159,6 +175,11 @@
     <button id="btn-xuat" class="btn btn-chinh" type="button">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
       Xuất báo cáo Excel
+    </button>
+    <button id="btn-xuat-tong-hop" class="btn btn-phu an" type="button"
+            title="Một file Excel so sánh toàn bộ chi nhánh, kèm tổng quan và 11 bước của từng chi nhánh">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17v-6.5"/><path d="M13 17V6.5"/><path d="M18 17v-3.5"/></svg>
+      Xuất tổng hợp chi nhánh
     </button>
     <button id="btn-kiem-tra-lai" class="btn btn-phu" type="button">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/></svg>

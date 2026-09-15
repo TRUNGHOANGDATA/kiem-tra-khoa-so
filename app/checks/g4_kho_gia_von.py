@@ -13,6 +13,12 @@ GHI_CHU_CHUA_TINH_GIA = ("Nghi chưa chạy tính giá xuất kho bình quân cu
 TY_LE_NGHI_CHUA_TINH_GIA = 0.8   # tỷ lệ dòng xuất kho không có giá trị đủ để nghi chưa chạy tính giá
 SO_DONG_XUAT_TOI_THIEU = 100     # dưới mức này tỷ lệ không nói lên điều gì
 
+# --- C4.6: đơn giá xuất kho lệch hẳn khỏi mặt bằng của chính mã hàng đó ---
+LAN_LECH_DON_GIA = 10      # gấp/kém từng này lần so với trung vị của mã hàng thì nêu ra
+SO_LAN_XUAT_TOI_THIEU = 3  # dưới 3 lần xuất thì "trung vị của mã hàng" chưa phải mặt bằng
+COT_C46 = ["DocNo", "DocDate", "ItemCode", "ItemName", "WarehouseName",
+           "Quantity9", "Amount", "don_gia", "don_gia_pho_bien", "so_lan_xuat", "ly_do"]
+
 
 def _so(s: pd.Series) -> pd.Series:
     """Chuỗi số đã định dạng. astype("string") là bắt buộc: trên frame rỗng, .map()
@@ -120,4 +126,58 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                      "ly_do": "Đã tập hợp vào 154 nhưng không có bút toán Nợ 155/157/632 / Có 154"
                               " (nhập kho thành phẩm / gửi bán / bán thẳng không qua kho)"})
     kq.append(CheckResult("C4.5", "Chưa nhập kho thành phẩm 154 → 155", NHOM, VANG, _bang_tong_hop(rows)))
+    kq.append(don_gia_bat_thuong(df))
     return kq
+
+
+def don_gia_bat_thuong(df: pd.DataFrame) -> CheckResult:
+    """C4.6 — đơn giá xuất kho lệch hẳn khỏi mặt bằng của chính mã hàng đó.
+
+    Bravo không ghi đơn giá trên dòng xuất (xem C4.1), nên đơn giá phải suy ra bằng
+    tiền ÷ số lượng. Không có ngưỡng tuyệt đối nào dùng được: trên sổ 08/2026 dòng
+    đắt nhất là 2.347.789.345đ/đơn vị, và nó hoàn toàn hợp lệ — một TSCĐ (mã
+    TSCCDC129) xuất 1 đơn vị. Mốc so sánh duy nhất có nghĩa là TRUNG VỊ CỦA CHÍNH
+    MÃ HÀNG ĐÓ trong kỳ; sai đơn vị tính hay gõ nhầm số lượng lộ ra ở đó chứ không
+    lộ ra ở con số tuyệt đối.
+
+    Trung vị, không phải trung bình: một dòng sai lệch 251 lần kéo trung bình lên
+    theo mình rồi tự che mất. Mã hàng xuất dưới 3 lần thì chưa có mặt bằng để so —
+    bỏ qua và nói rõ trong ghi chú, không im lặng coi như đã soi.
+    """
+    xuat = (bat_dau(df["CreditAccount"], *TK_KHO) & (df["Quantity9"] > 0)
+            & (df["Amount"] > 0) & df["ItemCode"].notna())
+    s = df[xuat]
+    bo_qua = 0
+    if len(s):
+        don_gia = s["Amount"] / s["Quantity9"]
+        nhom = don_gia.groupby(s["ItemCode"])
+        pho_bien = nhom.transform("median")
+        so_lan = nhom.transform("size")
+        du_mau = so_lan >= SO_LAN_XUAT_TOI_THIEU
+        bo_qua = int((~du_mau).sum())
+        ty_le = don_gia / pho_bien.where(pho_bien > 0)
+        lech = du_mau & ((ty_le >= LAN_LECH_DON_GIA) | (ty_le <= 1 / LAN_LECH_DON_GIA))
+        ct = s.loc[lech, ["DocNo", "DocDate", "ItemCode", "ItemName", "WarehouseName",
+                          "Quantity9", "Amount"]].copy()
+        ct["don_gia"] = don_gia[lech]
+        ct["don_gia_pho_bien"] = pho_bien[lech]
+        ct["so_lan_xuat"] = so_lan[lech].astype(int)
+        ct["ly_do"] = ("Đơn giá suy ra " + _so(don_gia[lech]) +
+                       " — " + ty_le[lech].map(_gap_may_lan).astype("string") +
+                       " đơn giá phổ biến " + _so(pho_bien[lech]) +
+                       " của mã hàng này (" + so_lan[lech].astype(int).astype("string") +
+                       " lần xuất trong kỳ). Kiểm tra lại số lượng và đơn vị tính.")
+        ct = ct.reset_index(drop=True)
+    else:
+        ct = pd.DataFrame(columns=COT_C46)
+    ghi_chu = (f"Chỉ so được mã hàng xuất từ {SO_LAN_XUAT_TOI_THIEU} lần trở lên trong kỳ"
+               f" — {bo_qua} dòng chưa đủ cơ sở so sánh" if bo_qua else "")
+    return CheckResult("C4.6", "Đơn giá xuất kho lệch mặt bằng mã hàng", NHOM, VANG, ct, ghi_chu)
+
+
+def _gap_may_lan(ty_le: float) -> str:
+    """"gấp 251 lần" / "chỉ bằng 1/12" — nói theo chiều lệch, không bắt người đọc
+    tự nghịch đảo một tỉ số 0,0039."""
+    if ty_le >= 1:
+        return f"gấp {ty_le:,.0f} lần".replace(",", ".")
+    return f"chỉ bằng 1/{1 / ty_le:,.0f}".replace(",", ".")

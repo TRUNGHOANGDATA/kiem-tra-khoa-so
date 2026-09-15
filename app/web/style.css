@@ -129,6 +129,7 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .vung-keo-tha .icon-to { margin: 0 auto; }
 .keo-tha-text { font-size: 15px; margin: 12px 0 2px; color: var(--chu); }
 .keo-tha-phu { color: var(--chu-phu); margin: 2px 0 14px; font-size: 13px; }
+.keo-tha-nut { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
 /* ============================ Thẻ file ==================================== */
 .the-file {
@@ -154,6 +155,21 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 /* Nhãn căn cùng chiều với số bên dưới nó — hai cột tiền/số lượng căn phải. */
 .o-so { min-width: 0; text-align: right; }
 .o-so:first-child { text-align: left; }
+
+/* Danh sách chi nhánh sẽ được kiểm tra (chỉ hiện khi có từ 2 chi nhánh trở lên).
+   Cuộn được sau 5 dòng: 12 chi nhánh không được đẩy nút "Kiểm tra" xuống dưới màn hình. */
+.ds-don-vi-nap {
+  list-style: none; margin: 14px 0 0; padding: 12px 0 0;
+  border-top: 1px solid var(--vien); max-height: 168px; overflow: auto;
+}
+.ds-don-vi-nap li {
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px;
+  align-items: baseline; padding: 5px 0; font-size: 12.5px; color: var(--chu-phu);
+}
+.ds-don-vi-nap li + li { border-top: 1px solid var(--vien); }
+.dv-ma { font-weight: 600; color: var(--chu); }
+.dv-nguon { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-so, .dv-ky { white-space: nowrap; }
 
 /* ============================ Nút ========================================= */
 .btn {
@@ -203,6 +219,35 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 }
 
 /* ============================ Banner kết luận ============================= */
+/* ==================== Thanh chọn chi nhánh ================================
+   Cuộn ngang khi có nhiều chi nhánh — thanh này không bao giờ được xuống dòng
+   thành hai hàng và ăn mất chiều cao của danh sách 11 bước bên dưới.
+   Màu nền theo kết luận, nhưng biểu tượng + số việc phải xử lý luôn đi kèm:
+   không bao giờ chỉ dùng màu để phân biệt chi nhánh nào đang có vấn đề. */
+.thanh-don-vi {
+  flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+.chip-dv {
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 6px 10px; border-radius: 999px; border: 1px solid var(--vien-dam);
+  background: var(--be-mat); color: var(--chu-phu);
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+}
+.chip-dv:hover { border-color: var(--chu-mo); background: var(--be-mat-chim); }
+.chip-dv-so {
+  font-size: 11.5px; font-weight: 700; min-width: 18px; text-align: center;
+  padding: 0 5px; border-radius: 999px; background: rgba(15, 23, 42, .07);
+}
+.chip-dv.kl-chua-san-sang { color: var(--do-dam);   border-color: var(--do-vien); }
+.chip-dv.kl-can-ra-soat   { color: var(--vang-dam); border-color: var(--vang-vien); }
+.chip-dv.kl-san-sang      { color: var(--xanh-dam); border-color: var(--xanh-vien); }
+.chip-dv.dang-chon { border-width: 2px; padding: 5px 9px; }
+.chip-dv.dang-chon.kl-chua-san-sang { background: var(--do-nen);   border-color: var(--do); }
+.chip-dv.dang-chon.kl-can-ra-soat   { background: var(--vang-nen); border-color: var(--vang); }
+.chip-dv.dang-chon.kl-san-sang      { background: var(--xanh-nen); border-color: var(--xanh); }
+
 .banner {
   flex: 0 0 auto;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
