@@ -501,9 +501,9 @@ function veThanhDonVi() {
         <span class="chip-dv-chot">${nhanChot(u.chot)}</span>
       </div>
       <div class="chip-dv-so">
-        <span class="cds cds-do" title="Nghiêm trọng"><i class="cds-cham" aria-hidden="true"></i>${fmt(u.so_do || 0)}</span>
-        <span class="cds cds-vang" title="Cảnh báo"><i class="cds-cham" aria-hidden="true"></i>${fmt(u.so_vang || 0)}</span>
-        <span class="cds cds-xanh" title="Đạt"><i class="cds-cham" aria-hidden="true"></i>${fmt(dat)}</span>
+        <span class="cds cds-do"><i class="cds-cham" aria-hidden="true"></i><span class="cds-nhan">Nghiêm trọng</span><b>${fmt(u.so_do || 0)}</b></span>
+        <span class="cds cds-vang"><i class="cds-cham" aria-hidden="true"></i><span class="cds-nhan">Cảnh báo</span><b>${fmt(u.so_vang || 0)}</b></span>
+        <span class="cds cds-xanh"><i class="cds-cham" aria-hidden="true"></i><span class="cds-nhan">Đạt</span><b>${fmt(dat)}</b></span>
       </div>
     </button>`;
   }).join("");

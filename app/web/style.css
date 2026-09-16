@@ -304,17 +304,20 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .chip-dv.kl-chua-san-sang .chip-dv-cham { background: var(--do); }
 .chip-dv.kl-can-ra-soat   .chip-dv-cham { background: var(--vang); }
 .chip-dv.kl-san-sang      .chip-dv-cham { background: var(--xanh); }
-/* Hàng số: ba mức Nghiêm trọng / Cảnh báo / Đạt — bản thu nhỏ của 3 ô banner. */
-.chip-dv-so { display: flex; gap: 6px; }
+/* Ba mức Nghiêm trọng / Cảnh báo / Đạt — MỖI MỨC MỘT DÒNG có NHÃN rõ ràng
+   (chấm màu + tên mức + số căn phải), để không ai phải đoán con số là gì. */
+.chip-dv-so { display: flex; flex-direction: column; gap: 3px; }
 .cds {
-  flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 4px 6px; border-radius: 8px; font-weight: 800; font-size: 13px;
+  display: flex; align-items: center; gap: 7px;
+  padding: 3px 8px; border-radius: 7px; font-size: 12px;
   background: var(--be-mat-chim); font-variant-numeric: tabular-nums;
 }
 .cds .cds-cham { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-.cds-do   { color: var(--do-dam); }   .cds-do .cds-cham   { background: var(--do); }
-.cds-vang { color: var(--vang-dam); } .cds-vang .cds-cham { background: var(--vang); }
-.cds-xanh { color: var(--xanh-dam); } .cds-xanh .cds-cham { background: var(--xanh); }
+.cds .cds-nhan { flex: 1 1 auto; font-weight: 600; color: var(--chu-phu); }
+.cds b { font-weight: 800; font-size: 13px; }
+.cds-do   b, .cds-do   .cds-nhan { color: var(--do-dam); }   .cds-do   .cds-cham { background: var(--do); }
+.cds-vang b, .cds-vang .cds-nhan { color: var(--vang-dam); } .cds-vang .cds-cham { background: var(--vang); }
+.cds-xanh b, .cds-xanh .cds-nhan { color: var(--xanh-dam); } .cds-xanh .cds-cham { background: var(--xanh); }
 /* Chi nhánh đang xem: nổi hẳn bằng viền thương hiệu + nền + gờ trái. */
 .chip-dv.dang-chon {
   border-color: var(--chinh); background: var(--lam-nen);
