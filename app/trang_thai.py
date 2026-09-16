@@ -88,8 +88,13 @@ def _buoc_tu_check(ten, ma, ket_qua, tom_tat_dat, tom_tat_thieu, trang_thai_thie
     """Bước suy THẲNG từ check được trích dẫn — không tự tính lại, để Tab A không bao
     giờ nói lệch với bảng chứng minh nó trỏ tới (lỗi đã tái diễn 7 lần trên nhánh trước).
 
-    - check thống kê (C7.1–C7.3): đọc cột co_phat_sinh của dòng checklist.
-    - check thường (C7.5/C7.6): đạt khi so_loi == 0.
+    - check thống kê dạng checklist (C7.1–C7.3, cột co_phat_sinh): đọc cột đó của
+      dòng checklist.
+    - check thường (C7.6) hoặc nhắc nhẹ dạng cảnh báo (C7.5, la_thong_ke=True nhưng
+      chi_tiet vẫn chỉ có dòng khi có bằng chứng): đạt khi chi_tiet không có dòng
+      nào. Không dùng so_loi ở đây vì so_loi bị CheckResult ép về 0 khi
+      la_thong_ke=True (đúng thiết kế để không kéo kết luận), nên sẽ luôn "đạt" một
+      cách giả tạo nếu dùng cho C7.5.
     - ket_qua rỗng (chưa chạy kiểm tra) -> KHONG_AP_DUNG, không KeyError (F5/F7).
     """
     r = ket_qua.get(ma)
@@ -99,10 +104,10 @@ def _buoc_tu_check(ten, ma, ket_qua, tom_tat_dat, tom_tat_thieu, trang_thai_thie
         # Kỳ không có phát sinh nào -> không có gì để nhắc/xác nhận. Không được báo
         # "Đã làm" trên sổ rỗng (đúng lỗi test_frame_rong sinh ra để chặn).
         return BuocKhoaSo(ten, KHONG_AP_DUNG, "Kỳ này không có phát sinh", ma)
-    if r.la_thong_ke:
+    if r.la_thong_ke and "co_phat_sinh" in r.chi_tiet.columns:
         dat = bool(r.chi_tiet.iloc[0]["co_phat_sinh"]) if len(r.chi_tiet) else False
     else:
-        dat = r.so_loi == 0
+        dat = len(r.chi_tiet) == 0
     if dat:
         return BuocKhoaSo(ten, DA_LAM, tom_tat_dat, ma)
     return BuocKhoaSo(ten, trang_thai_thieu, tom_tat_thieu, ma)
@@ -170,9 +175,11 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
     ds.append(_nhom_ve_911(df, "Kết chuyển doanh thu 511/515/711 → 911", ("511", "515", "711"), "nguon->911", "C5.3"))
     ds.append(_nhom_ve_911(df, "Kết chuyển chi phí 635/641/642/811 → 911", ("635", "641", "642", "811"), "911->nguon", "C5.4"))
 
+    # C7.5 giờ là nhắc nhẹ (la_thong_ke=True, xem g7) — dùng TU_XAC_NHAN như C7.1–C7.3
+    # để không kéo kết luận khóa sổ (tinh_ket_luan chỉ đếm CHUA_LAM/CAN_RA).
     ds.append(_buoc_tu_check("Đánh giá chênh lệch tỷ giá cuối kỳ (413)", "C7.5", ket_qua,
                              "Không có số dư gốc ngoại tệ cần đánh giá, hoặc đã đánh giá 413",
-                             "Có ngoại tệ trên TK tiền tệ nhưng chưa thấy bút toán 413", CAN_RA, co_hoat_dong))
+                             "Có ngoại tệ trên TK tiền tệ nhưng chưa thấy bút toán 413", TU_XAC_NHAN, co_hoat_dong))
     ds.append(_buoc_tu_check("Kết chuyển chi phí thuế TNDN 8211 → 911", "C7.6", ket_qua,
                              "Đã có 8211, hoặc kỳ không phát sinh lãi phải trích thuế",
                              "KQKD có lãi nhưng chưa thấy chi phí thuế TNDN (8211)", CAN_RA, co_hoat_dong))
