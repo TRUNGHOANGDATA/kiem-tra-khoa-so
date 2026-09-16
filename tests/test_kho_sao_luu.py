@@ -13,6 +13,26 @@ def _luu(kho, **g):
              checks=[], df=DF, ghi_chu=""); a.update(g)
     return kho.luu_snapshot(**a)
 
+def test_tom_tat_kho_dem_dung(tmp_path):
+    kho = KhoChotSo(str(tmp_path / "kho.sqlite"))
+    _luu(kho, ky_nam=2026, ky_thang=6, chi_nhanh="A01")
+    _luu(kho, ky_nam=2026, ky_thang=8, chi_nhanh="A01")   # cùng chi nhánh, kỳ khác
+    _luu(kho, ky_nam=2026, ky_thang=8, chi_nhanh="B02")   # kỳ trùng, chi nhánh khác
+    kho.dong()
+    s = sl.tom_tat_kho(str(tmp_path / "kho.sqlite"))
+    assert s["so_ban"] == 3 and s["so_ban_hieu_luc"] == 3
+    assert s["so_ky"] == 2 and s["so_chi_nhanh"] == 2
+    assert s["ky_dau"] == "06/2026" and s["ky_cuoi"] == "08/2026"
+
+def test_tom_tat_kho_tu_choi_file_khong_phai_kho(tmp_path):
+    import sqlite3
+    import pytest
+    from app.kho.ket_noi import KhongPhaiKho
+    lac = str(tmp_path / "lac.sqlite")
+    con = sqlite3.connect(lac); con.execute("CREATE TABLE t(x)"); con.commit(); con.close()
+    with pytest.raises(KhongPhaiKho):
+        sl.tom_tat_kho(lac)
+
 def test_sao_luu_tao_file_mo_lai_duoc(tmp_path):
     kho = KhoChotSo(str(tmp_path / "kho.sqlite")); _luu(kho); kho.dong()
     bk = sl.sao_luu(str(tmp_path / "kho.sqlite"), str(tmp_path / "backup"))
