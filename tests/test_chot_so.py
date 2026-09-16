@@ -29,7 +29,13 @@ def test_van_tay_khac_khi_sua_mot_dong():
     assert van_tay(df1).ma_bam != van_tay(df2).ma_bam
 
 
-def test_van_tay_on_dinh_qua_json_round_trip():
-    df = _df([{"DocNo": "1", "DocDate": pd.Timestamp("2026-08-01"), "Amount": 100.0}])
-    lai = pd.read_json(io.StringIO(df.to_json(orient="records", date_format="iso")))
+def test_van_tay_on_dinh_qua_table_round_trip():
+    df = _df([{"DocNo": "0001", "DocDate": pd.Timestamp("2026-08-01"), "Amount": 100.0}])
+    blob = df.to_json(orient="table", index=False)
+    lai = pd.read_json(io.StringIO(blob), orient="table").reset_index(drop=True)
     assert van_tay(df).ma_bam == van_tay(lai).ma_bam
+
+
+def test_van_tay_giu_so_0_dau_docno():
+    assert van_tay(_df([{"DocNo": "0001", "Amount": 100.0}])).ma_bam != \
+           van_tay(_df([{"DocNo": "1", "Amount": 100.0}])).ma_bam

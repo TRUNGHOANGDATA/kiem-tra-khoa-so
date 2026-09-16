@@ -90,7 +90,7 @@ snapshot_check                 -- 40 check tại thời điểm chốt
 
 snapshot_du_lieu               -- dòng nguồn đã đóng băng của kỳ (1 hàng / snapshot)
   snapshot_id  INTEGER FK (UNIQUE)
-  du_lieu      BLOB          -- gzip của df.to_json(orient="records", date_format="iso")
+  du_lieu      BLOB          -- gzip của df.to_json(orient="table") — schema-preserving
   -- Lưu cả frame làm BLOB nén, không phải bảng cột: mỗi kỳ/chi nhánh có thể có bộ
   -- cột khác nhau (Bravo xuất khác nhau) → BLOB tránh phải migrate cột. Vẫn nằm
   -- trong CÙNG file .sqlite (một file = toàn bộ dữ liệu, sao lưu = copy 1 file).

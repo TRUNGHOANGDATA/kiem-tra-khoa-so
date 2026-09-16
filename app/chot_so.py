@@ -18,16 +18,12 @@ NGAN = "\x01"  # ngăn cách cột trong một dòng — ký tự không xuất 
 def chuoi_dong(df: pd.DataFrame) -> pd.Series:
     """Chuỗi canonical cho từng dòng (vectorized, chịu được 80k dòng).
 
-    Cùng dữ liệu → cùng chuỗi, kể cả sau khi lưu/đọc lại qua JSON. Số thực làm
-    tròn 4 chữ số (đủ phân biệt tiền/số lượng, tránh nhiễu số dấu phẩy động);
-    ngày về 'yyyy-mm-dd'; NaN về rỗng.
-
-    Lưu ý round-trip JSON: `pd.read_json` mặc định tự suy luận kiểu cột — cột
-    số thực toàn giá trị nguyên (vd Amount=100.0) đọc lại thành int64, cột
-    ngày giờ đọc lại thành chuỗi ISO thô (không tự parse về datetime). Nếu chỉ
-    xét theo dtype thì cùng một dữ liệu sẽ ra chuỗi khác nhau trước/sau khi
-    lưu — nên với cột dạng chuỗi/object, thử ép về số rồi về ngày trước khi
-    coi là văn bản thuần, để 'giống nhau' ổn định qua lưu/đọc.
+    Cùng dữ liệu → cùng chuỗi, kể cả sau khi lưu/đọc lại qua JSON (lớp lưu trữ
+    dùng `orient="table"`, giữ nguyên dtype khi đọc lại — nên ở đây không cần
+    "đoán" kiểu cho cột dạng chuỗi). Số thực làm tròn 4 chữ số (đủ phân biệt
+    tiền/số lượng, tránh nhiễu số dấu phẩy động); ngày về 'yyyy-mm-dd'; NaN về
+    rỗng. Cột chuỗi giữ NGUYÊN VĂN — vd DocNo "0001" phải khác "1" (số 0 đầu
+    có ý nghĩa với số chứng từ), nên tuyệt đối không ép cột chuỗi về số/ngày.
     """
     if len(df) == 0:
         return pd.Series([], dtype="string")
@@ -37,20 +33,10 @@ def chuoi_dong(df: pd.DataFrame) -> pd.Series:
         s = df[c]
         if pd.api.types.is_datetime64_any_dtype(s):
             gt = s.dt.strftime("%Y-%m-%d").fillna("")
-        elif pd.api.types.is_numeric_dtype(s):
-            gt = s.map(lambda x: "" if pd.isna(x) else f"{float(x):.4f}")
+        elif pd.api.types.is_float_dtype(s):
+            gt = s.map(lambda x: "" if pd.isna(x) else f"{x:.4f}")
         else:
-            so = pd.to_numeric(s, errors="coerce")
-            if len(s) and so.notna().all():
-                gt = so.map(lambda x: "" if pd.isna(x) else f"{float(x):.4f}")
-            else:
-                # format="ISO8601" tránh pandas phải "đoán" định dạng (gây UserWarning
-                # khi -W error bật) — chỉ khớp đúng chuỗi ISO do to_json(date_format="iso") sinh ra.
-                ngay = pd.to_datetime(s, errors="coerce", format="ISO8601")
-                if len(s) and ngay.notna().all():
-                    gt = ngay.dt.strftime("%Y-%m-%d").fillna("")
-                else:
-                    gt = s.astype("string").fillna("")
+            gt = s.astype("string").fillna("")
         phan.append(c + "=" + gt.astype("string"))
     return reduce(lambda a, b: a + NGAN + b, phan)
 

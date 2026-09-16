@@ -571,12 +571,16 @@ from .ket_noi import mo_kho
 
 
 def _nen(df: pd.DataFrame) -> bytes:
-    return gzip.compress(df.to_json(orient="records", date_format="iso").encode("utf-8"))
+    # orient="table" nhúng schema (dtype) → read lại KHÔNG trôi kiểu: chuỗi "0001"
+    # vẫn là "0001" (không mất số 0 đầu), float không bị ép thành int. Nhờ vậy vân
+    # tay/diff ổn định qua lưu/đọc mà chuoi_dong không phải coerce lossy.
+    return gzip.compress(df.to_json(orient="table", index=False).encode("utf-8"))
 
 
 def _giai_nen(blob: bytes) -> pd.DataFrame:
     import io
-    return pd.read_json(io.StringIO(gzip.decompress(blob).decode("utf-8")))
+    df = pd.read_json(io.StringIO(gzip.decompress(blob).decode("utf-8")), orient="table")
+    return df.reset_index(drop=True)
 
 
 class KhoChotSo:
