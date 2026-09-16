@@ -118,6 +118,10 @@
     </div>
   </section>
 
+  <!-- Khối "Chốt sổ" của chi nhánh đang xem — dựng bởi veKhoiChot() trong app.js,
+       ngay dưới banner kết luận vì cùng thuộc về một chi nhánh. -->
+  <div id="khoi-chot-so"></div>
+
   <nav class="tab-bar" aria-label="Khu vực kết quả">
     <button id="tab-a" class="tab dang-chon" type="button" aria-pressed="true">Trạng thái khóa sổ</button>
     <button id="tab-b" class="tab" type="button" aria-pressed="false">Lỗi &amp; cảnh báo</button>
@@ -191,6 +195,22 @@
     </button>
   </footer>
 </main>
+
+<!-- Modal xác nhận chốt sổ — dùng chung cho "Chốt sổ kỳ này" và "Chốt lại", được
+     moModalChot()/dongModalChot() trong app.js mở/đóng bằng lớp .an (giống mọi
+     vùng ẩn khác trong file này). -->
+<div id="modal-chot" class="modal an" role="dialog" aria-modal="true" aria-labelledby="modal-chot-tieu-de">
+  <div class="modal-hop">
+    <h3 id="modal-chot-tieu-de">Chốt sổ kỳ này</h3>
+    <div id="modal-chot-thong-tin" class="modal-tt"></div>
+    <label for="modal-chot-ghi-chu">Ghi chú (tùy chọn)</label>
+    <input id="modal-chot-ghi-chu" type="text" placeholder="VD: Đã đối chiếu sổ phụ ngân hàng">
+    <div class="hang-nut">
+      <button class="btn btn-phu" type="button" onclick="dongModalChot()">Hủy</button>
+      <button class="btn btn-chinh" type="button" onclick="xacNhanChot()">Chốt sổ</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast an" role="status" aria-live="polite"></div>
 <script src="app.js"></script>

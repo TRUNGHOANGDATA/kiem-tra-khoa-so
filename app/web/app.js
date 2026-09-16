@@ -32,6 +32,7 @@ const HINH = {
   "thu-muc": '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   "lam-lai": '<path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/>',
   "chep": '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  "khoa": '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
 };
 const bieuTuong = (ten, lop = "icon") =>
   `<svg class="${lop}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"` +
@@ -292,12 +293,91 @@ function veKetQua() {
   $("so-do").textContent = fmt(t.so_do); $("so-vang").textContent = fmt(t.so_vang);
   const tongCheck = ketQua.nhom.flatMap((n) => n.checks).filter((c) => !c.la_thong_ke).length;
   $("so-xanh").textContent = fmt(tongCheck - t.so_do - t.so_vang);
+  $("khoi-chot-so").innerHTML = veKhoiChot(t.chot);
   veThanhDonVi(); veTabA(); veTabB(); anChiTiet();
+}
+
+/* Khối "Chốt sổ" dưới banner kết luận — thuộc về CHI NHÁNH đang xem (t.chot), không
+   phải toàn bộ file, đúng như banner phía trên nó. Hai trạng thái loại trừ nhau:
+   chưa chốt (một nút chính) hoặc đã chốt (thẻ xanh + hai nút phụ). Khi đã chốt mà
+   dữ liệu nguồn lệch so với bản đã chốt (doi_chieu === "LECH") thì thêm một dòng
+   cảnh báo vàng — KHÔNG đổi màu cả thẻ, vì bản thân việc "đã chốt" vẫn đúng. */
+function veKhoiChot(chot) {
+  const khoa = bieuTuong("khoa", "icon icon-nho");
+  if (chot && chot.trang_thai === "DA_CHOT") {
+    const ngay = chot.ngay_chot ? new Date(chot.ngay_chot).toLocaleString("vi-VN") : "";
+    const canhBao = chot.doi_chieu === "LECH"
+      ? `<div class="chot-lech">${bieuTuong("canh-bao", "icon icon-nho")}Dữ liệu nguồn đã khác bản đã chốt</div>`
+      : "";
+    return `<div class="khoi-chot da-chot">
+      <div class="khoi-chot-dong">${khoa}<b>Đã chốt</b>${ngay ? " " + esc(ngay) : ""}${chot.ghi_chu ? " · " + esc(chot.ghi_chu) : ""}</div>
+      ${canhBao}
+      <div class="hang-nut">
+        <button class="btn btn-phu" type="button" onclick="moLaiKy()">Mở lại kỳ</button>
+        <button class="btn btn-phu" type="button" onclick="moModalChot(true)">Chốt lại</button>
+      </div></div>`;
+  }
+  return `<div class="khoi-chot">
+    <button class="btn btn-chinh" type="button" onclick="moModalChot(false)">${khoa}Chốt sổ kỳ này</button>
+  </div>`;
+}
+
+/* ---------- modal chốt sổ ----------
+   Số liệu trong modal luôn đọc lại từ ketQua.tomtat của CHI NHÁNH ĐANG XEM tại thời
+   điểm bấm nút (không chụp lại lúc mở màn kết quả) — nếu người dùng vừa đổi chi
+   nhánh trên thanh chọn rồi mới bấm "Chốt sổ", modal phải nói đúng chi nhánh đó. */
+function moModalChot(chotLai) {
+  const t = ketQua?.tomtat || {};
+  $("modal-chot-tieu-de").textContent = chotLai ? "Chốt lại kỳ này" : "Chốt sổ kỳ này";
+  $("modal-chot-thong-tin").innerHTML =
+    `Kỳ <b>${esc(t.ky)}</b> · Chi nhánh <b>${esc(t.chi_nhanh)}</b><br/>` +
+    `Số dòng: <b>${fmt(t.so_dong)}</b> · Tổng phát sinh: <b>${fmt(t.tong_ps)}</b><br/>` +
+    `Kết luận: <b>${esc(t.cau_ket_luan || "")}</b>`;
+  $("modal-chot-ghi-chu").value = "";
+  $("modal-chot").classList.remove("an");
+  $("modal-chot-ghi-chu").focus();
+}
+function dongModalChot() { $("modal-chot").classList.add("an"); }
+
+/* Sau khi chốt/mở lại, KHÔNG gọi lại chayKiemTra() (nó đọc lại Excel từ đầu) — chỉ
+   xin lại gói tóm tắt của đúng chi nhánh đang xem qua chon_don_vi(), backend tính
+   lại chot dựa trên kho vừa ghi rồi trả về, JS dựng lại màn hình từ đó. */
+async function xacNhanChot() {
+  const ghiChu = $("modal-chot-ghi-chu").value.trim();
+  const kq = await api.chot_so(ghiChu);
+  if (kq.loi) { toast(kq.loi); return; }
+  dongModalChot();
+  const kq2 = await api.chon_don_vi(ketQua.dang_xem);
+  if (kq2.loi) { toast(kq2.loi); return; }
+  ketQua = kq2; veKetQua();
+  toast("Đã chốt sổ kỳ này");
+}
+async function moLaiKy() {
+  if (!confirm("Mở lại kỳ này? Bản đã chốt vẫn được giữ trong lịch sử.")) return;
+  const kq = await api.mo_lai_ky();
+  if (kq.loi) { toast(kq.loi); return; }
+  const kq2 = await api.chon_don_vi(ketQua.dang_xem);
+  if (kq2.loi) { toast(kq2.loi); return; }
+  ketQua = kq2; veKetQua();
+  toast("Đã mở lại kỳ");
 }
 
 /* Thanh chọn chi nhánh. Ẩn hẳn khi chỉ một chi nhánh. Khi nhiều: một dòng TÓM TẮT
    (đếm theo mức độ) + dải thẻ SẮP THEO MỨC ĐỘ NẶNG — chi nhánh cần xử lý nằm bên
    trái, nhìn thấy trước. Mỗi thẻ có chấm màu + nhãn việc, không chỉ dựa vào màu. */
+/* Nhãn chốt ngắn gọn cho thẻ chi nhánh trên thanh chọn — ba trạng thái loại trừ
+   nhau: chưa chốt (trung tính), đã chốt khớp (xanh), đã chốt nhưng dữ liệu nguồn
+   đổi so với bản đã chốt (vàng, cần chú ý). Không tự suy luận gì thêm ngoài
+   `chot` backend trả về — không có bản chốt thì luôn là "Chưa chốt", im lặng. */
+function nhanChot(chot) {
+  if (!chot || chot.trang_thai !== "DA_CHOT")
+    return '<span class="chip-chot chua">Chưa chốt</span>';
+  if (chot.doi_chieu === "LECH")
+    return `<span class="chip-chot lech">${bieuTuong("canh-bao", "icon icon-nho")}Dữ liệu đã đổi</span>`;
+  const ngay = (chot.ngay_chot || "").slice(8, 10) + "/" + (chot.ngay_chot || "").slice(5, 7);
+  return `<span class="chip-chot khop">${bieuTuong("khoa", "icon icon-nho")}Đã chốt ${esc(ngay)}</span>`;
+}
+
 const HANG_KL = { chua_san_sang: 0, can_ra_soat: 1, san_sang: 2 };  // nặng -> nhẹ
 function _soViec(u) {
   const muc = khoaKL(u.muc_do_ket_luan);
@@ -342,6 +422,7 @@ function veThanhDonVi() {
       <span class="chip-dv-cham" aria-hidden="true"></span>
       <span class="chip-dv-ma">${esc(u.ma)}</span>
       <span class="chip-dv-phu">${esc(_nhanViec(u))}</span>
+      <span class="chip-dv-chot">${nhanChot(u.chot)}</span>
     </button>`;
   }).join("");
 
