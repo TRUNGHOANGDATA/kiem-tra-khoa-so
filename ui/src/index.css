@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-feature-settings: "tnum" 1;      /* số tabular toàn cục — công cụ tài chính */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thanh cuộn mảnh, kín đáo (WebView2 mặc định dày). */
+* { scrollbar-width: thin; scrollbar-color: #C7D1DE transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #C7D1DE; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #93A1B2; background-clip: content-box; }
