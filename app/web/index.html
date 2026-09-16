@@ -17,6 +17,10 @@
     <p>Doanh nghiệp sản xuất · Thông tư 200</p>
   </div>
   <div id="header-file" class="header-file"></div>
+  <button id="btn-lich-su" class="btn btn-phu btn-header" type="button">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    Lịch sử chốt sổ
+  </button>
 </header>
 
 <!-- ===== MÀN HÌNH 1: CHỌN FILE ===== -->
@@ -118,6 +122,15 @@
     </div>
   </section>
 
+  <!-- Khối "Chốt sổ" của chi nhánh đang xem — dựng bởi veKhoiChot() trong app.js,
+       ngay dưới banner kết luận vì cùng thuộc về một chi nhánh. -->
+  <div id="khoi-chot-so"></div>
+
+  <!-- Đối chiếu với bản đã chốt — dựng bởi veBannerDrift() trong app.js. Chưa chốt
+       thì rỗng; đã chốt & khớp thì một dải xanh ngắn; đã chốt & lệch thì băng cam
+       kèm số liệu chênh lệch + hai lối xử lý (mở modal-diff / chốt lại). -->
+  <div id="banner-drift"></div>
+
   <nav class="tab-bar" aria-label="Khu vực kết quả">
     <button id="tab-a" class="tab dang-chon" type="button" aria-pressed="true">Trạng thái khóa sổ</button>
     <button id="tab-b" class="tab" type="button" aria-pressed="false">Lỗi &amp; cảnh báo</button>
@@ -190,6 +203,85 @@
       Kiểm tra file khác
     </button>
   </footer>
+</main>
+
+<!-- Modal xác nhận chốt sổ — dùng chung cho "Chốt sổ kỳ này" và "Chốt lại", được
+     moModalChot()/dongModalChot() trong app.js mở/đóng bằng lớp .an (giống mọi
+     vùng ẩn khác trong file này). -->
+<div id="modal-chot" class="modal an" role="dialog" aria-modal="true" aria-labelledby="modal-chot-tieu-de">
+  <div class="modal-hop">
+    <h3 id="modal-chot-tieu-de">Chốt sổ kỳ này</h3>
+    <div id="modal-chot-thong-tin" class="modal-tt"></div>
+    <label for="modal-chot-ghi-chu">Ghi chú (tùy chọn)</label>
+    <input id="modal-chot-ghi-chu" type="text" placeholder="VD: Đã đối chiếu sổ phụ ngân hàng">
+    <div class="hang-nut">
+      <button class="btn btn-phu" type="button" onclick="dongModalChot()">Hủy</button>
+      <button class="btn btn-chinh" type="button" onclick="xacNhanChot()">Chốt sổ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal "Xem thay đổi" — mở từ banner-lech (banner-drift) khi kỳ đã chốt nhưng dữ
+     liệu nguồn đã khác. Bảng dòng thêm/bớt dùng LẠI đúng khung .khung-chi-tiet và
+     hàm dựng bảng dungNoiDungBang() của bảng chi tiết, vì backend trả cùng một
+     shape {tong,trang,cot,nhan,cot_so,cot_so_le,dong}. -->
+<div id="modal-diff" class="modal an" role="dialog" aria-modal="true" aria-labelledby="modal-diff-tieu-de">
+  <div class="modal-hop modal-hop-lon">
+    <div class="chi-tiet-dau">
+      <div class="chi-tiet-tieu">
+        <h3 id="modal-diff-tieu-de">Thay đổi so với bản đã chốt</h3>
+        <p id="diff-tom-tat" class="khoi-dau-phu so"></p>
+      </div>
+      <div class="chi-tiet-cong-cu">
+        <div class="o-tim">
+          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9"/></svg>
+          <input id="diff-tim-kiem" type="search" placeholder="Tìm trong thay đổi…" aria-label="Tìm trong thay đổi">
+        </div>
+        <button id="btn-dong-modal-diff" class="btn btn-phu" type="button" onclick="dongModalDiff()">Đóng</button>
+      </div>
+    </div>
+    <div class="bang-cuon"><table id="bang-diff" class="bang"></table></div>
+    <div class="chi-tiet-chan">
+      <p class="chi-tiet-goi-y">Bấm một ô để chép ô đó · bôi đen rồi Ctrl+C · nút đầu dòng chép cả dòng</p>
+      <div id="phan-trang-diff" class="phan-trang"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MÀN HÌNH 3: LỊCH SỬ CHỐT SỔ + KHO ===== -->
+<main id="man-hinh-3" class="man-hinh man-hinh-3 an">
+  <div class="lich-su-dau">
+    <h2 class="lich-su-tieu-de">Lịch sử chốt sổ</h2>
+    <button id="btn-dong-lich-su" class="btn btn-phu" type="button">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+      Quay lại
+    </button>
+  </div>
+
+  <!-- Thanh công cụ kho SQLite dùng chung cho mọi kỳ/chi nhánh — không thuộc về
+       chi nhánh đang xem, nên đặt ở đây chứ không phải màn hình 2. -->
+  <div class="hang-nut">
+    <button id="btn-sao-luu-kho" class="btn btn-phu" type="button">Sao lưu kho</button>
+    <button id="btn-phuc-hoi-kho" class="btn btn-phu" type="button">Phục hồi từ file…</button>
+    <button id="btn-nhap-gop-kho" class="btn btn-phu" type="button">Nhập &amp; gộp từ file…</button>
+    <button id="btn-mo-thu-muc-kho" class="btn btn-phu" type="button">Mở thư mục kho</button>
+  </div>
+
+  <div class="bang-cuon lich-su-bang-cuon">
+    <table id="bang-lich-su" class="bang">
+      <thead>
+        <tr>
+          <th scope="col">Kỳ</th>
+          <th scope="col">Chi nhánh</th>
+          <th scope="col">Ngày chốt</th>
+          <th scope="col">Kết luận</th>
+          <th scope="col">Trạng thái</th>
+          <th scope="col">Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody id="lich-su-than"></tbody>
+    </table>
+  </div>
 </main>
 
 <div id="toast" class="toast an" role="status" aria-live="polite"></div>

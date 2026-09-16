@@ -134,6 +134,16 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
   padding: 6px 12px; border-radius: 99px;
 }
 .header-file:empty { display: none; }
+/* Nút trên nền header gradient: viền/nền trong suốt kiểu thẻ header-file bên
+   cạnh, không dùng .btn-phu mặc định (nền trắng sẽ chói trên nền indigo).
+   Selector .btn.btn-header (0-2-0) thay vì .btn-header (0-1-0) — phải thắng
+   .btn (0-1-0) đứng SAU nó trong file, nếu không background/color/border của
+   .btn thắng theo thứ tự khai báo và nút lại chói trắng như đã tránh. */
+.btn.btn-header {
+  flex: 0 0 auto; background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .28);
+  color: var(--chu-nghich); box-shadow: none;
+}
+.btn.btn-header:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .4); }
 
 /* ============================ Khung màn hình ============================== */
 .man-hinh { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
@@ -279,11 +289,12 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .chip-dv:hover { box-shadow: var(--bong-card); transform: translateY(-1px); }
 .chip-dv:active { transform: none; }
 .chip-dv .chip-dv-cham {
-  grid-row: 1 / span 2; width: 10px; height: 10px; border-radius: 50%;
+  grid-row: 1 / span 3; width: 10px; height: 10px; border-radius: 50%;
   box-shadow: 0 0 0 3px var(--be-mat-chim);
 }
 .chip-dv .chip-dv-ma { font-weight: 700; font-size: 13.5px; line-height: 1.15; }
 .chip-dv .chip-dv-phu { font-size: 11px; font-weight: 600; color: var(--chu-phu); line-height: 1.15; }
+.chip-dv .chip-dv-chot { grid-column: 2; margin-top: 4px; line-height: 1; }
 .chip-dv.kl-chua-san-sang .chip-dv-cham { background: var(--do); }
 .chip-dv.kl-can-ra-soat   .chip-dv-cham { background: var(--vang); }
 .chip-dv.kl-san-sang      .chip-dv-cham { background: var(--xanh); }
@@ -513,6 +524,109 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 }
 .phan-trang .btn { padding: 6px 11px; font-size: 12.5px; }
 .phan-trang-dem { margin-left: auto; color: var(--chu-phu); font-variant-numeric: tabular-nums; }
+
+/* ============================ Badge chốt =================================
+   Nhãn nhỏ trên thẻ chi nhánh (thanh chọn) — ba trạng thái loại trừ nhau, cùng
+   họ hình dạng "chip bo tròn viền + nền nhạt" như .chip-tt ở Tab A. */
+.chip-chot {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+}
+.chip-chot .icon { width: 11px; height: 11px; }
+.chip-chot.chua { background: var(--nen); color: var(--chu-phu); border: 1px solid var(--vien); }
+.chip-chot.khop { background: var(--xanh-nen); color: var(--xanh-dam); border: 1px solid var(--xanh-vien); }
+.chip-chot.lech { background: var(--vang-nen); color: var(--vang-dam); border: 1px solid var(--vang-vien); }
+
+/* ============================ Khối "Chốt sổ" ==============================
+   Dưới banner kết luận, thuộc về chi nhánh đang xem. Chưa chốt: một nút chính.
+   Đã chốt: thẻ nền xanh nhạt + (khi dữ liệu nguồn lệch) một dòng cảnh báo vàng,
+   không đổi màu cả thẻ vì "đã chốt" vẫn đúng — chỉ dữ liệu nguồn đã khác đi. */
+.khoi-chot {
+  background: var(--be-mat); border: 1px solid var(--vien); border-radius: var(--r-lon);
+  box-shadow: var(--bong-card); padding: 14px 18px; flex: 0 0 auto;
+}
+.khoi-chot.da-chot { background: var(--xanh-nen); border-color: var(--xanh-vien); }
+.khoi-chot-dong { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--xanh-dam); }
+.khoi-chot-dong .icon { color: var(--xanh); flex: 0 0 auto; }
+.chot-lech {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+  color: var(--vang-dam); font-weight: 600; font-size: 12.5px;
+}
+.chot-lech .icon { color: var(--vang); flex: 0 0 auto; }
+.hang-nut { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+/* ============================ Banner đối chiếu bản chốt ====================
+   Dưới khối "Chốt sổ", nói về một câu hỏi khác: dữ liệu NGUỒN (file Excel) có
+   còn khớp với ảnh đã đóng băng lúc chốt không. Khớp -> dải xanh ngắn, không
+   cần làm gì. Lệch -> băng cam nổi bật hơn hẳn (cùng họ màu amber/rose với
+   .chip-chot.lech) vì đây là việc cần xử lý trước khi tin vào kết luận đã chốt. */
+.dai-khop {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  padding: 9px 16px; border-radius: var(--r); font-size: 13px; font-weight: 600;
+  background: var(--xanh-nen); color: var(--xanh-dam); border: 1px solid var(--xanh-vien);
+}
+.dai-khop .icon { color: var(--xanh); flex: 0 0 auto; }
+.banner-lech {
+  flex: 0 0 auto; margin-bottom: 14px; padding: 14px 18px;
+  border-radius: var(--r-lon); background: var(--vang-nen);
+  border: 1px solid var(--vang-vien); box-shadow: var(--bong-card);
+}
+.banner-lech-dau { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: var(--vang-dam); }
+.banner-lech-dau .icon { color: var(--vang); flex: 0 0 auto; }
+.banner-lech-chi-tiet { margin-top: 6px; font-size: 13px; color: var(--vang-dam); }
+.banner-lech-chi-tiet b { color: var(--chu); }
+
+/* ============================ Modal xác nhận chốt ==========================
+   Lớp phủ tối phía sau + hộp trắng nổi giữa màn hình, cùng ngôn ngữ bo góc/đổ
+   bóng với .khung-chi-tiet. Ẩn/hiện bằng .an như mọi vùng khác trong file này. */
+.modal {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, .5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; padding: 24px;
+}
+.modal-hop {
+  background: var(--be-mat); border-radius: var(--r-lon); padding: 22px;
+  width: 420px; max-width: 92vw; box-shadow: var(--bong-noi);
+}
+.modal-hop h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: var(--chu); }
+.modal-tt { margin: 10px 0 16px; line-height: 1.7; color: var(--chu-phu); font-size: 13px; }
+.modal-tt b { color: var(--chu); }
+.modal-hop label { display: block; font-size: 12px; font-weight: 600; color: var(--chu-phu); margin-bottom: 4px; }
+.modal-hop input[type="text"] {
+  font: inherit; font-size: 13px; width: 100%; padding: 9px 12px;
+  border: 1px solid var(--vien-dam); border-radius: var(--r-nho);
+  background: var(--be-mat); color: var(--chu);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.modal-hop input[type="text"]:hover { border-color: var(--chu-mo); }
+.modal-hop input[type="text"]:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
+.modal-hop input[type="text"]::placeholder { color: var(--chu-mo); }
+
+/* Biến thể rộng cho modal chứa bảng (Xem thay đổi) — cùng khung .modal-hop, chỉ
+   nới chiều rộng/chiều cao và cho bảng bên trong tự co giãn theo phần còn lại. */
+.modal-hop-lon {
+  width: min(1000px, 92vw); max-height: 82vh;
+  display: flex; flex-direction: column;
+}
+.modal-hop-lon .bang-cuon { flex: 1 1 auto; min-height: 240px; }
+#diff-tim-kiem {
+  font: inherit; font-size: 13px; padding: 8px 10px 8px 32px;
+  border: 1px solid var(--vien-dam); border-radius: var(--r-nho);
+  background: var(--be-mat); color: var(--chu); width: 220px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+#diff-tim-kiem:hover { border-color: var(--chu-mo); }
+#diff-tim-kiem:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
+#diff-tim-kiem::placeholder { color: var(--chu-mo); }
+
+/* ============================ Lịch sử chốt sổ ============================= */
+.man-hinh-3 { gap: 14px; padding: 18px 24px 24px; max-width: 1200px; width: 100%; margin: 0 auto; overflow: hidden; }
+.lich-su-dau { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lich-su-tieu-de { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.2px; color: var(--chu); }
+.lich-su-bang-cuon { flex: 1 1 auto; min-height: 0; }
+/* Bản đã bị thay bởi một lần chốt lại sau đó — vẫn đọc được (lịch sử không xóa
+   gì) nhưng mờ đi để mắt biết ngay đây không còn là bản hiệu lực. */
+.het-hieu-luc { opacity: .55; }
 
 /* ============================ Footer & toast ============================== */
 .footer { flex: 0 0 auto; display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--vien); }

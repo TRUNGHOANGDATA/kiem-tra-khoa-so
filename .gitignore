@@ -1,5 +1,6 @@
 1. Source/
 2. Report/
+3. Chot so/
 __pycache__/
 *.pyc
 .pytest_cache/

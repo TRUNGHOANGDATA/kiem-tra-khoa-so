@@ -10,8 +10,10 @@ sinh 30.492 dương tính giả. Lần này hậu quả còn nặng hơn: mọi 
 "CÒN N MỤC CẦN RÀ SOÁT" và băng "SẴN SÀNG KHÓA SỔ" thành bất khả thi (đã dựng thử
 và thấy test_ket_luan đỏ).
 
-Chỉ C7.5 và C7.6 là cảnh báo thật, vì bằng chứng nằm ngay trong file: có phát sinh
-ngoại tệ trên tài khoản tiền tệ mà không có 413; có kết chuyển lãi mà không có 8211.
+Chỉ C7.6 là cảnh báo thật kéo kết luận, vì bằng chứng nằm ngay trong file: có kết
+chuyển lãi (911 → 421) mà không có 8211. C7.5 (413 tỷ giá) tuy cũng có bằng chứng
+trong file nhưng là nghiệp vụ không trọng yếu, hiếm phát sinh — nên chỉ là nhắc nhẹ
+(la_thong_ke=True), không kéo kết luận khóa sổ.
 """
 import pandas as pd
 
@@ -38,10 +40,14 @@ def _thong_ke_ps(ma: str, ten: str, prefix: str, df: pd.DataFrame) -> CheckResul
     return CheckResult(ma, ten, NHOM, VANG, bang, la_thong_ke=True)
 
 
-def _canh_bao(ma: str, ten: str, thieu: bool, ly_do: str, ghi_chu: str = "") -> CheckResult:
-    """Cảnh báo thật: chỉ bắn khi có bằng chứng đối ứng trong chính file."""
+def _canh_bao(ma: str, ten: str, thieu: bool, ly_do: str, ghi_chu: str = "",
+              la_thong_ke: bool = False) -> CheckResult:
+    """Cảnh báo: chỉ bắn khi có bằng chứng đối ứng trong chính file.
+
+    la_thong_ke=True → chỉ nhắc, KHÔNG kéo kết luận khóa sổ (dùng cho các mục
+    không trọng yếu như đánh giá tỷ giá 413, hiếm khi phát sinh)."""
     ct = pd.DataFrame([{"ket_luan": ly_do}] if thieu else [], columns=["ket_luan"])
-    return CheckResult(ma, ten, NHOM, VANG, ct, ghi_chu)
+    return CheckResult(ma, ten, NHOM, VANG, ct, ghi_chu, la_thong_ke=la_thong_ke)
 
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
@@ -66,7 +72,7 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     # --- C7.4: thống kê trích trước 335 ---
     kq.append(_thong_ke_ps("C7.4", "Trích trước chi phí (335)", "335", df))
 
-    # --- C7.5: đánh giá tỷ giá cuối kỳ (cảnh báo thật) ---
+    # --- C7.5: đánh giá tỷ giá cuối kỳ (nhắc nhẹ, không kéo kết luận) ---
     # Chỉ suy "còn số dư gốc ngoại tệ" khi ngoại tệ chạm TK TIỀN TỆ.
     cc = (df["CurrencyCode"].astype("string").str.strip()
           if "CurrencyCode" in df.columns else pd.Series("", dtype="string", index=df.index))
@@ -78,7 +84,8 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                         co_du_ngoai_te and no_413 == 0 and co_413 == 0,
                         "Có phát sinh ngoại tệ trên tài khoản tiền tệ nhưng không thấy bút toán 413"
                         " — kiểm tra đánh giá lại số dư gốc ngoại tệ cuối kỳ",
-                        ghi_chu="Chỉ xét dòng ngoại tệ chạm TK " + "/".join(TK_TIEN_TE)))
+                        ghi_chu="Chỉ xét dòng ngoại tệ chạm TK " + "/".join(TK_TIEN_TE),
+                        la_thong_ke=True))
 
     # --- C7.6: chi phí thuế TNDN (cảnh báo thật) ---
     co_lai = co_dong(df, no=("911",), co=("421",))

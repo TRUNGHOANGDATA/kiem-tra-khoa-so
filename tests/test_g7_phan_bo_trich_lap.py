@@ -55,7 +55,7 @@ def test_c74_c77_la_thong_ke_ps(ctx):
     assert kq["C7.7"].la_thong_ke and kq["C7.7"].chi_tiet.iloc[0]["ps_co"] == 30
 
 
-# ------------------------------------------------ C7.5 tỷ giá (cảnh báo thật)
+# ------------------------------------------------ C7.5 tỷ giá (nhắc nhẹ, không kéo kết luận)
 def test_c75_chi_ban_khi_ngoai_te_nam_tren_tk_tien_te(ctx):
     tren_tk_tien_te = tao_df([{"CurrencyCode": "USD", "DebitAccount": "3311",
                                "CreditAccount": "1122", "Amount": 100}])
@@ -67,10 +67,27 @@ def test_c75_chi_ban_khi_ngoai_te_nam_tren_tk_tien_te(ctx):
                            "CreditAccount": "3311", "Amount": 5}])
     chi_vnd = tao_df([{"CurrencyCode": "VND", "DebitAccount": "1111",
                        "CreditAccount": "1121", "Amount": 100}])
-    assert _kq(tren_tk_tien_te, ctx)["C7.5"].so_loi == 1
+    # C7.5 giờ là nhắc nhẹ (la_thong_ke=True) nên so_loi luôn 0, nhưng vẫn giữ
+    # dòng chi_tiet để không bỏ sót — kiểm bằng len(chi_tiet) thay vì so_loi.
+    assert _kq(tren_tk_tien_te, ctx)["C7.5"].so_loi == 0
+    assert len(_kq(tren_tk_tien_te, ctx)["C7.5"].chi_tiet) == 1
     assert _kq(tren_tk_vat_tu, ctx)["C7.5"].so_loi == 0
+    assert len(_kq(tren_tk_vat_tu, ctx)["C7.5"].chi_tiet) == 0
     assert _kq(da_danh_gia, ctx)["C7.5"].so_loi == 0
+    assert len(_kq(da_danh_gia, ctx)["C7.5"].chi_tiet) == 0
     assert _kq(chi_vnd, ctx)["C7.5"].so_loi == 0
+    assert len(_kq(chi_vnd, ctx)["C7.5"].chi_tiet) == 0
+
+
+def test_c75_ngoai_te_khong_413_chi_nhac_khong_keo_ket_luan(ctx):
+    df = tao_df([
+        # dòng ngoại tệ chạm TK tiền tệ, không có bút toán 413
+        {"DebitAccount": "1121", "CreditAccount": "331", "Amount": 1000.0, "CurrencyCode": "USD"},
+    ])
+    c75 = _kq(df, ctx)["C7.5"]
+    assert c75.la_thong_ke is True          # nhắc nhẹ, không phải lỗi
+    assert c75.muc_do_thuc == "xanh"        # không kéo kết luận khóa sổ
+    assert len(c75.chi_tiet) == 1           # vẫn giữ dòng nhắc để không bỏ sót
 
 
 # ------------------------------------------------ C7.6 thuế TNDN (cảnh báo thật)

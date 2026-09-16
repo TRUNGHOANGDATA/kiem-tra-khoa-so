@@ -67,6 +67,14 @@ KICH_BAN = {
     "chi_phi_het": [{"DebitAccount": "642", "CreditAccount": "1111", "Amount": 500},
                     {"DebitAccount": "911", "CreditAccount": "642", "Amount": 500}],
     "chi_nhap_kho_155": [{"DebitAccount": "155", "CreditAccount": "154", "Amount": 100}],
+    # C7.5 hạ cấp thành nhắc nhẹ: ngoại tệ chạm TK tiền tệ (1121/1381) nhưng chưa
+    # có bút toán 413 -> bước phải là TU_XAC_NHAN, không được là CAN_RA. Dùng
+    # 1381 (không phải 131/331) và khớp OriginalAmount×ExchangeRate với Amount để
+    # không tình cờ chạm C2.1 (thiếu mã đối tượng công nợ) / C2.4 (lệch quy đổi
+    # ngoại tệ) — hai check vàng không liên quan đến điều đang kiểm.
+    "ngoai_te_khong_413": [{"DebitAccount": "1121", "CreditAccount": "1381",
+                            "Amount": 1000.0, "CurrencyCode": "USD",
+                            "OriginalAmount": 1000.0, "ExchangeRate": 1.0}],
 }
 
 
@@ -305,3 +313,24 @@ def test_tu_xac_nhan_khong_tinh_vao_ket_luan(ctx):
     b = tt.BuocKhoaSo("X", tt.TU_XAC_NHAN, "chưa thấy", "C7.1")
     kl = tt.tinh_ket_luan([], [b])
     assert kl["muc_do_ket_luan"] == tt.SAN_SANG and kl["con_viec"] == 0
+
+
+def test_c75_ngoai_te_khong_413_la_tu_xac_nhan_khong_can_ra(ctx):
+    """C7.5 hạ cấp thành nhắc nhẹ (xem g7_phan_bo_trich_lap.py): có ngoại tệ trên
+    TK tiền tệ nhưng chưa có bút toán 413 phải báo TU_XAC_NHAN, KHÔNG phải CAN_RA
+    — vì _buoc_tu_check trước đây dùng r.la_thong_ke để chọn nhánh đọc chi_tiet
+    (cột co_phat_sinh của checklist), trong khi C7.5 vẫn dùng chi_tiet kiểu
+    cảnh báo (có dòng khi có bằng chứng). Nếu quy lại thành CAN_RA (hoặc dùng
+    nhầm nhánh checklist), lỗi này sẽ tái diễn và kéo tinh_ket_luan sai."""
+    df = kb("ngoai_te_khong_413")
+    kq = checks.chay_tat_ca(df, ctx)
+    ds = tt.suy_trang_thai(df, {r.ma: r for r in kq})
+    buoc = {b.buoc: b for b in ds}["Đánh giá chênh lệch tỷ giá cuối kỳ (413)"]
+    assert buoc.ma_check == "C7.5"
+    assert buoc.trang_thai == tt.TU_XAC_NHAN
+
+    # Không được kéo tinh_ket_luan sang "CÒN VIỆC CẦN RÀ SOÁT": một mình kịch bản
+    # này (không có lỗi/vàng nào khác) vẫn phải ra SẴN SÀNG KHÓA SỔ.
+    kl = tt.tinh_ket_luan(kq, ds)
+    assert kl["so_can_ra"] == 0
+    assert kl["muc_do_ket_luan"] == tt.SAN_SANG and kl["san_sang"] is True
