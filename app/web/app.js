@@ -461,17 +461,6 @@ function nhanChot(chot) {
 }
 
 const HANG_KL = { chua_san_sang: 0, can_ra_soat: 1, san_sang: 2 };  // nặng -> nhẹ
-function _soViec(u) {
-  const muc = khoaKL(u.muc_do_ket_luan);
-  if (muc === "chua_san_sang") return (u.so_do || 0) + (u.so_chua_lam || 0);
-  if (muc === "can_ra_soat") return (u.so_vang || 0) + (u.so_can_ra || 0);
-  return 0;
-}
-function _nhanViec(u) {
-  const muc = khoaKL(u.muc_do_ket_luan);
-  if (muc === "san_sang") return "Sẵn sàng";
-  return `${fmt(_soViec(u))} ${muc === "chua_san_sang" ? "việc" : "cần rà"}`;
-}
 function veThanhDonVi() {
   const ds = ketQua.don_vi || [];
   const nhieu = ds.length > 1;
