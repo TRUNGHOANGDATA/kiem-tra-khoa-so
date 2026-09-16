@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -106,18 +108,42 @@ class JsApi:
         }
 
     def _nap_nhieu(self, paths: list[str]) -> dict:
-        # Đọc Excel là phần chậm (~85% thời gian chờ) — phải báo tiến trình quanh nó,
-        # nếu không cửa sổ đứng im suốt lúc đọc rồi mới nhảy tiến trình ở phần kiểm tra.
+        # Đọc Excel là phần chậm (~85% thời gian chờ) và là MỘT lệnh pandas chặn luồng
+        # — trong lúc nó chạy không thể tự báo tiến độ con. Vì vậy đọc trong luồng nền
+        # còn luồng js_api ở đây đập nhịp mỗi ~0,35s: hiện tên file + ĐỒNG HỒ GIÂY để
+        # người dùng thấy rõ đang chạy chứ không treo (trước đây chỉ có vệt sáng CSS
+        # quay mà không một chữ nào đổi suốt 8-10 giây).
         tong = max(1, len(paths))
-        dem = {"i": 0}
+        tt_doc: dict = {"ten": "", "i": 0}
 
         def _bao(ten: str):
-            dem["i"] += 1
-            self._tien_trinh(f"Đang đọc {ten} ({dem['i']}/{tong})…", 0)
+            tt_doc["i"] += 1
+            tt_doc["ten"] = ten
 
-        self._tien_trinh("Đang đọc file…", 0)
-        ds = doc_nhieu_bang_ke(paths, on_file=_bao if len(paths) > 1 else None)
-        self._dv = [DonVi(df, tt) for df, tt in ds]
+        ket: dict = {}
+
+        def _chay():
+            try:
+                ket["ds"] = doc_nhieu_bang_ke(paths, on_file=_bao)
+            except Exception as e:  # noqa: BLE001  (chuyển lỗi về luồng chính để ném lại)
+                ket["loi"] = e
+
+        luong = threading.Thread(target=_chay, daemon=True)
+        self._tien_trinh("Đang đọc dữ liệu từ Excel…", 0)
+        luong.start()
+        t0 = time.monotonic()
+        while luong.is_alive():
+            luong.join(timeout=0.35)
+            giay = int(time.monotonic() - t0)
+            if tong > 1 and tt_doc["ten"]:
+                nhan = f"Đang đọc {tt_doc['ten']} ({tt_doc['i']}/{tong}) · {giay}s"
+            else:
+                nhan = f"Đang đọc dữ liệu từ Excel… · {giay}s"
+            self._tien_trinh(nhan, 0)   # 0 -> chế độ không xác định (vệt sáng CSS chạy)
+        if "loi" in ket:
+            raise ket["loi"]
+
+        self._dv = [DonVi(df, tt) for df, tt in ket["ds"]]
         self._i = 0
         self._duong_dan = list(paths)
         n = sum(d.tt.so_dong for d in self._dv)
