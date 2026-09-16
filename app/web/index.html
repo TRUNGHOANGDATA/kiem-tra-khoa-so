@@ -97,7 +97,11 @@
   <!-- Thanh chọn chi nhánh — chỉ hiện khi có từ 2 chi nhánh trở lên. Mỗi chi nhánh
        khóa sổ trên sổ của chính mình, nên mọi thứ dưới thanh này (băng kết luận,
        các bước, 37 check, bảng chi tiết) đều thuộc về đúng một chi nhánh. -->
+  <!-- Bố cục 2 cột: sidebar chi nhánh (trái, chỉ hiện khi nhiều chi nhánh) +
+       khu chính (phải: banner + kết quả). Footer nằm dưới, ngoài hàng 2 cột. -->
+  <div class="man-2-than">
   <nav id="thanh-don-vi" class="thanh-don-vi an" aria-label="Chọn chi nhánh"></nav>
+  <div class="man-2-chinh">
 
   <section id="banner" class="banner chua-san-sang" aria-live="polite">
     <div id="banner-icon" class="banner-icon" aria-hidden="true"></div>
@@ -191,6 +195,7 @@
       </div>
     </section>
   </div>
+  </div></div>
 
   <footer class="footer">
     <button id="btn-xuat" class="btn btn-chinh" type="button">
