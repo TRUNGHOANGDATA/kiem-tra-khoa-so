@@ -888,7 +888,7 @@ async function moCaiDat() {
 }
 function dongCaiDat() { $("modal-cai-dat").classList.add("an"); }
 async function chonThuMuc(idO) {
-  const f = await api.chon_thu_muc();
+  const f = await api.chon_thu_muc($(idO).value || "");   // seed hộp thoại ở giá trị hiện tại
   if (!f || f.huy) return;    // người dùng bấm Huỷ hộp thoại — không phải lỗi
   if (f.loi) { toast(f.loi); return; }
   $(idO).value = f.path;
@@ -899,10 +899,12 @@ async function luuCaiDat() {
     thu_muc_xuat: $("cd-xuat").value.trim(),
     thu_muc_kho: $("cd-kho").value.trim(),
   };
+  const coTrong = !cfg.thu_muc_nguon || !cfg.thu_muc_xuat || !cfg.thu_muc_kho;
   const k = await api.luu_cau_hinh(cfg);
   if (k.loi) { toast(k.loi); return; }
   dongCaiDat();
-  toast("Đã lưu cài đặt thư mục");
+  // Server đã tự dùng mặc định cho ô để trống — báo cho người dùng biết, vẫn coi là lưu thành công.
+  toast(coTrong ? "Ô thư mục để trống đã dùng mặc định." : "Đã lưu cài đặt thư mục");
 }
 
 $("btn-lich-su").onclick = moLichSu;

@@ -28,6 +28,18 @@ def test_thieu_khoa_thi_bu_mac_dinh(tmp_path):
     assert cfg["thu_muc_nguon"].endswith("X")
     assert cfg["thu_muc_xuat"] == str(tmp_path / "2. Report")   # khóa thiếu -> mặc định
 
+def test_khong_ghi_duoc_thi_van_tra_gia_tri_khong_nem(tmp_path, monkeypatch):
+    # GOC khong the ghi (vd chi doc) -> _ghi_tho nem OSError khi tao file lan dau;
+    # doc_cau_hinh KHONG duoc nem ra ngoai, phai tra ve gia tri MAC_DINH da giai.
+    def _ghi_loi(goc, cfg):
+        raise OSError("khong ghi duoc")
+    monkeypatch.setattr(cau_hinh, "_ghi_tho", _ghi_loi)
+    cfg = cau_hinh.doc_cau_hinh(str(tmp_path))
+    assert cfg["thu_muc_nguon"] == str(tmp_path / "1. Source")
+    assert cfg["thu_muc_xuat"] == str(tmp_path / "2. Report")
+    assert cfg["thu_muc_kho"] == str(tmp_path / "3. Chot so")
+    assert not (tmp_path / "cau-hinh.json").exists()   # ghi that bai -> khong co file
+
 def test_first_run_seed_tu_file_mau(tmp_path):
     # co san file mau -> cau-hinh.json tao ra phai theo mau, va bo qua khoa _huong_dan
     (tmp_path / "cau-hinh.mau.json").write_text(

@@ -23,5 +23,17 @@ def test_gan_de_van_thang_cau_hinh(tmp_path, monkeypatch):
 def test_luu_roi_doc_lai_phan_anh_ngay(tmp_path, monkeypatch):
     monkeypatch.setattr("app.api.GOC", tmp_path)
     api = JsApi()
-    assert api.luu_cau_hinh({"thu_muc_nguon": "A", "thu_muc_xuat": "B", "thu_muc_kho": "C"}) == {"ok": True}
+    k = api.luu_cau_hinh({"thu_muc_nguon": "A", "thu_muc_xuat": "B", "thu_muc_kho": "C"})
+    assert k["ok"] is True
     assert api.thu_muc_source == str(tmp_path / "A")   # doc lai moi lan dung -> thay ngay
+
+
+def test_luu_gia_tri_trong_dung_mac_dinh(tmp_path, monkeypatch):
+    # O trong/toan khoang trang khong duoc luu nguyen (se giai thanh GOC) -> phai
+    # bi thay bang thu muc con mac dinh truoc khi ghi.
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    k = api.luu_cau_hinh({"thu_muc_nguon": "A", "thu_muc_xuat": "  ", "thu_muc_kho": ""})
+    assert k["ok"] is True
+    assert api.thu_muc_report == str(tmp_path / "2. Report")
+    assert api._thu_muc_kho == str(tmp_path / "3. Chot so")

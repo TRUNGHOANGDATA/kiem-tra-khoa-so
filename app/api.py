@@ -576,18 +576,20 @@ class JsApi:
 
     def luu_cau_hinh(self, cfg: dict):
         try:
-            cau_hinh.ghi_cau_hinh(str(GOC), {k: str((cfg or {}).get(k, cau_hinh.MAC_DINH[k])) for k in cau_hinh.KHOA})
-            return {"ok": True}
+            c = cfg or {}
+            sach = {k: (str(c.get(k, "")).strip() or cau_hinh.MAC_DINH[k]) for k in cau_hinh.KHOA}
+            cau_hinh.ghi_cau_hinh(str(GOC), sach)
+            return {"ok": True, "sach": sach}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không lưu được cấu hình: {e}"}
 
-    def chon_thu_muc(self):
+    def chon_thu_muc(self, directory: str = ""):
         if self._window is None:
             return {"loi": "Chưa có cửa sổ"}
         try:
             import webview
             loai = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
-            chon = self._window.create_file_dialog(loai)
+            chon = self._window.create_file_dialog(loai, directory=directory or "")
             return {"path": chon[0]} if chon else {"huy": True}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không mở được hộp thoại thư mục: {e}"}

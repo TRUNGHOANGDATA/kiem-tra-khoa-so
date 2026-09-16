@@ -25,12 +25,15 @@ def _doc_tho(goc: str) -> dict:
     f = duong_dan_cau_hinh(goc)
     if not f.exists():
         mau = Path(goc) / "cau-hinh.mau.json"
-        nguon = mau if mau.exists() else None
         try:
-            data = json.loads(nguon.read_text(encoding="utf-8")) if nguon else dict(MAC_DINH)
+            data = json.loads(mau.read_text(encoding="utf-8")) if mau.exists() else dict(MAC_DINH)
         except (OSError, json.JSONDecodeError):
             data = dict(MAC_DINH)
-        _ghi_tho(goc, {k: data.get(k, MAC_DINH[k]) for k in KHOA})
+        sach = {k: data.get(k, MAC_DINH[k]) for k in KHOA}
+        try:
+            _ghi_tho(goc, sach)
+        except OSError:
+            return sach   # không ghi được kho cấu hình -> vẫn trả giá trị, KHÔNG ném
     try:
         return json.loads(f.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
