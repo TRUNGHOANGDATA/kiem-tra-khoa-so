@@ -16,7 +16,8 @@ def test_index_tham_chieu_file_local_va_du_id():
 
 def test_css_segoe_ui_light_mode():
     css = (WEB / "style.css").read_text(encoding="utf-8")
-    assert "Segoe UI" in css and "#1F4E79" in css and "#DC2626" in css
+    # Bảng màu "Premium Light": thương hiệu indigo #1E40AF, status rose #E11D48.
+    assert "Segoe UI" in css and "#1E40AF" in css and "#E11D48" in css
     assert "prefers-color-scheme: dark" not in css
 
 

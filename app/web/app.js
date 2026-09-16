@@ -295,29 +295,62 @@ function veKetQua() {
   veThanhDonVi(); veTabA(); veTabB(); anChiTiet();
 }
 
-/* Thanh chọn chi nhánh. Ẩn hẳn khi chỉ có một chi nhánh — không bắt người dùng
-   một chi nhánh phải nhìn một thanh điều hướng chỉ có đúng một mục. */
+/* Thanh chọn chi nhánh. Ẩn hẳn khi chỉ một chi nhánh. Khi nhiều: một dòng TÓM TẮT
+   (đếm theo mức độ) + dải thẻ SẮP THEO MỨC ĐỘ NẶNG — chi nhánh cần xử lý nằm bên
+   trái, nhìn thấy trước. Mỗi thẻ có chấm màu + nhãn việc, không chỉ dựa vào màu. */
+const HANG_KL = { chua_san_sang: 0, can_ra_soat: 1, san_sang: 2 };  // nặng -> nhẹ
+function _soViec(u) {
+  const muc = khoaKL(u.muc_do_ket_luan);
+  if (muc === "chua_san_sang") return (u.so_do || 0) + (u.so_chua_lam || 0);
+  if (muc === "can_ra_soat") return (u.so_vang || 0) + (u.so_can_ra || 0);
+  return 0;
+}
+function _nhanViec(u) {
+  const muc = khoaKL(u.muc_do_ket_luan);
+  if (muc === "san_sang") return "Sẵn sàng";
+  return `${fmt(_soViec(u))} ${muc === "chua_san_sang" ? "việc" : "cần rà"}`;
+}
 function veThanhDonVi() {
   const ds = ketQua.don_vi || [];
   const nhieu = ds.length > 1;
   const thanh = $("thanh-don-vi");
   thanh.classList.toggle("an", !nhieu);
   $("btn-xuat-tong-hop").classList.toggle("an", !nhieu);
-  if (!nhieu) return;
-  thanh.innerHTML = "";
-  ds.forEach((u) => {
+  if (!nhieu) { thanh.innerHTML = ""; return; }
+
+  // Đếm theo mức độ cho dòng tóm tắt — chỉ hiện mục có số > 0.
+  const dem = { chua_san_sang: 0, can_ra_soat: 0, san_sang: 0 };
+  ds.forEach((u) => { dem[khoaKL(u.muc_do_ket_luan)] += 1; });
+  const nhanDem = [
+    ["chua_san_sang", "chưa sẵn sàng", "dv-dem-do"],
+    ["can_ra_soat", "cần rà soát", "dv-dem-vang"],
+    ["san_sang", "sẵn sàng", "dv-dem-xanh"],
+  ].filter(([k]) => dem[k] > 0)
+    .map(([k, ten, lop]) => `<span class="dv-dem ${lop}">${dem[k]} ${ten}</span>`).join("");
+
+  // Sắp nặng -> nhẹ, giữ thứ tự gốc trong cùng mức. Không đụng u.i (chon_don_vi cần).
+  const sap = ds.map((u, thu_tu) => ({ u, thu_tu }))
+    .sort((a, b) => (HANG_KL[khoaKL(a.u.muc_do_ket_luan)] - HANG_KL[khoaKL(b.u.muc_do_ket_luan)])
+      || (a.thu_tu - b.thu_tu));
+
+  const rail = sap.map(({ u }) => {
     const muc = khoaKL(u.muc_do_ket_luan);
     const dangXem = u.i === ketQua.dang_xem;
-    const b = document.createElement("button");
-    b.className = `chip-dv kl-${CLASS_KET_LUAN[muc]}` + (dangXem ? " dang-chon" : "");
-    b.type = "button";
-    b.setAttribute("aria-pressed", String(dangXem));
-    b.innerHTML = `${bieuTuong(ICON_KET_LUAN[muc], "icon icon-nho")}
+    return `<button type="button" class="chip-dv kl-${CLASS_KET_LUAN[muc]}${dangXem ? " dang-chon" : ""}"
+        aria-pressed="${dangXem}" data-i="${u.i}"
+        title="${esc(u.ma)} · kỳ ${esc(u.ky)} · ${esc(u.cau_ket_luan)}">
+      <span class="chip-dv-cham" aria-hidden="true"></span>
       <span class="chip-dv-ma">${esc(u.ma)}</span>
-      <span class="chip-dv-so so">${fmt((u.so_do || 0) + (u.so_chua_lam || 0))}</span>`;
-    b.title = `${u.ma} · kỳ ${u.ky} · ${u.cau_ket_luan}`;
-    b.onclick = () => doiDonVi(u.i);
-    thanh.append(b);
+      <span class="chip-dv-phu">${esc(_nhanViec(u))}</span>
+    </button>`;
+  }).join("");
+
+  thanh.innerHTML = `<div class="dv-tomtat">
+      <span class="dv-tong">${ds.length} chi nhánh</span>${nhanDem}
+    </div>
+    <div class="dv-rail">${rail}</div>`;
+  thanh.querySelectorAll(".chip-dv").forEach((b) => {
+    b.onclick = () => doiDonVi(Number(b.dataset.i));
   });
 }
 
