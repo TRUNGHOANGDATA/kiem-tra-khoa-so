@@ -107,7 +107,9 @@ class JsApi:
             "so_dong": sum(d.tt.so_dong for d in self._dv),
             "tong_ps": sum(d.tt.tong_ps for d in self._dv),
             "don_vi": [{"ma": d.nhan, "ky": d.tt.ky, "so_dong": d.tt.so_dong,
-                        "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten} for d in self._dv],
+                        "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten,
+                        "ngoai_ky": d.tt.so_dong_ngoai_ky,
+                        "ngoai_ky_ct": d.tt.ngoai_ky} for d in self._dv],
         }
 
     def _nap_nhieu(self, paths: list[str]) -> dict:

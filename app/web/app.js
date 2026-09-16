@@ -195,6 +195,29 @@ function toast(msg, nut = []) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("an"), nut.length ? 12000 : 4000);
 }
 
+/* Cảnh báo SỚM ngoài kỳ (màn 1, trước khi bấm "Kiểm tra") — gộp số dòng ngoài kỳ
+   của MỌI đơn vị vừa nạp và cộng dồn theo nhãn tháng, để một file nhiều chi nhánh
+   không hiện nhiều dòng cảnh báo rời rạc mà chỉ một dòng tổng hợp. Chỉ là lời
+   nhắc: C1.2 mới là chốt chặn chính thức lúc bấm "Kiểm tra", hàm này không đổi. */
+function hienCanhBaoNgoaiKy(info) {
+  const o = $("canh-bao-ngoai-ky");
+  const dv = info.don_vi || [];
+  const tong = dv.reduce((s, u) => s + (u.ngoai_ky || 0), 0);
+  if (!tong) { o.classList.add("an"); o.innerHTML = ""; return; }
+
+  const gop = new Map();   // nhãn 'MM/YYYY' -> số dòng, cộng dồn qua mọi đơn vị
+  dv.forEach((u) => (u.ngoai_ky_ct || []).forEach(([nhan, so]) => {
+    gop.set(nhan, (gop.get(nhan) || 0) + so);
+  }));
+  const ct = [...gop.entries()].sort((a, b) => b[1] - a[1])
+    .map(([nhan, so]) => `${fmt(so)}× ${esc(nhan)}`).join(" · ");
+
+  o.innerHTML = `${bieuTuong("canh-bao", "icon icon-nho")}` +
+    `<span><b>${fmt(tong)} dòng</b> có ngày NGOÀI kỳ <b>${esc(info.ky)}</b>: ${ct} ` +
+    `— kiểm tra lại có nạp nhầm file/sai khoảng xuất không.</span>`;
+  o.classList.remove("an");
+}
+
 /* ---------- màn hình 1 ---------- */
 function hienFile(info) {
   if (!info || info.loi) { toast(info?.loi || "Không đọc được file"); return; }
@@ -220,6 +243,7 @@ function hienFile(info) {
       ul.append(li);
     });
   }
+  hienCanhBaoNgoaiKy(info);
   $("the-file").classList.remove("an"); $("btn-kiem-tra").disabled = false;
   $("header-file").textContent = nhieu
     ? `${dv.length} chi nhánh · kỳ ${info.ky}` : `${info.ten} · kỳ ${info.ky}`;

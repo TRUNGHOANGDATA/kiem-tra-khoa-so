@@ -595,6 +595,17 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 }
 .modal-canh-bao .icon { color: var(--vang); flex: 0 0 auto; margin-top: 1px; }
 .modal-canh-bao b { color: var(--chu); }
+
+/* Cảnh báo SỚM ngoài kỳ trên thẻ file (màn 1, trước khi bấm "Kiểm tra") — cùng
+   tông vàng dịu, không chặn: chỉ nhắc kiểm tra lại có nạp nhầm file/sai khoảng
+   xuất không. C1.2 (lúc kiểm tra) mới là chốt chặn chính thức. */
+.canh-bao-ngoai-ky {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 14px;
+  padding: 10px 12px; border-radius: var(--r); font-size: 12.5px; line-height: 1.55;
+  background: var(--vang-nen); color: var(--vang-dam); border: 1px solid var(--vang-vien);
+}
+.canh-bao-ngoai-ky .icon { color: var(--vang); flex: 0 0 auto; margin-top: 1px; }
+.canh-bao-ngoai-ky b { color: var(--chu); }
 .modal-hop label { display: block; font-size: 12px; font-weight: 600; color: var(--chu-phu); margin-bottom: 4px; }
 .modal-hop input[type="text"] {
   font: inherit; font-size: 13px; width: 100%; padding: 9px 12px;
