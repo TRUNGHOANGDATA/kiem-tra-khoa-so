@@ -21,6 +21,10 @@
     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
     Lịch sử chốt sổ
   </button>
+  <button id="btn-cai-dat" class="btn btn-phu btn-header" type="button" title="Cài đặt thư mục">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    Cài đặt
+  </button>
 </header>
 
 <!-- ===== MÀN HÌNH 1: CHỌN FILE ===== -->
@@ -221,6 +225,41 @@
     <div class="hang-nut">
       <button class="btn btn-phu" type="button" onclick="dongModalChot()">Hủy</button>
       <button class="btn btn-chinh" type="button" onclick="xacNhanChot()">Chốt sổ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal "Cài đặt thư mục" — 3 dòng Nguồn/Xuất/Kho, mỗi dòng nhãn + ô nhập (giá
+     trị THÔ, sửa tay được) + nút "Chọn…" (hộp thoại thư mục qua api.chon_thu_muc).
+     moCaiDat()/dongCaiDat() trong app.js mở/đóng bằng lớp .an, giống modal-chot. -->
+<div id="modal-cai-dat" class="modal an" role="dialog" aria-modal="true" aria-labelledby="modal-cai-dat-tieu-de">
+  <div class="modal-hop">
+    <h3 id="modal-cai-dat-tieu-de">Cài đặt thư mục</h3>
+    <p class="modal-tt">App đọc lại cấu hình mỗi lần dùng — sửa xong bấm Lưu là có hiệu lực ngay.</p>
+    <div class="cd-hang">
+      <label for="cd-nguon">Thư mục Nguồn</label>
+      <div class="cd-o">
+        <input id="cd-nguon" type="text">
+        <button class="btn btn-phu" type="button" onclick="chonThuMuc('cd-nguon')">Chọn…</button>
+      </div>
+    </div>
+    <div class="cd-hang">
+      <label for="cd-xuat">Thư mục Xuất báo cáo</label>
+      <div class="cd-o">
+        <input id="cd-xuat" type="text">
+        <button class="btn btn-phu" type="button" onclick="chonThuMuc('cd-xuat')">Chọn…</button>
+      </div>
+    </div>
+    <div class="cd-hang">
+      <label for="cd-kho">Thư mục Kho chốt sổ</label>
+      <div class="cd-o">
+        <input id="cd-kho" type="text">
+        <button class="btn btn-phu" type="button" onclick="chonThuMuc('cd-kho')">Chọn…</button>
+      </div>
+    </div>
+    <div class="hang-nut">
+      <button class="btn btn-phu" type="button" onclick="dongCaiDat()">Hủy</button>
+      <button class="btn btn-chinh" type="button" onclick="luuCaiDat()">Lưu</button>
     </div>
   </div>
 </div>

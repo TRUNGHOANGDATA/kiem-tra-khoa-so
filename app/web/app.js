@@ -875,7 +875,38 @@ async function nhapGopKho() {
   await taiLichSu();
 }
 
+/* ---------- Cài đặt thư mục (Nguồn/Xuất/Kho) ----------
+   Đọc/ghi qua api.lay_cau_hinh()/luu_cau_hinh(); ô nhập hiện giá trị THÔ (chưa
+   giải tuyệt đối) để người dùng sửa tay đường dẫn tương đối cũng được. */
+async function moCaiDat() {
+  const c = await api.lay_cau_hinh();
+  if (c.loi) { toast(c.loi); return; }
+  $("cd-nguon").value = c.tho.thu_muc_nguon;
+  $("cd-xuat").value = c.tho.thu_muc_xuat;
+  $("cd-kho").value = c.tho.thu_muc_kho;
+  $("modal-cai-dat").classList.remove("an");
+}
+function dongCaiDat() { $("modal-cai-dat").classList.add("an"); }
+async function chonThuMuc(idO) {
+  const f = await api.chon_thu_muc();
+  if (!f || f.huy) return;    // người dùng bấm Huỷ hộp thoại — không phải lỗi
+  if (f.loi) { toast(f.loi); return; }
+  $(idO).value = f.path;
+}
+async function luuCaiDat() {
+  const cfg = {
+    thu_muc_nguon: $("cd-nguon").value.trim(),
+    thu_muc_xuat: $("cd-xuat").value.trim(),
+    thu_muc_kho: $("cd-kho").value.trim(),
+  };
+  const k = await api.luu_cau_hinh(cfg);
+  if (k.loi) { toast(k.loi); return; }
+  dongCaiDat();
+  toast("Đã lưu cài đặt thư mục");
+}
+
 $("btn-lich-su").onclick = moLichSu;
+$("btn-cai-dat").onclick = moCaiDat;
 $("btn-dong-lich-su").onclick = dongLichSu;
 $("btn-sao-luu-kho").onclick = saoLuuKho;
 $("btn-phuc-hoi-kho").onclick = phucHoiKho;
