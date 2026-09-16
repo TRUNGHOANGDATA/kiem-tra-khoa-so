@@ -278,6 +278,7 @@ async function chayKiemTra() {
 function chuyenManHinh(n) {
   $("man-hinh-1").classList.toggle("an", n !== 1);
   $("man-hinh-2").classList.toggle("an", n !== 2);
+  $("man-hinh-3").classList.toggle("an", n !== 3);
 }
 
 /* ---------- màn hình 2 ---------- */
@@ -755,5 +756,82 @@ $("btn-xuat-tong-hop").onclick = () =>
     `Đã xuất báo cáo tổng hợp ${(ketQua?.don_vi || []).length} chi nhánh`);
 $("btn-kiem-tra-lai").onclick = async () => { chuyenManHinh(1); await chayKiemTra(); };
 $("btn-file-khac").onclick = () => { chuyenManHinh(1); anChiTiet(); };
+
+/* ---------- màn hình 3: lịch sử chốt sổ + thanh công cụ kho ----------
+   Mở được từ nút trên header, ở bất kỳ màn hình nào (chưa nạp file hay đang xem
+   kết quả). "Quay lại" phải trả về đúng màn hình trước đó, không mặc định về
+   màn 1 — nếu không người dùng đang xem kết quả một chi nhánh mà bấm xem lịch
+   sử sẽ mất chỗ đang đứng. */
+let _manHinhTruocLichSu = 1;
+async function moLichSu() {
+  _manHinhTruocLichSu = $("man-hinh-2").classList.contains("an") ? 1 : 2;
+  chuyenManHinh(3);
+  await taiLichSu();
+}
+function dongLichSu() { chuyenManHinh(_manHinhTruocLichSu); }
+
+/* ket_luan_ma ở đây là muc_do_ket_luan của tinh_ket_luan() — ba khóa
+   chua_san_sang/can_ra_soat/san_sang (xem app/trang_thai.py), CÙNG thang với
+   khoaKL()/CLASS_KET_LUAN dùng cho banner và thẻ chi nhánh, KHÁC với thang
+   do/vang/xanh của từng check riêng lẻ (khoaMD). Chấm màu mượn lại 3 màu do/
+   vang/xanh sẵn có vì hai thang tương ứng 1-1 (xem .banner.* trong style.css). */
+const NHAN_KL = { chua_san_sang: "Chưa sẵn sàng", can_ra_soat: "Cần rà soát", san_sang: "Sẵn sàng" };
+const KL_SANG_MD = { chua_san_sang: "do", can_ra_soat: "vang", san_sang: "xanh" };
+function veDongLichSu(r) {
+  const kl = khoaKL(r.ket_luan_ma);
+  const ngay = r.thoi_diem_chot ? new Date(r.thoi_diem_chot).toLocaleString("vi-VN") : "";
+  const ky = `${String(r.ky_thang).padStart(2, "0")}/${r.ky_nam}`;
+  return `<tr class="${r.con_hieu_luc ? "" : "het-hieu-luc"}">
+    <td>${esc(ky)}</td>
+    <td>${esc(r.chi_nhanh)}</td>
+    <td>${esc(ngay)}</td>
+    <td><i class="cham ${CLASS_MD[KL_SANG_MD[kl]]}" aria-hidden="true"></i> ${esc(NHAN_KL[kl])}</td>
+    <td>${r.con_hieu_luc ? "Hiệu lực" : "Đã thay"}</td>
+    <td>${esc(r.ghi_chu || "")}</td>
+  </tr>`;
+}
+
+async function taiLichSu() {
+  const kq = await api.lich_su_chot();
+  if (kq.loi) {
+    toast(kq.loi);
+    $("lich-su-than").innerHTML = "";
+    return;
+  }
+  const dong = kq.dong || [];
+  $("lich-su-than").innerHTML = dong.length
+    ? dong.map(veDongLichSu).join("")
+    : '<tr><td colspan="6" class="bang-trong">Chưa có kỳ nào được chốt.</td></tr>';
+}
+
+async function saoLuuKho() {
+  const k = await api.sao_luu_kho();
+  toast(k.loi || ("Đã sao lưu kho tại: " + k.path));
+}
+async function phucHoiKho() {
+  const f = await api.chon_file_sqlite();
+  if (!f || f.huy) return;    // người dùng bấm Huỷ hộp thoại — không phải lỗi
+  if (!confirm("Phục hồi sẽ THAY kho hiện tại bằng file đã chọn (bản cũ sẽ tự sao lưu trước). Tiếp tục?")) return;
+  const k = await api.phuc_hoi_kho(f.path);
+  toast(k.loi || ("Đã phục hồi kho. Bản cũ đã sao lưu tại: " + k.da_sao_luu));
+  await taiLichSu();
+}
+async function nhapGopKho() {
+  const f = await api.chon_file_sqlite();
+  if (!f || f.huy) return;
+  const k = await api.nhap_gop_kho(f.path);
+  toast(k.loi || `Đã thêm ${fmt(k.da_them)}, bỏ qua ${fmt(k.bo_qua_trung)} bản trùng.`);
+  await taiLichSu();
+}
+
+$("btn-lich-su").onclick = moLichSu;
+$("btn-dong-lich-su").onclick = dongLichSu;
+$("btn-sao-luu-kho").onclick = saoLuuKho;
+$("btn-phuc-hoi-kho").onclick = phucHoiKho;
+$("btn-nhap-gop-kho").onclick = nhapGopKho;
+$("btn-mo-thu-muc-kho").onclick = async () => {
+  const k = await api.mo_thu_muc_kho();
+  if (k && k.loi) toast(k.loi);
+};
 
 window.addEventListener("pywebviewready", khoiTao);

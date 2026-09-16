@@ -229,6 +229,21 @@ class JsApi:
     def chon_nhieu_file(self):
         return self.chon_file(nhieu=True)
 
+    def chon_file_sqlite(self):
+        """Hộp thoại chọn một file .sqlite/.db — dùng cho phục hồi/nhập-gộp kho ở
+        tab Lịch sử chốt sổ. Cùng khuôn với chon_file: None khi mở được hộp thoại
+        nhưng người dùng bấm Huỷ, {huy: True} khi hộp thoại trả về rỗng."""
+        if self._window is None:
+            return {"loi": "Chưa có cửa sổ"}
+        try:
+            import webview
+            loai = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+            chon = self._window.create_file_dialog(loai, directory=self._thu_muc_kho,
+                                                   file_types=("SQLite (*.sqlite;*.db)",))
+            return {"path": chon[0]} if chon else {"huy": True}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được hộp thoại: {e}"}
+
     # ---- kiểm tra ----
     def chay_kiem_tra(self, path=None):
         """`path` là một đường dẫn hoặc cả danh sách đường dẫn mà màn hình 1 đang giữ."""
@@ -376,6 +391,8 @@ class JsApi:
             tong = int(len(df)); kich_thuoc = max(1, min(int(kich_thuoc), 500))
             a = max(0, (int(trang) - 1) * kich_thuoc); cot = list(df.columns)
             return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
+                    "cot_so": [c for c in cot if c in COT_SO_HIEN_THI],
+                    "cot_so_le": [c for c in cot if c in COT_SO_LE],
                     "tom_tat": diff["tom_tat"],
                     "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
         except Exception as e:  # noqa: BLE001

@@ -17,6 +17,10 @@
     <p>Doanh nghiệp sản xuất · Thông tư 200</p>
   </div>
   <div id="header-file" class="header-file"></div>
+  <button id="btn-lich-su" class="btn btn-phu btn-header" type="button">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    Lịch sử chốt sổ
+  </button>
 </header>
 
 <!-- ===== MÀN HÌNH 1: CHỌN FILE ===== -->
@@ -243,6 +247,42 @@
     </div>
   </div>
 </div>
+
+<!-- ===== MÀN HÌNH 3: LỊCH SỬ CHỐT SỔ + KHO ===== -->
+<main id="man-hinh-3" class="man-hinh man-hinh-3 an">
+  <div class="lich-su-dau">
+    <h2 class="lich-su-tieu-de">Lịch sử chốt sổ</h2>
+    <button id="btn-dong-lich-su" class="btn btn-phu" type="button">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+      Quay lại
+    </button>
+  </div>
+
+  <!-- Thanh công cụ kho SQLite dùng chung cho mọi kỳ/chi nhánh — không thuộc về
+       chi nhánh đang xem, nên đặt ở đây chứ không phải màn hình 2. -->
+  <div class="hang-nut">
+    <button id="btn-sao-luu-kho" class="btn btn-phu" type="button">Sao lưu kho</button>
+    <button id="btn-phuc-hoi-kho" class="btn btn-phu" type="button">Phục hồi từ file…</button>
+    <button id="btn-nhap-gop-kho" class="btn btn-phu" type="button">Nhập &amp; gộp từ file…</button>
+    <button id="btn-mo-thu-muc-kho" class="btn btn-phu" type="button">Mở thư mục kho</button>
+  </div>
+
+  <div class="bang-cuon lich-su-bang-cuon">
+    <table id="bang-lich-su" class="bang">
+      <thead>
+        <tr>
+          <th scope="col">Kỳ</th>
+          <th scope="col">Chi nhánh</th>
+          <th scope="col">Ngày chốt</th>
+          <th scope="col">Kết luận</th>
+          <th scope="col">Trạng thái</th>
+          <th scope="col">Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody id="lich-su-than"></tbody>
+    </table>
+  </div>
+</main>
 
 <div id="toast" class="toast an" role="status" aria-live="polite"></div>
 <script src="app.js"></script>

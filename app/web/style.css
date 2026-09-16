@@ -134,6 +134,13 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
   padding: 6px 12px; border-radius: 99px;
 }
 .header-file:empty { display: none; }
+/* Nút trên nền header gradient: viền/nền trong suốt kiểu thẻ header-file bên
+   cạnh, không dùng .btn-phu mặc định (nền trắng sẽ chói trên nền indigo). */
+.btn-header {
+  flex: 0 0 auto; background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .28);
+  color: var(--chu-nghich); box-shadow: none;
+}
+.btn-header:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .4); }
 
 /* ============================ Khung màn hình ============================== */
 .man-hinh { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
@@ -608,6 +615,15 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 #diff-tim-kiem:hover { border-color: var(--chu-mo); }
 #diff-tim-kiem:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
 #diff-tim-kiem::placeholder { color: var(--chu-mo); }
+
+/* ============================ Lịch sử chốt sổ ============================= */
+.man-hinh-3 { gap: 14px; padding: 18px 24px 24px; max-width: 1200px; width: 100%; margin: 0 auto; overflow: hidden; }
+.lich-su-dau { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lich-su-tieu-de { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.2px; color: var(--chu); }
+.lich-su-bang-cuon { flex: 1 1 auto; min-height: 0; }
+/* Bản đã bị thay bởi một lần chốt lại sau đó — vẫn đọc được (lịch sử không xóa
+   gì) nhưng mờ đi để mắt biết ngay đây không còn là bản hiệu lực. */
+.het-hieu-luc { opacity: .55; }
 
 /* ============================ Footer & toast ============================== */
 .footer { flex: 0 0 auto; display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--vien); }
