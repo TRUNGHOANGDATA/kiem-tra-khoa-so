@@ -918,4 +918,17 @@ $("btn-mo-thu-muc-kho").onclick = async () => {
   if (k && k.loi) toast(k.loi);
 };
 
+/* Esc = quay lại/đóng thứ đang "trên cùng", đỡ phải rê chuột tới nút. Thứ tự ưu
+   tiên: modal (đè lên tất cả) -> bảng chi tiết -> màn Lịch sử. Ở màn 1 hay màn kết
+   quả trơn thì Esc không làm gì (không tự lùi về chọn file — đó là thao tác cố ý
+   qua nút "Kiểm tra file khác"). */
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("modal-cai-dat").classList.contains("an")) { dongCaiDat(); return; }
+  if (!$("modal-diff").classList.contains("an")) { dongModalDiff(); return; }
+  if (!$("modal-chot").classList.contains("an")) { dongModalChot(); return; }
+  if ($("vung-cuon").classList.contains("co-chi-tiet")) { anChiTiet(); return; }
+  if (!$("man-hinh-3").classList.contains("an")) { dongLichSu(); return; }
+});
+
 window.addEventListener("pywebviewready", khoiTao);
