@@ -10,6 +10,10 @@ from .checks.g4_kho_gia_von import GHI_CHU_CHUA_TINH_GIA, GHI_CHU_THIEU_SL, thon
 BUOC_TINH_GIA_XUAT_KHO = "Tính giá xuất kho (mọi dòng xuất có giá trị)"
 
 DA_LAM, CHUA_LAM, CAN_RA, KHONG_AP_DUNG = "da_lam", "chua_lam", "can_ra", "khong_ap_dung"
+# TU_XAC_NHAN: bước nhắc (khấu hao/phân bổ/lương) — "kỳ này không thấy bút toán".
+# KHÔNG kéo kết luận khóa sổ: tinh_ket_luan chỉ đếm CHUA_LAM/CAN_RA nên trạng thái
+# này tự động đứng ngoài, giữ cho sổ sạch vẫn đạt "SẴN SÀNG KHÓA SỔ".
+TU_XAC_NHAN = "tu_xac_nhan"
 CHUA_SAN_SANG, CAN_RA_SOAT, SAN_SANG = "chua_san_sang", "can_ra_soat", "san_sang"
 
 

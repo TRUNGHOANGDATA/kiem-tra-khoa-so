@@ -345,6 +345,10 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .tt-chua_lam      .chip-tt { background: var(--do-nen);   border-color: var(--do-vien);   color: var(--do-dam); }
 .tt-can_ra        .chip-tt { background: var(--vang-nen); border-color: var(--vang-vien); color: var(--vang-dam); }
 .tt-khong_ap_dung .chip-tt { background: var(--nen);      border-color: var(--vien);      color: var(--chu-phu); }
+/* Tự xác nhận: nhắc nhở, KHÔNG phải cảnh báo — dùng token xanh thương hiệu
+   nhạt, tách hẳn khỏi vàng để mắt không đọc nhầm thành việc phải xử lý. */
+.tt-tu_xac_nhan   .buoc-icon { color: var(--tieu-diem); }
+.tt-tu_xac_nhan   .chip-tt { background: #E7F0FA; border-color: #BBD6F0; color: #1F4E79; }
 
 /* ============================ Tab B — thẻ nhóm ============================ */
 .luoi-nhom { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }

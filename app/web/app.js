@@ -22,6 +22,7 @@ const HINH = {
   "loi": '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
   "canh-bao": '<path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4.2"/><path d="M12 17.2h.01"/>',
   "bo-qua": '<circle cx="12" cy="12" r="9"/><path d="M8.3 12h7.4"/>',
+  "hoi": '<circle cx="12" cy="12" r="9"/><path d="M9.1 9.2a3 3 0 0 1 5.5 1.6c0 2-3 2.6-3 4.2"/><path d="M12 17.3h.01"/>',
   "thong-ke": '<path d="M3 3v18h18"/><path d="M8 17v-6.5"/><path d="M13 17V6.5"/><path d="M18 17v-3.5"/>',
   "bang-tinh": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>',
   "tim-kiem": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9"/>',
@@ -36,8 +37,8 @@ const bieuTuong = (ten, lop = "icon") =>
   `<svg class="${lop}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"` +
   ` stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${HINH[ten] || ""}</svg>`;
 
-const ICON_TT = { da_lam: "kiem", chua_lam: "loi", can_ra: "canh-bao", khong_ap_dung: "bo-qua" };
-const NHAN_TT = { da_lam: "Đã làm", chua_lam: "Chưa làm", can_ra: "Cần rà", khong_ap_dung: "Không áp dụng" };
+const ICON_TT = { da_lam: "kiem", chua_lam: "loi", can_ra: "canh-bao", khong_ap_dung: "bo-qua", tu_xac_nhan: "hoi" };
+const NHAN_TT = { da_lam: "Đã làm", chua_lam: "Chưa làm", can_ra: "Cần rà", khong_ap_dung: "Không áp dụng", tu_xac_nhan: "Tự xác nhận" };
 const NHAN_MD = { do: "Nghiêm trọng", vang: "Cảnh báo", xanh: "Đạt" };
 const ICON_MD = { do: "loi", vang: "canh-bao", xanh: "kiem" };
 const CLASS_MD = { do: "cham-do", vang: "cham-vang", xanh: "cham-xanh" };

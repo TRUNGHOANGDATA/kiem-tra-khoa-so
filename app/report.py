@@ -13,9 +13,11 @@ from .loader import ThongTinFile
 from .trang_thai import BuocKhoaSo, tinh_ket_luan
 
 TEN_MUC_DO = {DO: "Nghiêm trọng", VANG: "Cảnh báo", XANH: "Đạt"}
-TEN_TRANG_THAI = {"da_lam": "Đã làm", "chua_lam": "CHƯA LÀM", "can_ra": "Cần rà", "khong_ap_dung": "Không áp dụng"}
+TEN_TRANG_THAI = {"da_lam": "Đã làm", "chua_lam": "CHƯA LÀM", "can_ra": "Cần rà",
+                  "khong_ap_dung": "Không áp dụng", "tu_xac_nhan": "Tự xác nhận"}
 MAU = {DO: "#FFC7CE", VANG: "#FFEB9C", XANH: "#C6EFCE",
-       "da_lam": "#C6EFCE", "chua_lam": "#FFC7CE", "can_ra": "#FFEB9C", "khong_ap_dung": "#EDEDED"}
+       "da_lam": "#C6EFCE", "chua_lam": "#FFC7CE", "can_ra": "#FFEB9C",
+       "khong_ap_dung": "#EDEDED", "tu_xac_nhan": "#E7F0FA"}
 # Ba mức kết luận của tinh_ket_luan — tô ở sheet so sánh chi nhánh.
 MAU_KET_LUAN = {"chua_san_sang": "#FFC7CE", "can_ra_soat": "#FFEB9C", "san_sang": "#C6EFCE"}
 FONT = "Segoe UI"

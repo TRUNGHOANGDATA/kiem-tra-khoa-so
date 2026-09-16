@@ -109,3 +109,12 @@ def test_du_lieu_duoc_escape_truoc_khi_vao_innerhtml():
     assert "const esc" in js or "function esc" in js
     for raw in ("${r[c]}", "${b.buoc}", "${b.tom_tat}", "${c.ten}", "${n.ten}", "${c.ma}"):
         assert raw not in js, f"{raw} phải đi qua esc() trước khi vào innerHTML"
+
+
+def test_app_js_biet_trang_thai_tu_xac_nhan():
+    """khoaTT() nuốt trạng thái lạ về 'không áp dụng' -> app.js phải biết tu_xac_nhan;
+    css phải có class riêng để nó không bị đọc nhầm thành cảnh báo vàng."""
+    js = (WEB / "app.js").read_text(encoding="utf-8")
+    assert "tu_xac_nhan" in js
+    css = (WEB / "style.css").read_text(encoding="utf-8")
+    assert "tt-tu_xac_nhan" in css

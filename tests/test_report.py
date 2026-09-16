@@ -106,3 +106,11 @@ def test_xuat_bao_cao_cot_rong_hoan_toan_khong_loi(tmp_path, ctx):
     path = report.xuat_bao_cao(kq, ts, tt_file, str(tmp_path))
     wb = openpyxl.load_workbook(path)
     assert "C1.1" in wb.sheetnames
+
+
+def test_report_biet_moi_trang_thai():
+    """Trạng thái bước mới phải có nhãn & màu — thiếu là KeyError lúc xuất Excel."""
+    from app import report, trang_thai as tt
+    for s in (tt.DA_LAM, tt.CHUA_LAM, tt.CAN_RA, tt.KHONG_AP_DUNG, tt.TU_XAC_NHAN):
+        assert s in report.TEN_TRANG_THAI, s
+        assert s in report.MAU, s

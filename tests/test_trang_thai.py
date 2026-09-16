@@ -281,3 +281,10 @@ def test_thieu_ket_qua_kiem_tra_thi_khong_ap_dung(ctx):
     b = {buoc.buoc: buoc for buoc in tt.suy_trang_thai(df, {})}
     assert b[tt.BUOC_TINH_GIA_XUAT_KHO].trang_thai == tt.KHONG_AP_DUNG
     assert b["TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)"].trang_thai == tt.KHONG_AP_DUNG
+
+
+def test_tu_xac_nhan_khong_tinh_vao_ket_luan(ctx):
+    """Trạng thái nhắc không được kéo sổ sạch ra khỏi 'SẴN SÀNG KHÓA SỔ'."""
+    b = tt.BuocKhoaSo("X", tt.TU_XAC_NHAN, "chưa thấy", "C7.1")
+    kl = tt.tinh_ket_luan([], [b])
+    assert kl["muc_do_ket_luan"] == tt.SAN_SANG and kl["con_viec"] == 0
