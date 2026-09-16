@@ -308,6 +308,13 @@ function veKetQua() {
    cảnh báo vàng — KHÔNG đổi màu cả thẻ, vì bản thân việc "đã chốt" vẫn đúng. */
 function veKhoiChot(chot) {
   const khoa = bieuTuong("khoa", "icon icon-nho");
+  // Không đọc được kho (vd file kho do bản tool mới hơn tạo ra) — backend trả loi_kho.
+  // Không nuốt im lặng: hiện cảnh báo ngay chỗ hành động chốt, không kết luận đã/chưa chốt.
+  if (chot && chot.loi_kho) {
+    return `<div class="chot-mini lech" title="${esc(chot.loi_kho)}">
+      <div class="chot-mini-nhan">${bieuTuong("canh-bao", "icon icon-nho")}<b>Không đọc được kho chốt</b></div>
+    </div>`;
+  }
   if (chot && chot.trang_thai === "DA_CHOT") {
     // Đã chốt: một chip gọn "Đã chốt dd/mm/yyyy" + hai nút nhỏ. Ghi chú và tình
     // trạng lệch KHÔNG lặp ở đây — dải drift ngay dưới banner lo phần cảnh báo,
