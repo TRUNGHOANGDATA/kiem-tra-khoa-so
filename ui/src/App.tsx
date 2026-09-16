@@ -43,7 +43,10 @@ function Noi() {
   const xuLyNap = (kq: A.ThongTinNap | A.Loi | null) => {
     if (!kq) return;
     if (laLoi(kq)) { toast(kq.loi); return; }
-    setNap(kq); setKq(undefined); setMan("chon");
+    // Xoá tiến trình còn sót của bước NẠP (backend để lại thanh ở 85% "Đã đọc…").
+    // Không xoá thì `dangChay = !!tienTrinh` giữ nút "Kiểm tra" luôn bị khoá —
+    // bấm không ăn gì, người dùng tưởng app treo ở 85%.
+    setNap(kq); setKq(undefined); setTt(null); setMan("chon");
   };
   const chonFile = async () => xuLyNap(await A.goi("chon_file", false));
   const chonNhieu = async () => xuLyNap(await A.goi("chon_nhieu_file"));
@@ -115,13 +118,13 @@ function Noi() {
   }, [bang, modalChot.mo, modalCaiDat, man]);
 
   return (
-    <div className="flex h-full flex-col bg-steel-100 font-sans text-ink">
-      {/* Header */}
-      <header className="flex items-center gap-4 bg-gradient-to-br from-navy-dark via-navy to-navy-400 px-6 py-3 text-white shadow-header">
-        <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/25 bg-white/15 text-[15px] font-extrabold tracking-wide">KS</div>
+    <div className="flex h-full flex-col bg-nen font-sans text-ink">
+      {/* Header — khối thép ink + đường kẻ đồng thau (bản sắc "Thép & Sổ cái") */}
+      <header className="flex items-center gap-4 border-b-2 border-brass/70 bg-gradient-to-b from-muc-cao to-muc-tram px-6 py-3 text-white shadow-header">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brass-300 to-brass-600 text-[15px] font-extrabold tracking-wide text-muc-tram shadow-soft ring-1 ring-brass-300/40">KS</div>
         <div>
           <h1 className="text-[17px] font-bold leading-tight">Kiểm tra khóa sổ cuối kỳ</h1>
-          <p className="text-[12px] text-steel-200">Doanh nghiệp sản xuất · Thông tư 200</p>
+          <p className="text-[12px] text-steel-300">Doanh nghiệp sản xuất · Thông tư 200</p>
         </div>
         <div className="ml-auto flex items-center gap-2.5">
           {kq && <span className="hidden items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-[13px] font-semibold md:inline-flex">{nhieu ? `${kq.don_vi.length} chi nhánh · ` : ""}kỳ {kq.tomtat.ky}</span>}

@@ -64,7 +64,10 @@ export default function ManLichSu({ onQuayLai }: { onQuayLai: () => void }) {
             {dong.map((r) => (
               <tr key={r.id} className={cx("border-b border-steel-100", !r.con_hieu_luc && "opacity-50")}>
                 <td className="px-4 py-2.5 font-semibold tabular-nums">{String(r.ky_thang).padStart(2, "0")}/{r.ky_nam}</td>
-                <td className="px-4 py-2.5 font-semibold">{r.chi_nhanh}</td>
+                <td className="px-4 py-2.5 font-semibold">
+                  {r.chi_nhanh_ten || r.chi_nhanh}
+                  {r.chi_nhanh_ten && r.chi_nhanh_ten !== r.chi_nhanh && <span className="ml-1.5 text-[11px] font-medium text-steel-400">{r.chi_nhanh}</span>}
+                </td>
                 <td className="px-4 py-2.5 tabular-nums text-steel-500">{r.thoi_diem_chot}</td>
                 <td className={cx("px-4 py-2.5 font-semibold", mauKL(r.ket_luan_ma))}>{NHAN_KL[r.ket_luan_ma] ?? r.ket_luan_ma}</td>
                 <td className="px-4 py-2.5">{r.con_hieu_luc ? <span className="text-xanh-dam">Hiệu lực</span> : <span className="text-steel-400">Đã thay</span>}</td>

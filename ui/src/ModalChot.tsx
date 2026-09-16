@@ -17,7 +17,7 @@ export default function ModalChot({ mo, chotLai, tomtat, dong, onChot }: {
   return (
     <Modal mo={mo} dong={dong} tieuDe={chotLai ? "Chốt lại kỳ này" : "Chốt sổ kỳ này"}>
       <div className="mt-3 space-y-1.5 text-[13px] leading-relaxed text-steel-500">
-        <div>Kỳ <b className="text-ink">{tomtat.ky}</b> · Chi nhánh <b className="text-ink">{tomtat.chi_nhanh}</b></div>
+        <div>Kỳ <b className="text-ink">{tomtat.ky}</b> · Chi nhánh <b className="text-ink">{tomtat.chi_nhanh_ten || tomtat.chi_nhanh}</b></div>
         <div>Số dòng: <b className="tabular-nums text-ink">{fso(tomtat.so_dong)}</b> · Tổng phát sinh: <b className="tabular-nums text-ink">{fso(tomtat.tong_ps)}</b></div>
         <div>Kết luận: <b className="text-ink">{tomtat.cau_ket_luan}</b></div>
       </div>

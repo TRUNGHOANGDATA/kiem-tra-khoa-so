@@ -97,7 +97,9 @@ def _sheet_trang_thai(writer, fmt, ten_sheet: str, trang_thai):
 
 
 def xuat_bao_cao(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo],
-                 thong_tin: ThongTinFile, thu_muc_out: str) -> str:
+                 thong_tin: ThongTinFile, thu_muc_out: str, ten_hien: str | None = None) -> str:
+    # ten_hien: tên hiển thị chi nhánh (quy đổi). Tên file & tab sheet vẫn theo MÃ GỐC
+    # cho ngắn/ổn định; chỉ tiêu đề trong sheet mới dùng tên hiển thị cho người đọc.
     Path(thu_muc_out).mkdir(parents=True, exist_ok=True)
     ky_ten = thong_tin.ky.replace("/", "-")
     cn = f" - {ten_sheet_an_toan(thong_tin.chi_nhanh)}" if thong_tin.chi_nhanh else ""
@@ -106,7 +108,7 @@ def xuat_bao_cao(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo],
 
     with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
         fmt = _dinh_dang(writer.book)
-        nhan_cn = f" — CHI NHÁNH {thong_tin.chi_nhanh}" if thong_tin.chi_nhanh else ""
+        nhan_cn = f" — CHI NHÁNH {ten_hien or thong_tin.chi_nhanh}" if thong_tin.chi_nhanh else ""
         _sheet_tong_quan(writer, fmt, "Tong quan",
                          f"BÁO CÁO KIỂM TRA KHÓA SỔ — KỲ {thong_tin.ky}{nhan_cn}",
                          ket_qua, trang_thai, thong_tin)
@@ -126,18 +128,19 @@ def xuat_bao_cao(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo],
 def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
     """Một workbook cho nhiều chi nhánh: sheet so sánh + tổng quan & 11 bước mỗi chi nhánh.
 
-    `don_vi` là dãy (nhãn, ket_qua, trang_thai, thong_tin). Chi tiết từng dòng vi phạm
-    KHÔNG vào đây: 30 check × N chi nhánh vượt giới hạn 255 sheet của Excel từ chi
-    nhánh thứ chín, và mỗi chi nhánh đã có báo cáo riêng đầy đủ.
+    `don_vi` là dãy (mã, tên_hiển_thị, ket_qua, trang_thai, thong_tin). Chi tiết từng
+    dòng vi phạm KHÔNG vào đây: 30 check × N chi nhánh vượt giới hạn 255 sheet của
+    Excel từ chi nhánh thứ chín, và mỗi chi nhánh đã có báo cáo riêng đầy đủ.
 
-    Tên sheet Excel tối đa 31 ký tự và phải duy nhất — nhãn chi nhánh do người dùng
-    đặt nên bị cắt và đánh số, không tin là đã khác nhau sẵn.
+    Tên sheet Excel tối đa 31 ký tự và phải duy nhất — đặt theo MÃ GỐC (ngắn, chắc
+    chắn khác nhau), rồi vẫn cắt và đánh số phòng mã dài. Tên hiển thị chỉ dùng ở
+    cột "Chi nhánh" và tiêu đề sheet cho người đọc.
     """
     ds = list(don_vi)
     if not ds:
         raise ValueError("Không có chi nhánh nào để xuất tổng hợp")
     Path(thu_muc_out).mkdir(parents=True, exist_ok=True)
-    ky_ten = ds[0][3].ky.replace("/", "-")
+    ky_ten = ds[0][4].ky.replace("/", "-")
     path = (Path(thu_muc_out) /
             f"Bao cao tong hop {len(ds)} chi nhanh - {ky_ten} - {datetime.now():%Y%m%d_%H%M}.xlsx")
 
@@ -146,28 +149,28 @@ def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
 
         # --- So sánh các chi nhánh ---
         hang, muc = [], []
-        for nhan, ket_qua, trang_thai, tt in ds:
+        for ma, ten_hien, ket_qua, trang_thai, tt in ds:
             kl = tinh_ket_luan(ket_qua, trang_thai)
             muc.append(kl["muc_do_ket_luan"])
-            hang.append({"Chi nhánh": nhan, "Kỳ": tt.ky, "Kết luận": kl["cau_ket_luan"],
+            hang.append({"Chi nhánh": ten_hien, "Kỳ": tt.ky, "Kết luận": kl["cau_ket_luan"],
                          "Nghiêm trọng": kl["so_do"], "Cảnh báo": kl["so_vang"],
                          "Bước chưa làm": kl["so_chua_lam"], "Bước cần rà": kl["so_can_ra"],
                          "Số dòng": tt.so_dong, "Tổng phát sinh": tt.tong_ps,
                          "Nguồn dữ liệu": tt.ten})
         ws = _ghi_bang(writer, "Tong hop chi nhanh", pd.DataFrame(hang), fmt, dong_dau=3)
         ws.write(0, 0, f"TỔNG HỢP KIỂM TRA KHÓA SỔ — {len(ds)} CHI NHÁNH", fmt["tieu_de"])
-        ws.write(1, 0, f"Kỳ {' · '.join(dict.fromkeys(tt.ky for _, _, _, tt in ds))}"
+        ws.write(1, 0, f"Kỳ {' · '.join(dict.fromkeys(tt.ky for *_, tt in ds))}"
                        f" · lập lúc {datetime.now():%d/%m/%Y %H:%M}")
         for i, m in enumerate(muc, start=4):
             ws.write(i, 2, hang[i - 4]["Kết luận"], fmt[m])
 
         # --- Từng chi nhánh ---
         da_dung: set[str] = set()
-        for nhan, ket_qua, trang_thai, tt in ds:
-            goc = ten_sheet_an_toan(nhan)
+        for ma, ten_hien, ket_qua, trang_thai, tt in ds:
+            goc = ten_sheet_an_toan(ma)     # tab sheet theo MÃ GỐC (duy nhất, ngắn)
             for ten_tq, ten_ts in (_cap_ten_sheet(goc, da_dung),):
                 _sheet_tong_quan(writer, fmt, ten_tq,
-                                 f"CHI NHÁNH {nhan} — KỲ {tt.ky}", ket_qua, trang_thai, tt)
+                                 f"CHI NHÁNH {ten_hien} — KỲ {tt.ky}", ket_qua, trang_thai, tt)
                 _sheet_trang_thai(writer, fmt, ten_ts, trang_thai)
     return str(path)
 

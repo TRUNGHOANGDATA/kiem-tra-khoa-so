@@ -49,4 +49,28 @@ def test_first_run_seed_tu_file_mau(tmp_path):
     cfg = cau_hinh.doc_cau_hinh(str(tmp_path))
     assert cfg["thu_muc_nguon"] == str(tmp_path / "NguonMau")   # gia tri tu mau
     tho = json.loads((tmp_path / "cau-hinh.json").read_text(encoding="utf-8"))
-    assert set(tho.keys()) == {"thu_muc_nguon", "thu_muc_xuat", "thu_muc_kho"}  # chi 3 khoa, bo _huong_dan
+    # 3 khoa thu muc + khoa quy doi chi nhanh (rong), bo _huong_dan
+    assert set(tho.keys()) == {"thu_muc_nguon", "thu_muc_xuat", "thu_muc_kho", "quy_doi_chi_nhanh"}
+
+
+def test_quy_doi_luu_roi_doc_lai(tmp_path):
+    cau_hinh.ghi_cau_hinh(str(tmp_path), {"quy_doi_chi_nhanh": {"A01": "Nhà máy Hải Phòng", "A02": "Kho Hà Nội"}})
+    assert cau_hinh.doc_quy_doi(str(tmp_path)) == {"A01": "Nhà máy Hải Phòng", "A02": "Kho Hà Nội"}
+
+
+def test_quy_doi_bo_cap_rong_va_khoang_trang(tmp_path):
+    cau_hinh.ghi_cau_hinh(str(tmp_path), {"quy_doi_chi_nhanh": {"A01": "  Nhà máy  ", "A02": "   ", "": "X"}})
+    assert cau_hinh.doc_quy_doi(str(tmp_path)) == {"A01": "Nhà máy"}   # A02 rong va ma rong -> bo
+
+
+def test_luu_thu_muc_khong_xoa_quy_doi(tmp_path):
+    cau_hinh.ghi_cau_hinh(str(tmp_path), {"quy_doi_chi_nhanh": {"A01": "Nhà máy"}})
+    cau_hinh.ghi_cau_hinh(str(tmp_path), {"thu_muc_nguon": "D:/Nguon"})   # chi luu thu muc
+    assert cau_hinh.doc_quy_doi(str(tmp_path)) == {"A01": "Nhà máy"}       # ban do van con
+    assert cau_hinh.doc_cau_hinh(str(tmp_path))["thu_muc_nguon"] == "D:/Nguon"
+
+
+def test_luu_quy_doi_khong_xoa_thu_muc(tmp_path):
+    cau_hinh.ghi_cau_hinh(str(tmp_path), {"thu_muc_nguon": "D:/Nguon"})
+    cau_hinh.ghi_cau_hinh(str(tmp_path), {"quy_doi_chi_nhanh": {"A01": "Nhà máy"}})  # chi luu ban do
+    assert cau_hinh.doc_cau_hinh(str(tmp_path))["thu_muc_nguon"] == "D:/Nguon"        # thu muc van con

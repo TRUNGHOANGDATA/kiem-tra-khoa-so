@@ -1,4 +1,4 @@
-/** Modal Cài đặt — chọn 3 thư mục Nguồn/Xuất/Kho (đọc/ghi qua cấu hình). */
+/** Modal Cài đặt — thư mục Nguồn/Xuất/Kho + bảng quy đổi chi nhánh (mã → tên hiển thị). */
 import { useEffect, useState } from "react";
 import * as A from "./api";
 import { laLoi } from "./api";
@@ -13,10 +13,19 @@ const HANG = [
 export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => void }) {
   const toast = useToast();
   const [gt, setGt] = useState<Record<string, string>>({ thu_muc_nguon: "", thu_muc_xuat: "", thu_muc_kho: "" });
+  const [ma, setMa] = useState<string[]>([]);              // các mã chi nhánh (gợi ý từ file + đã quy đổi)
+  const [ten, setTen] = useState<Record<string, string>>({}); // mã -> tên hiển thị
+  const [maMoi, setMaMoi] = useState("");                  // ô thêm mã thủ công
 
   useEffect(() => {
     if (!mo) return;
-    A.goi("lay_cau_hinh").then((r) => { if (!laLoi(r)) setGt({ ...r.tho }); else toast(r.loi); });
+    A.goi("lay_cau_hinh").then((r) => {
+      if (laLoi(r)) { toast(r.loi); return; }
+      setGt({ ...r.tho });
+      setMa(r.ma_goi_y ?? []);
+      setTen({ ...(r.quy_doi ?? {}) });
+      setMaMoi("");
+    });
   }, [mo, toast]);
 
   const chon = async (khoa: string) => {
@@ -24,28 +33,84 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
     if (laLoi(r)) { toast(r.loi); return; }
     if ("path" in r) setGt((g) => ({ ...g, [khoa]: r.path }));
   };
+
+  const themMa = () => {
+    const m = maMoi.trim();
+    if (!m) return;
+    if (!ma.includes(m)) setMa((xs) => [...xs, m]);
+    setMaMoi("");
+  };
+
   const luu = async () => {
-    const r = await A.goi("luu_cau_hinh", gt);
+    // Chỉ gửi cặp có tên; backend tự lọc lần nữa và giữ nguyên mã gốc làm danh tính.
+    const quy_doi: Record<string, string> = {};
+    for (const m of ma) { const t = (ten[m] ?? "").trim(); if (t) quy_doi[m] = t; }
+    const r = await A.goi("luu_cau_hinh", { ...gt, quy_doi_chi_nhanh: quy_doi });
     if (laLoi(r)) { toast(r.loi); return; }
-    dong(); toast("Đã lưu cài đặt thư mục");
+    dong(); toast("Đã lưu cài đặt");
   };
 
   return (
-    <Modal mo={mo} dong={dong} tieuDe="Cài đặt thư mục">
-      <p className="mt-1 text-[12.5px] text-steel-500">App đọc lại cấu hình mỗi lần dùng — sửa xong bấm Lưu là có hiệu lực ngay.</p>
-      <div className="mt-3 space-y-3">
-        {HANG.map(([khoa, nhan]) => (
-          <div key={khoa}>
-            <label className="block text-[12px] font-semibold text-steel-500">{nhan}</label>
-            <div className="mt-1 flex gap-2">
-              <input value={gt[khoa]} onChange={(e) => setGt((g) => ({ ...g, [khoa]: e.target.value }))}
-                className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
-              <Nut bien="phu" onClick={() => chon(khoa)}><Icon d={IC.thu_muc} className="h-4 w-4" />Chọn…</Nut>
+    <Modal mo={mo} dong={dong} tieuDe="Cài đặt">
+      <div className="mt-2 max-h-[68vh] space-y-5 overflow-auto pr-1">
+        {/* Thư mục */}
+        <section className="space-y-3">
+          <h4 className="text-[12px] font-bold uppercase tracking-wide text-steel-400">Thư mục mặc định</h4>
+          <p className="-mt-1.5 text-[12.5px] text-steel-500">App đọc lại cấu hình mỗi lần dùng — lưu xong là có hiệu lực ngay.</p>
+          {HANG.map(([khoa, nhan]) => (
+            <div key={khoa}>
+              <label className="block text-[12px] font-semibold text-steel-500">{nhan}</label>
+              <div className="mt-1 flex gap-2">
+                <input value={gt[khoa]} onChange={(e) => setGt((g) => ({ ...g, [khoa]: e.target.value }))}
+                  className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+                <Nut bien="phu" onClick={() => chon(khoa)}><Icon d={IC.thu_muc} className="h-4 w-4" />Chọn…</Nut>
+              </div>
             </div>
+          ))}
+        </section>
+
+        {/* Quy đổi chi nhánh */}
+        <section className="space-y-2.5 border-t border-steel-200 pt-4">
+          <h4 className="text-[12px] font-bold uppercase tracking-wide text-steel-400">Quy đổi chi nhánh</h4>
+          <p className="-mt-1 text-[12.5px] text-steel-500">
+            Đặt tên dễ nhớ cho từng mã (A01 = “Nhà máy Hải Phòng”). Tên hiển thị khắp nơi và trong file Excel;
+            <b> mã gốc vẫn là danh tính khi chốt sổ</b> nên đổi tên không ảnh hưởng đối chiếu kỳ cũ.
+          </p>
+
+          {ma.length === 0 && (
+            <p className="rounded-xl bg-steel-50 px-3 py-2.5 text-[12.5px] text-steel-500">
+              Chưa có mã nào. Nạp một file bảng kê để hiện sẵn danh sách mã, hoặc thêm mã thủ công bên dưới.
+            </p>
+          )}
+
+          <div className="space-y-2">
+            {ma.map((m) => (
+              <div key={m} className="flex items-center gap-2">
+                <span className="w-16 shrink-0 rounded-lg bg-steel-100 px-2 py-1.5 text-center text-[12.5px] font-bold text-steel-700">{m}</span>
+                <span className="shrink-0 text-steel-300">→</span>
+                <input
+                  value={ten[m] ?? ""}
+                  placeholder="Tên hiển thị…"
+                  onChange={(e) => setTen((t) => ({ ...t, [m]: e.target.value }))}
+                  className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+              </div>
+            ))}
           </div>
-        ))}
+
+          {/* Thêm mã thủ công */}
+          <div className="flex items-center gap-2 pt-0.5">
+            <input
+              value={maMoi}
+              placeholder="Thêm mã khác…"
+              onChange={(e) => setMaMoi(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), themMa())}
+              className="w-28 rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+            <Nut bien="phu" onClick={themMa}>Thêm mã</Nut>
+          </div>
+        </section>
       </div>
-      <div className="mt-5 flex justify-end gap-2">
+
+      <div className="mt-5 flex justify-end gap-2 border-t border-steel-200 pt-3">
         <Nut bien="phu" onClick={dong}>Hủy</Nut>
         <Nut bien="chinh" onClick={luu}>Lưu</Nut>
       </div>

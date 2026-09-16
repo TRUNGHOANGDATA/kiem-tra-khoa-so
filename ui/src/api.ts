@@ -21,6 +21,7 @@ export interface Chot {
 export interface DonVi {
   i: number;
   ma: string;
+  ten_hien?: string;
   ky: string;
   so_dong: number;
   tong_ps: number;
@@ -67,6 +68,7 @@ export interface TomTat {
   so_dong: number;
   tong_ps: number;
   chi_nhanh: string;
+  chi_nhanh_ten?: string;
   cau_ket_luan: string;
   muc_do_ket_luan: KetLuanMa;
   so_do: number;
@@ -89,6 +91,7 @@ export interface KetQua {
 
 export interface DonViNap {
   ma: string;
+  ten_hien?: string;
   ky: string;
   so_dong: number;
   tong_ps: number;
@@ -125,6 +128,7 @@ export interface BanChot {
   ky_nam: number;
   ky_thang: number;
   chi_nhanh: string;
+  chi_nhanh_ten?: string;
   thoi_diem_chot: string;
   ghi_chu: string;
   ket_luan_ma: string;
@@ -136,6 +140,8 @@ export interface BanChot {
 export interface CauHinh {
   tho: { thu_muc_nguon: string; thu_muc_xuat: string; thu_muc_kho: string };
   giai: { thu_muc_nguon: string; thu_muc_xuat: string; thu_muc_kho: string };
+  quy_doi: Record<string, string>;
+  ma_goi_y: string[];
   loi?: string;
 }
 
@@ -167,7 +173,8 @@ interface PyApi {
   chon_file_sqlite(): Promise<{ path: string } | { huy: true } | Loi>;
   chon_thu_muc(directory?: string): Promise<{ path: string } | { huy: true } | Loi>;
   lay_cau_hinh(): Promise<CauHinh | Loi>;
-  luu_cau_hinh(cfg: Record<string, string>): Promise<{ ok: true } | Loi>;
+  luu_cau_hinh(cfg: { thu_muc_nguon?: string; thu_muc_xuat?: string; thu_muc_kho?: string;
+                      quy_doi_chi_nhanh?: Record<string, string> }): Promise<{ ok: true } | Loi>;
   mo_thu_muc_kho(): Promise<boolean | Loi>;
 }
 

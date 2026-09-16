@@ -60,11 +60,24 @@ class JsApi:
         self._i = 0
         self._duong_dan: list[str] = []
         self._ovr_thu_muc: dict[str, str] = {}   # thư mục gán đè (test/phiên tạm) — thắng cấu hình
+        self._ovr_quy_doi: dict | None = None    # bảng quy đổi gán đè (test) — thắng cấu hình
 
     def _tm(self, khoa: str) -> str:
         if khoa in self._ovr_thu_muc:
             return self._ovr_thu_muc[khoa]
         return cau_hinh.doc_cau_hinh(str(GOC))[khoa]
+
+    @property
+    def _quy_doi(self) -> dict:
+        """Mã chi nhánh -> tên hiển thị; đọc lại cấu hình mỗi lần dùng (đổi tên là thấy ngay)."""
+        return self._ovr_quy_doi if self._ovr_quy_doi is not None else cau_hinh.doc_quy_doi(str(GOC))
+
+    @_quy_doi.setter
+    def _quy_doi(self, m: dict): self._ovr_quy_doi = m
+
+    def _ten(self, ma: str) -> str:
+        """Tên hiển thị của một mã chi nhánh — về đúng mã khi chưa quy đổi."""
+        return self._quy_doi.get(ma, ma)
 
     @property
     def thu_muc_source(self) -> str: return self._tm("thu_muc_nguon")
@@ -117,11 +130,12 @@ class JsApi:
             "path": self._duong_dan[0] if self._duong_dan else "",
             "cac_path": list(self._duong_dan),
             "so_file": len(self._duong_dan),
-            "ten": " · ".join(d.nhan for d in self._dv),
+            "ten": " · ".join(self._ten(d.nhan) for d in self._dv),
             "ky": " · ".join(dict.fromkeys(d.tt.ky for d in self._dv)),
             "so_dong": sum(d.tt.so_dong for d in self._dv),
             "tong_ps": sum(d.tt.tong_ps for d in self._dv),
-            "don_vi": [{"ma": d.nhan, "ky": d.tt.ky, "so_dong": d.tt.so_dong,
+            "don_vi": [{"ma": d.nhan, "ten_hien": self._ten(d.nhan), "ky": d.tt.ky,
+                        "so_dong": d.tt.so_dong,
                         "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten,
                         "ngoai_ky": d.tt.so_dong_ngoai_ky,
                         "ngoai_ky_ct": d.tt.ngoai_ky} for d in self._dv],
@@ -284,14 +298,53 @@ class JsApi:
             # gặp khi bấm "Kiểm tra" ngay sau khi màn 1 đã nạp xong), kiểm tra là
             # toàn bộ việc của lần gọi này nên được trọn 0-100%.
             dau = 85 if vua_doc_lai else 0
-            # Nhiều chi nhánh: mỗi chi nhánh chiếm một lát bằng nhau của phần còn lại,
-            # để thanh không nhảy về 0 mỗi lần sang chi nhánh mới.
             n = len(self._dv)
-            for i, d in enumerate(self._dv):
-                rong = (100 - dau) // n
-                nhan = f"[{d.nhan}] " if n > 1 else ""
-                self._chay_mot_don_vi(d, self._tien_trinh_kiem_tra(dau + rong * i, rong, nhan))
+            tong_dong = max(1, sum(d.tt.so_dong for d in self._dv))
+
+            # CHẠY KIỂM TRA TRONG LUỒNG NỀN + ĐẬP NHỊP TỪ LUỒNG JS_API — giống hệt
+            # phần đọc file ở _nap_nhieu. Trước đây vòng lặp check chạy thẳng trên
+            # luồng js_api và gọi evaluate_js (qua on_progress) ngay giữa lúc pandas
+            # đang bận: WebView2 phải marshal evaluate_js về luồng UI, mà luồng UI lại
+            # đang chờ chính lệnh js_api này trả về -> TREO CỨNG (CPU 0%, thanh đứng ở
+            # 85% "Đã đọc…"). Nay on_progress CHỈ ghi trạng thái vào tt_kt, còn nhịp
+            # tiến trình (evaluate_js) do luồng js_api rảnh phát ra mỗi ~0,3s — nên vừa
+            # hết treo, vừa hiện được "đã xử lý bao nhiêu / tổng bao nhiêu dòng".
+            tt_kt: dict = {"i": 0, "dong_xong": 0}
+            ket_kt: dict = {}
+
+            def _lam():
+                try:
+                    dong_truoc = 0
+                    for i, d in enumerate(self._dv):
+                        tt_kt["i"] = i
+                        base, sodong = dong_truoc, d.tt.so_dong
+
+                        def _op(_ten, pct, base=base, sodong=sodong):
+                            tt_kt["dong_xong"] = base + sodong * pct // 100
+
+                        self._chay_mot_don_vi(d, _op)
+                        dong_truoc += sodong
+                        tt_kt["dong_xong"] = dong_truoc
+                except Exception as e:  # noqa: BLE001  (ném lại ở luồng chính)
+                    ket_kt["loi"] = e
+
+            luong = threading.Thread(target=_lam, daemon=True)
+            self._tien_trinh("Đang kiểm tra…", dau)
+            luong.start()
+            t0 = time.monotonic()
+            while luong.is_alive():
+                luong.join(timeout=0.3)
+                giay = int(time.monotonic() - t0)
+                dong = min(tong_dong, tt_kt["dong_xong"])
+                pct = dau + (100 - dau) * dong // tong_dong
+                nhan_dv = f"[{self._dv[tt_kt['i']].nhan}] " if n > 1 else ""
+                nhan = (f"Đang kiểm tra {nhan_dv}· {_dinh_dang_so(dong)}/"
+                        f"{_dinh_dang_so(tong_dong)} dòng · {giay}s")
+                self._tien_trinh(nhan, min(99, pct))
+            if "loi" in ket_kt:
+                raise ket_kt["loi"]
             self._i = min(self._i, n - 1)
+            self._tien_trinh("Hoàn tất", 100)
             return self._tom_tat()
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không đọc/kiểm tra được file: {e}"}
@@ -398,6 +451,9 @@ class JsApi:
                 dong = kho.liet_ke(chi_nhanh=chi_nhanh)
             finally:
                 kho.dong()
+            # Gắn tên hiển thị theo bảng quy đổi hiện tại (mã lưu trong kho vẫn giữ nguyên).
+            for r in dong:
+                r["chi_nhanh_ten"] = self._ten(r.get("chi_nhanh", ""))
             return {"dong": dong}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không đọc được lịch sử chốt: {e}"}
@@ -475,7 +531,8 @@ class JsApi:
         t = self._tt
         return {
             "tomtat": {"ky": t.ky, "ten": t.ten, "so_dong": t.so_dong, "tong_ps": t.tong_ps,
-                       "chi_nhanh": self._hien.nhan, **ket_luan,
+                       "chi_nhanh": self._hien.nhan, "chi_nhanh_ten": self._ten(self._hien.nhan),
+                       **ket_luan,
                        "chot": self._trang_thai_chot(self._hien)},
             "trang_thai": [{"buoc": b.buoc, "trang_thai": b.trang_thai, "tom_tat": b.tom_tat,
                             "ma_check": b.ma_check, "co_chung_cu": b.co_chung_cu}
@@ -491,7 +548,8 @@ class JsApi:
         ds = []
         for i, d in enumerate(self._dv):
             kl = tinh_ket_luan(d.ket_qua, d.trang_thai) if d.ket_qua else {}
-            ds.append({"i": i, "ma": d.nhan, "ky": d.tt.ky, "so_dong": d.tt.so_dong,
+            ds.append({"i": i, "ma": d.nhan, "ten_hien": self._ten(d.nhan), "ky": d.tt.ky,
+                       "so_dong": d.tt.so_dong,
                        "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten, "da_chay": bool(d.ket_qua),
                        **kl, "chot": self._trang_thai_chot(d) if d.ket_qua else {"trang_thai": "CHUA_CHOT"}})
         return ds
@@ -528,7 +586,8 @@ class JsApi:
         if not self._ket_qua:
             return {"loi": "Chưa chạy kiểm tra"}
         try:
-            p = report.xuat_bao_cao(self._ket_qua, self._trang_thai, self._tt, self.thu_muc_report)
+            p = report.xuat_bao_cao(self._ket_qua, self._trang_thai, self._tt, self.thu_muc_report,
+                                    ten_hien=self._ten(self._hien.nhan))
             return {"path": p}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không xuất được báo cáo: {e}"}
@@ -542,7 +601,8 @@ class JsApi:
             return {"loi": "Chưa chạy kiểm tra" + (f" cho: {', '.join(chua)}" if chua else "")}
         try:
             p = report.xuat_tong_hop(
-                [(d.nhan, d.ket_qua, d.trang_thai, d.tt) for d in self._dv], self.thu_muc_report)
+                [(d.nhan, self._ten(d.nhan), d.ket_qua, d.trang_thai, d.tt) for d in self._dv],
+                self.thu_muc_report)
             return {"path": p}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không xuất được báo cáo tổng hợp: {e}"}
@@ -569,17 +629,27 @@ class JsApi:
 
     # ---- cài đặt thư mục ----
     def lay_cau_hinh(self) -> dict:
-        """Giá trị thô (để hiện trong ô nhập) + đường dẫn đã giải (để hiển thị)."""
+        """Giá trị thô (để hiện trong ô nhập) + đường dẫn đã giải (để hiển thị) +
+        bảng quy đổi hiện có và danh sách mã chi nhánh gợi ý (lấy từ file đang nạp,
+        để màn Cài đặt điền sẵn hàng, người dùng chỉ việc gõ tên)."""
         tho = cau_hinh._doc_tho(str(GOC))
         giai = cau_hinh.doc_cau_hinh(str(GOC))
-        return {"tho": {k: str(tho.get(k, cau_hinh.MAC_DINH[k])) for k in cau_hinh.KHOA}, "giai": giai}
+        quy_doi = cau_hinh.doc_quy_doi(str(GOC))
+        goi_y = list(dict.fromkeys([d.nhan for d in self._dv] + list(quy_doi)))
+        return {"tho": {k: str(tho.get(k, cau_hinh.MAC_DINH[k])) for k in cau_hinh.KHOA},
+                "giai": giai, "quy_doi": quy_doi, "ma_goi_y": goi_y}
 
     def luu_cau_hinh(self, cfg: dict):
         try:
             c = cfg or {}
-            sach = {k: (str(c.get(k, "")).strip() or cau_hinh.MAC_DINH[k]) for k in cau_hinh.KHOA}
-            cau_hinh.ghi_cau_hinh(str(GOC), sach)
-            return {"ok": True, "sach": sach}
+            payload: dict = {}
+            for k in cau_hinh.KHOA:
+                if k in c:
+                    payload[k] = str(c.get(k, "")).strip() or cau_hinh.MAC_DINH[k]
+            if cau_hinh.KHOA_MAP in c:
+                payload[cau_hinh.KHOA_MAP] = cau_hinh._lam_sach_map(c.get(cau_hinh.KHOA_MAP))
+            cau_hinh.ghi_cau_hinh(str(GOC), payload)
+            return {"ok": True}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không lưu được cấu hình: {e}"}
 

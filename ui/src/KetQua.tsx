@@ -59,8 +59,9 @@ function TheChiNhanh({ d, tongCheck, chon, onClick }: { d: DonVi; tongCheck: num
     >
       <div className="mb-2 flex items-center gap-2">
         <span className={cx("h-2.5 w-2.5 rounded-full ring-2 ring-steel-100", dot)} />
-        <span className="text-[14px] font-bold text-ink">{d.ma}</span>
-        <span className="ml-auto"><ChotChip chot={d.chot} /></span>
+        <span className="min-w-0 truncate text-[14px] font-bold text-ink">{d.ten_hien || d.ma}</span>
+        {d.ten_hien && d.ten_hien !== d.ma && <span className="shrink-0 text-[11px] font-semibold text-steel-400">{d.ma}</span>}
+        <span className="ml-auto shrink-0"><ChotChip chot={d.chot} /></span>
       </div>
       <div className="space-y-1">
         <DongSo mau="do" nhan="Nghiêm trọng" so={d.so_do ?? 0} />
@@ -80,7 +81,10 @@ const CFG_BUOC = {
   KHONG_AP_DUNG: { pill: "bg-steel-100 text-steel-400", nhan: "Không áp dụng", ic: IC.checkNho, ring: "border-steel-200 text-steel-300" },
 } as const;
 function cfgBuoc(tt: string) {
-  return CFG_BUOC[tt as keyof typeof CFG_BUOC] ?? CFG_BUOC.KHONG_AP_DUNG;
+  // Backend gửi trạng thái bước dạng CHỮ THƯỜNG (da_lam, can_ra, chua_lam,
+  // tu_xac_nhan, khong_ap_dung — xem app/trang_thai.py); khoá CFG_BUOC là CHỮ HOA.
+  // Không chuẩn hoá thì mọi bước đều rơi vào nhánh mặc định "Không áp dụng".
+  return CFG_BUOC[String(tt).toUpperCase() as keyof typeof CFG_BUOC] ?? CFG_BUOC.KHONG_AP_DUNG;
 }
 
 function DongBuoc({ b, stt, onClick }: { b: Buoc; stt: number; onClick?: () => void }) {
@@ -222,7 +226,7 @@ export default function ManKetQua(p: KetQuaProps) {
             <div className="min-w-0 flex-1">
               <h2 className={cx("text-[16px] font-extrabold", bChu)}>{t.cau_ket_luan}</h2>
               <p className="mt-0.5 truncate text-[12.5px] text-steel-500">
-                {p.nhieu && <>Chi nhánh {t.chi_nhanh} · </>}Kỳ {t.ky} · {t.ten} · <span className="tabular-nums">{fso(t.so_dong)}</span> dòng
+                {p.nhieu && <>Chi nhánh {t.chi_nhanh_ten || t.chi_nhanh}{t.chi_nhanh_ten && t.chi_nhanh_ten !== t.chi_nhanh ? ` (${t.chi_nhanh})` : ""} · </>}Kỳ {t.ky} · {t.ten} · <span className="tabular-nums">{fso(t.so_dong)}</span> dòng
               </p>
             </div>
             <div className="flex items-center gap-2">

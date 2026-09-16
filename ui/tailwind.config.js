@@ -7,12 +7,17 @@ export default {
       // điểm nhấn đồng thau (tiết chế), trạng thái trầm không chói.
       colors: {
         ink: "#0C1B2A",
+        // Nền ứng dụng: xám thép ấm (ngả giấy) thay vì xám-xanh lạnh "SaaS" cũ.
+        nen: "#ECEBE6",
+        // Đầu trang thép: khối mực xanh-đen như thép nguội tôi đậm.
+        muc: { DEFAULT: "#122636", cao: "#1B3A54", tram: "#0A1521" },
         steel: {
-          50: "#F4F6F9", 100: "#EDF0F4", 200: "#E2E7EE",
-          300: "#C7D1DE", 400: "#93A1B2", 500: "#51617A", 700: "#2A3B4E", 900: "#0C1B2A",
+          50: "#F5F6F8", 100: "#EDEEF1", 200: "#E1E4EA",
+          300: "#C6CDD8", 400: "#8E9AAB", 500: "#4F5E73", 700: "#2A3B4E", 900: "#0C1B2A",
         },
         navy: { DEFAULT: "#1B4B7A", dark: "#10395F", 600: "#16416B", 400: "#2F6CA6" },
-        brass: { DEFAULT: "#B0812E", 50: "#FBF4E6" },
+        // Đồng thau — điểm nhấn thật của bản sắc (huy hiệu, đường kẻ sổ).
+        brass: { DEFAULT: "#B4842B", 50: "#FAF3E2", 300: "#D6AF57", 600: "#8A6320" },
         do:   { DEFAULT: "#CB4242", nen: "#FCF2F2", vien: "#F0C9C9", dam: "#8E2C2C" },
         vang: { DEFAULT: "#C07D14", nen: "#FBF5E9", vien: "#EAD6AA", dam: "#7A5210" },
         xanh: { DEFAULT: "#1C8A5F", nen: "#ECF6F1", vien: "#B4DEC8", dam: "#0E5B3E" },

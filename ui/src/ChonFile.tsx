@@ -79,7 +79,7 @@ export default function ManChonFile(p: ChonFileProps) {
               <div className="flex flex-wrap gap-1.5">
                 {nap.don_vi.map((d) => (
                   <span key={d.ma} className="rounded-lg bg-steel-100 px-2 py-1 text-[12px] font-semibold text-steel-700">
-                    {d.ma} <span className="text-steel-400 tabular-nums">· {fso(d.so_dong)}</span>
+                    {d.ten_hien || d.ma} <span className="text-steel-400 tabular-nums">· {fso(d.so_dong)}</span>
                   </span>
                 ))}
               </div>
