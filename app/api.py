@@ -11,14 +11,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import checks, report
+from . import checks, chot_so, report
 from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, ten_cot
+from .kho import KhoChotSo, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
 GOC = Path(__file__).resolve().parents[1]
 THU_MUC_SOURCE = str(GOC / "1. Source")
 THU_MUC_REPORT = str(GOC / "2. Report")
+THU_MUC_CHOT = str(GOC / "3. Chot so")
 
 
 def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
@@ -62,6 +64,7 @@ class JsApi:
         self._duong_dan: list[str] = []
         self.thu_muc_source = THU_MUC_SOURCE
         self.thu_muc_report = THU_MUC_REPORT
+        self._thu_muc_kho = THU_MUC_CHOT
 
     # ---- đơn vị đang xem ----
     # _df/_tt/_kq/… là khung nhìn vào đơn vị đang chọn: mọi phương thức viết cho
@@ -274,6 +277,133 @@ class JsApi:
             self._chay_mot_don_vi(self._dv[i])
         return self._tom_tat()
 
+    # ---- chốt sổ / kho ----
+    def _kho(self) -> KhoChotSo:
+        return KhoChotSo(str(Path(self._thu_muc_kho) / "kho_chot_so.sqlite"))
+
+    def _duong_dan_kho(self) -> str:
+        return str(Path(self._thu_muc_kho) / "kho_chot_so.sqlite")
+
+    def _trang_thai_chot(self, d: "DonVi") -> dict:
+        """Trạng thái chốt + đối chiếu cho một chi nhánh. Không có snapshot → CHUA_CHOT (im lặng)."""
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001 (kho lỗi không được làm chết màn kết quả)
+            return {"trang_thai": "CHUA_CHOT", "doi_chieu": chot_so.CHUA_CHOT}
+        try:
+            h = kho.doc_hieu_luc(d.tt.ky_nam, d.tt.ky_thang, d.nhan)
+            if h is None:
+                return {"trang_thai": "CHUA_CHOT", "doi_chieu": chot_so.CHUA_CHOT}
+            vt = chot_so.VanTay(h["so_dong"], h["tong_ps"], h["van_tay"])
+            df_chot = kho.doc_du_lieu(h["id"])
+            kq = chot_so.doi_chieu(vt, d.df, df_chot=df_chot)
+            return {"trang_thai": "DA_CHOT", "ngay_chot": h["thoi_diem_chot"], "ghi_chu": h["ghi_chu"],
+                    "ket_luan_ma": h["ket_luan_ma"], "doi_chieu": kq.trang_thai,
+                    "tom_tat_lech": {"delta_dong": kq.delta_dong, "delta_ps": kq.delta_ps,
+                                     "so_ct_anh_huong": kq.so_ct_anh_huong}}
+        finally:
+            kho.dong()
+
+    def _dem_ket_luan(self, kl: dict) -> dict:
+        return {k: kl.get(k, 0) for k in ("so_do", "so_vang", "so_chua_lam", "so_can_ra")}
+
+    def chot_so(self, ghi_chu: str = ""):
+        d = self._hien
+        if d is None or not d.ket_qua:
+            return {"loi": "Chưa chạy kiểm tra cho chi nhánh này"}
+        try:
+            vt = chot_so.van_tay(d.df)
+            kl = tinh_ket_luan(d.ket_qua, d.trang_thai)
+            checks_ = [{"ma": r.ma, "ten": r.ten, "muc_do": r.muc_do_thuc,
+                        "so_loi": r.so_loi, "la_thong_ke": r.la_thong_ke} for r in d.ket_qua]
+            kho = self._kho()
+            try:
+                kho.luu_snapshot(ky_nam=d.tt.ky_nam, ky_thang=d.tt.ky_thang, chi_nhanh=d.nhan,
+                                 van_tay_hash=vt.ma_bam, so_dong=vt.so_dong, tong_ps=vt.tong_ps,
+                                 ket_luan_ma=kl["muc_do_ket_luan"], dem=self._dem_ket_luan(kl),
+                                 checks=checks_, df=d.df, ghi_chu=ghi_chu)
+            finally:
+                kho.dong()
+            return {"chot": self._trang_thai_chot(d)}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không chốt được kỳ: {e}"}
+
+    def mo_lai_ky(self):
+        d = self._hien
+        if d is None:
+            return {"loi": "Chưa có chi nhánh đang xem"}
+        try:
+            kho = self._kho()
+            try:
+                kho.mo_lai(d.tt.ky_nam, d.tt.ky_thang, d.nhan)
+            finally:
+                kho.dong()
+            return {"chot": self._trang_thai_chot(d)}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở lại được kỳ: {e}"}
+
+    def lich_su_chot(self, chi_nhanh=None):
+        try:
+            kho = self._kho()
+            try:
+                dong = kho.liet_ke(chi_nhanh=chi_nhanh)
+            finally:
+                kho.dong()
+            return {"dong": dong}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không đọc được lịch sử chốt: {e}"}
+
+    def lay_diff_chot(self, trang: int = 1, kich_thuoc: int = 100, tim_kiem: str = ""):
+        d = self._hien
+        if d is None or not d.ket_qua:
+            return {"loi": "Chưa chạy kiểm tra"}
+        try:
+            kho = self._kho()
+            try:
+                h = kho.doc_hieu_luc(d.tt.ky_nam, d.tt.ky_thang, d.nhan)
+                if h is None:
+                    return {"loi": "Kỳ này chưa chốt"}
+                df_chot = kho.doc_du_lieu(h["id"])
+            finally:
+                kho.dong()
+            diff = chot_so.dien_diff(df_chot, d.df)
+            them = _dinh_dang_ngay(diff["them"]).assign(**{"Thay đổi": "＋ Thêm"})
+            bot = _dinh_dang_ngay(diff["bot"]).assign(**{"Thay đổi": "－ Bớt"})
+            df = pd.concat([them, bot], ignore_index=True) if len(them) or len(bot) else them
+            if tim_kiem:
+                tk = tim_kiem.lower()
+                df = df[df.astype(str).apply(lambda s: s.str.lower().str.contains(tk, regex=False)).any(axis=1)]
+            tong = int(len(df)); kich_thuoc = max(1, min(int(kich_thuoc), 500))
+            a = max(0, (int(trang) - 1) * kich_thuoc); cot = list(df.columns)
+            return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
+                    "tom_tat": diff["tom_tat"],
+                    "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không lấy được thay đổi: {e}"}
+
+    def sao_luu_kho(self):
+        try:
+            p = kho_sao_luu.sao_luu(self._duong_dan_kho(), str(Path(self._thu_muc_kho) / "backup"))
+            return {"path": p}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không sao lưu được kho: {e}"}
+
+    def phuc_hoi_kho(self, path: str):
+        try:
+            bk = kho_sao_luu.phuc_hoi(self._duong_dan_kho(), path, str(Path(self._thu_muc_kho) / "backup"))
+            return {"da_sao_luu": bk}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không phục hồi được kho: {e}"}
+
+    def nhap_gop_kho(self, path: str):
+        try:
+            return kho_sao_luu.nhap_gop(self._duong_dan_kho(), path)
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không nhập/gộp được kho: {e}"}
+
+    def mo_thu_muc_kho(self):
+        return self.mo_thu_muc(self._thu_muc_kho)
+
     def _tom_tat(self) -> dict:
         ket_luan = tinh_ket_luan(self._ket_qua, self._trang_thai)
         nhom = []
@@ -287,7 +417,8 @@ class JsApi:
         t = self._tt
         return {
             "tomtat": {"ky": t.ky, "ten": t.ten, "so_dong": t.so_dong, "tong_ps": t.tong_ps,
-                       "chi_nhanh": self._hien.nhan, **ket_luan},
+                       "chi_nhanh": self._hien.nhan, **ket_luan,
+                       "chot": self._trang_thai_chot(self._hien)},
             "trang_thai": [{"buoc": b.buoc, "trang_thai": b.trang_thai, "tom_tat": b.tom_tat,
                             "ma_check": b.ma_check, "co_chung_cu": b.co_chung_cu}
                            for b in self._trang_thai],
@@ -304,7 +435,7 @@ class JsApi:
             kl = tinh_ket_luan(d.ket_qua, d.trang_thai) if d.ket_qua else {}
             ds.append({"i": i, "ma": d.nhan, "ky": d.tt.ky, "so_dong": d.tt.so_dong,
                        "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten, "da_chay": bool(d.ket_qua),
-                       **kl})
+                       **kl, "chot": self._trang_thai_chot(d) if d.ket_qua else {"trang_thai": "CHUA_CHOT"}})
         return ds
 
     def lay_chi_tiet(self, ma_check: str, trang: int = 1, kich_thuoc: int = 100, tim_kiem: str = ""):
