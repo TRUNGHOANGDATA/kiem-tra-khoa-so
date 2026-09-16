@@ -5,7 +5,10 @@ import webview
 
 from .api import JsApi
 
-WEB_DIR = Path(__file__).resolve().parent / "web"
+_GOC = Path(__file__).resolve().parent
+# Ưu tiên bản React đã build (webapp/); nếu chưa có thì dùng bản HTML/JS thuần (web/).
+# Bản build được commit sẵn nên máy người dùng chỉ cần Python, không cần Node.
+WEB_DIR = _GOC / "webapp" if (_GOC / "webapp" / "index.html").exists() else _GOC / "web"
 
 
 def main():
