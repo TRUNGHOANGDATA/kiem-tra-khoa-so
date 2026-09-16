@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 .superpowers/
 *.xlsx
+
+# Cấu hình theo máy (có thể chứa đường dẫn tuyệt đối) — không commit
+cau-hinh.json
