@@ -135,12 +135,15 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 }
 .header-file:empty { display: none; }
 /* Nút trên nền header gradient: viền/nền trong suốt kiểu thẻ header-file bên
-   cạnh, không dùng .btn-phu mặc định (nền trắng sẽ chói trên nền indigo). */
-.btn-header {
+   cạnh, không dùng .btn-phu mặc định (nền trắng sẽ chói trên nền indigo).
+   Selector .btn.btn-header (0-2-0) thay vì .btn-header (0-1-0) — phải thắng
+   .btn (0-1-0) đứng SAU nó trong file, nếu không background/color/border của
+   .btn thắng theo thứ tự khai báo và nút lại chói trắng như đã tránh. */
+.btn.btn-header {
   flex: 0 0 auto; background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .28);
   color: var(--chu-nghich); box-shadow: none;
 }
-.btn-header:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .4); }
+.btn.btn-header:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .4); }
 
 /* ============================ Khung màn hình ============================== */
 .man-hinh { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
