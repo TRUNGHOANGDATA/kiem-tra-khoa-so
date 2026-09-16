@@ -28,6 +28,7 @@ TEN_COT = {
     "don_gia": "Đơn giá suy ra", "don_gia_pho_bien": "Đơn giá phổ biến của mã hàng",
     "so_lan_xuat": "Số lần xuất trong kỳ",
     "chi_nhanh": "Chi nhánh", "ky": "Kỳ", "ket_luan": "Kết luận", "co_phat_sinh": "Có phát sinh",
+    "ma_khoan_muc": "Mã khoản mục", "ten_khoan_muc": "Tên khoản mục",
     "so_do": "Nghiêm trọng", "so_vang": "Cảnh báo",
     "so_chua_lam": "Bước chưa làm", "so_can_ra": "Bước cần rà",
     "tong_ps": "Tổng phát sinh", "cac_file": "Nguồn dữ liệu",
