@@ -23,10 +23,10 @@ def test_c81_bat_dong_chi_phi_thieu_khoan_muc(ctx):
     assert r.chi_tiet.iloc[0]["DocNo"] == "X"
 
 
-def test_c81_khong_bat_khi_cong_ty_khong_dung_khoan_muc(ctx):
+def test_c81_khong_bat_khi_nhom_tk_khong_dung_khoan_muc(ctx):
+    """Nhóm 642 kỳ này không dòng nào có khoản mục -> không suy ra thiếu sót (tự suy)."""
     df = tao_df([{"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 100, "ExpenseCatgCode": None}])
-    r = _kq(df, ctx)["C8.1"]
-    assert r.so_loi == 0 and "không dùng khoản mục" in r.ghi_chu
+    assert _kq(df, ctx)["C8.1"].so_loi == 0
 
 
 def test_c81_bo_qua_dong_khong_phai_chi_phi(ctx):
@@ -75,6 +75,14 @@ def test_c83_frame_khong_chi_phi_khong_no(ctx):
     df = tao_df([{"DebitAccount": "1111", "CreditAccount": "1121", "Amount": 100}])
     r = _kq(df, ctx)["C8.3"]
     assert r.la_thong_ke and len(r.chi_tiet) == 0
+
+
+def test_c81_khong_bat_ket_chuyen_doanh_thu(ctx):
+    """Nợ 515/711 chỉ là bút toán kết chuyển doanh thu, không mang khoản mục —
+    không được coi là 'chi phí thiếu khoản mục' (hồi quy từ file BC quản trị thật)."""
+    df = tao_df([{"DebitAccount": "5154", "CreditAccount": "911", "Amount": 211_503_625, "ExpenseCatgCode": None},
+                 {"DebitAccount": "71181", "CreditAccount": "911", "Amount": 2_419_910_979, "ExpenseCatgCode": None}])
+    assert _kq(df, ctx)["C8.1"].so_loi == 0
 
 
 def test_du_3_ma(ctx):

@@ -240,6 +240,17 @@ Các bút toán **định kỳ, không gắn với một chứng từ mua/bán**
 
 > **Vì sao chỉ nhắc, không đỏ:** không có số dư đầu kỳ nên tool không biết chắc DN *có* TSCĐ/khoản trả trước hay không — chỉ biết kỳ này *không thấy* bút toán. Gọi thẳng là "lỗi" sẽ tái lập đúng bẫy dương-tính-giả của C4.1. Vì vậy đây là **checklist nhắc**: kế toán liếc một dòng là biết mình có bỏ sót không.
 
+### Nhóm 8 — Sẵn sàng cho Báo cáo quản trị ⭐ (`g8_bao_cao_quan_tri.py`)
+Kế toán tổng hợp dựng báo cáo quản trị bằng cách phân loại lại chi phí theo **khoản mục (KMCP)** và **bộ phận**, rồi đối chiếu với Bravo (sheet CHECK: Bravo vs Tổng hợp, chênh lệch = 0). Nhóm 8 bắt **nguyên nhân gốc của chênh lệch ngay trên file Bravo**. Chỉ TK chi phí, bên Nợ, cấp 1; tự suy theo từng nhóm TK (đúng luật "đừng cảnh báo từ sự vắng mặt"). Chỉ hiện ở Tab B — không thêm bước vào 16 bước khóa sổ.
+
+| Mã | Tên | Logic | Mức độ |
+|----|-----|-------|--------|
+| C8.1 | Chi phí thiếu mã khoản mục | Dòng Nợ `621/622/627/635/641/642/811` thiếu `ExpenseCatgCode`, **chỉ** trong nhóm TK cấp 1 mà kỳ này có dòng đã điền khoản mục | 🟡 |
+| C8.2 | Chi phí thiếu bộ phận | Tương tự với `DeptName` — tự động loại `621` (NVL trực tiếp không phân bổ bộ phận) | 🟡 |
+| C8.3 | Tổng hợp chi phí theo khoản mục × TK | Thống kê Σ tiền theo (TK cấp 1 × khoản mục) — cột "Bravo" sạch thay `#REF!` | 📊 |
+
+> Chi nhánh nhận đa cột: `loader` thử `BranchCode` rồi `Đơn vị` (file BC quản trị dùng `Đơn vị` = VXHN/VXHO). Đối chiếu tự động đầy đủ (đọc sheet BCQT) để spike sau — cột "Tổng hợp" 641/642 đã bị tái phân loại, không suy được từ file Bravo.
+
 ## 8. Đặc tả báo cáo Excel đầu ra
 
 - **Tên file:** `Bao cao kiem tra khoa so - <kỳ> - <yyyymmdd_hhmm>.xlsx` trong `2. Report/`.

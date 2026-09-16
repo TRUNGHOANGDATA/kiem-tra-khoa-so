@@ -19,8 +19,11 @@ import pandas as pd
 from .base import VANG, BoiCanh, CheckResult, bat_dau, tao_ket_qua
 
 NHOM = "G8"
-# Đúng phạm vi các TK mà sheet CHECK của kế toán đối chiếu.
-TK_BCQT = ("621", "622", "627", "635", "641", "642", "515", "711", "811")
+# CHỈ tài khoản CHI PHÍ, và soi ở BÊN NỢ: khoản mục/bộ phận được gắn khi ghi nhận
+# chi phí (Nợ 62x/64x/635/811 / Có ...). KHÔNG gộp TK doanh thu 515/711: chúng chỉ
+# xuất hiện bên Nợ ở bút toán KẾT CHUYỂN (Nợ 515/Có 911) — không mang khoản mục, gộp
+# vào sẽ bắt nhầm mọi dòng kết chuyển doanh thu (đã thấy trên file thật: 5 dòng).
+TK_CHI_PHI = ("621", "622", "627", "635", "641", "642", "811")
 
 
 def _trong(s: pd.Series) -> pd.Series:
@@ -30,18 +33,23 @@ def _trong(s: pd.Series) -> pd.Series:
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
-    la_cp = bat_dau(df["DebitAccount"], *TK_BCQT)
-
-    # --- C8.1: thiếu mã khoản mục ---
-    thieu_km = la_cp & _trong(df["ExpenseCatgCode"])
-    co_dung_km = bool((la_cp & ~_trong(df["ExpenseCatgCode"])).any())
-    ct81 = df[thieu_km] if co_dung_km else df.iloc[0:0]
-    kq.append(tao_ket_qua(ct81, "C8.1", "Chi phí thiếu mã khoản mục (KMCP)", NHOM, VANG,
-                          "Dòng chi phí không có mã khoản mục — sẽ rơi khỏi báo cáo quản trị theo khoản mục",
-                          ghi_chu="" if co_dung_km else "Kỳ này không dùng khoản mục chi phí — không áp dụng"))
-
-    # --- C8.2: thiếu bộ phận, tự suy theo nhóm TK cấp 1 ---
+    la_cp = bat_dau(df["DebitAccount"], *TK_CHI_PHI)
     tk3 = df["DebitAccount"].astype("string").str.strip().str[:3]
+
+    # --- C8.1: thiếu mã khoản mục — tự suy theo TỪNG nhóm TK cấp 1 ---
+    # Chỉ nhóm TK nào kỳ này có dòng đã điền khoản mục mới coi là "công ty phân loại
+    # khoản mục cho nhóm đó" -> dòng trống trong nhóm ấy mới là thiếu sót. Guard toàn
+    # cục ("cả công ty có dùng khoản mục") quá thô: nó bắt nhầm dòng của TK vốn không
+    # bao giờ dùng khoản mục chỉ vì TK khác có dùng — đúng bẫy C4.1.
+    trong_km = _trong(df["ExpenseCatgCode"])
+    nhom_co_km = set(tk3[la_cp & ~trong_km].dropna())
+    thieu_km = la_cp & trong_km & tk3.isin(nhom_co_km)
+    kq.append(tao_ket_qua(df[thieu_km], "C8.1", "Chi phí thiếu mã khoản mục (KMCP)", NHOM, VANG,
+                          "Dòng chi phí thuộc nhóm TK có phân loại khoản mục nhưng bỏ trống khoản mục"
+                          " — sẽ rơi khỏi báo cáo quản trị theo khoản mục",
+                          ghi_chu="Chỉ xét nhóm TK cấp 1 mà kỳ này có dòng đã điền khoản mục"))
+
+    # --- C8.2: thiếu bộ phận, cùng cơ chế tự suy theo nhóm TK cấp 1 ---
     trong_dept = _trong(df["DeptName"])
     nhom_co_dept = set(tk3[la_cp & ~trong_dept].dropna())
     thieu_dept = la_cp & trong_dept & tk3.isin(nhom_co_dept)

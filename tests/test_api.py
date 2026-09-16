@@ -30,7 +30,7 @@ def test_chay_kiem_tra_tra_json_hop_le(tmp_path):
     json.dumps(kq)  # không numpy scalar
     assert kq["tomtat"]["ky"] == "08/2026" and kq["tomtat"]["so_dong"] == 3
     assert kq["tomtat"]["san_sang"] is False           # 632 chưa kết chuyển -> C5.2 đỏ
-    assert len(kq["trang_thai"]) == 16 and len(kq["nhom"]) == 7
+    assert len(kq["trang_thai"]) == 16 and len(kq["nhom"]) == 8
     g5 = next(n for n in kq["nhom"] if n["ma"] == "G5")
     assert g5["muc_do"] == "do"
 
@@ -178,7 +178,7 @@ def test_lay_chi_tiet_kem_nhan_tieng_viet_va_cot_so(tmp_path):
 
 
 def test_moi_cot_cac_check_sinh_ra_deu_co_nhan_tieng_viet(tmp_path):
-    """C4: quét toàn bộ 37 check — không cột nào rơi lại tên tiếng Anh."""
+    """C4: quét toàn bộ 40 check — không cột nào rơi lại tên tiếng Anh."""
     api = JsApi()
     api.chay_kiem_tra(_xlsx(tmp_path))
     thieu = {}
