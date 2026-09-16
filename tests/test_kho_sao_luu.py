@@ -46,6 +46,22 @@ def test_nhap_gop_bo_qua_trung(tmp_path):
     assert kho.doc_hieu_luc(2026, 8, "B02") is not None
     kho.dong()
 
+def test_phuc_hoi_tu_choi_file_khong_phai_kho(tmp_path):
+    import sqlite3
+    import pytest
+    from app.kho.ket_noi import KhongPhaiKho
+    a = KhoChotSo(str(tmp_path / "kho.sqlite")); _luu(a, chi_nhanh="A01"); a.dong()
+    lac = str(tmp_path / "lac.sqlite")
+    con = sqlite3.connect(lac); con.execute("CREATE TABLE t(x)"); con.commit(); con.close()
+    with pytest.raises(KhongPhaiKho):
+        sl.phuc_hoi(str(tmp_path / "kho.sqlite"), lac, str(tmp_path / "backup"))
+    kho = KhoChotSo(str(tmp_path / "kho.sqlite"))
+    try:
+        assert kho.doc_hieu_luc(2026, 8, "A01") is not None   # kho cũ còn nguyên
+    finally:
+        kho.dong()
+
+
 def test_nhap_gop_ghi_de_khi_moi_hon(tmp_path):
     # Đích đã chốt kỳ (2026/8, A01) với thoi_diem_chot CŨ → đang hiệu lực. Nguồn có bản
     # MỚI HƠN cho cùng (kỳ, chi nhánh). Sau nhập-gộp: bản mới trở thành hiệu lực, bản cũ

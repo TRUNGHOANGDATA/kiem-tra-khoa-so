@@ -541,31 +541,26 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
    Dưới banner kết luận, thuộc về chi nhánh đang xem. Chưa chốt: một nút chính.
    Đã chốt: thẻ nền xanh nhạt + (khi dữ liệu nguồn lệch) một dòng cảnh báo vàng,
    không đổi màu cả thẻ vì "đã chốt" vẫn đúng — chỉ dữ liệu nguồn đã khác đi. */
-.khoi-chot {
-  background: var(--be-mat); border: 1px solid var(--vien); border-radius: var(--r-lon);
-  box-shadow: var(--bong-card); padding: 14px 18px; flex: 0 0 auto;
-}
-.khoi-chot.da-chot { background: var(--xanh-nen); border-color: var(--xanh-vien); }
-.khoi-chot-dong { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--xanh-dam); }
-.khoi-chot-dong .icon { color: var(--xanh); flex: 0 0 auto; }
-.chot-lech {
-  display: flex; align-items: center; gap: 6px; margin-top: 8px;
-  color: var(--vang-dam); font-weight: 600; font-size: 12.5px;
-}
-.chot-lech .icon { color: var(--vang); flex: 0 0 auto; }
+/* Hành động chốt nằm NGAY TRONG banner (cạnh ba ô thống kê), ngăn cách bằng một
+   vạch mờ bên trái — không còn thẻ trắng riêng ăn chiều cao. Chưa chốt: một nút
+   chính. Đã chốt: chip "Đã chốt dd/mm/yyyy" + hai nút nhỏ, cao ngang cụm ô. */
+.banner-chot { display: flex; align-items: center; padding-left: 16px; border-left: 1px solid var(--vien); }
+.banner-chot:empty { display: none; }
+.btn-chot { white-space: nowrap; }
+.chot-mini { display: flex; flex-direction: column; gap: 8px; }
+.chot-mini-nhan { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--xanh-dam); white-space: nowrap; }
+.chot-mini-nhan .icon { color: var(--xanh); flex: 0 0 auto; }
+.chot-mini.lech .chot-mini-nhan { color: var(--vang-dam); }
+.chot-mini.lech .chot-mini-nhan .icon { color: var(--vang); }
+.btn-nho { padding: 6px 12px; font-size: 12.5px; }
 .hang-nut { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.chot-mini .hang-nut { margin-top: 0; gap: 8px; }
 
-/* ============================ Banner đối chiếu bản chốt ====================
-   Dưới khối "Chốt sổ", nói về một câu hỏi khác: dữ liệu NGUỒN (file Excel) có
-   còn khớp với ảnh đã đóng băng lúc chốt không. Khớp -> dải xanh ngắn, không
-   cần làm gì. Lệch -> băng cam nổi bật hơn hẳn (cùng họ màu amber/rose với
-   .chip-chot.lech) vì đây là việc cần xử lý trước khi tin vào kết luận đã chốt. */
-.dai-khop {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
-  padding: 9px 16px; border-radius: var(--r); font-size: 13px; font-weight: 600;
-  background: var(--xanh-nen); color: var(--xanh-dam); border: 1px solid var(--xanh-vien);
-}
-.dai-khop .icon { color: var(--xanh); flex: 0 0 auto; }
+/* ============================ Băng đối chiếu bản chốt ======================
+   Nằm dưới banner, chỉ hiện khi dữ liệu NGUỒN (file Excel) đã LỆCH so với ảnh đã
+   đóng băng lúc chốt — băng cam (cùng họ màu amber/rose với .chip-chot.lech) vì
+   đây là việc cần xử lý trước khi tin vào kết luận đã chốt. Khớp thì im lặng:
+   chip "Đã chốt" trong banner đã đủ, không thêm dải nào. */
 .banner-lech {
   flex: 0 0 auto; margin-bottom: 14px; padding: 14px 18px;
   border-radius: var(--r-lon); background: var(--vang-nen);

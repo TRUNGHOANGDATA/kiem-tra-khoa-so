@@ -25,6 +25,9 @@ def sao_luu(path_kho: str, thu_muc_backup: str) -> str:
 
 def phuc_hoi(path_kho: str, path_nguon: str, thu_muc_backup: str) -> str:
     """Kiểm nguồn hợp lệ → sao lưu kho hiện tại → thay bằng nguồn. Trả đường dẫn backup."""
+    from . import ket_noi
+    if not ket_noi.la_kho(path_nguon):
+        raise ket_noi.KhongPhaiKho("File được chọn không phải kho chốt sổ (.sqlite thiếu bảng chuẩn)")
     mo_kho(path_nguon).close()                     # ném PhienBanMoiHon nếu nguồn mới hơn
     bk = sao_luu(path_kho, thu_muc_backup) if Path(path_kho).exists() else ""
     ra = sqlite3.connect(path_kho); ng = sqlite3.connect(path_nguon)

@@ -308,22 +308,27 @@ function veKetQua() {
    cảnh báo vàng — KHÔNG đổi màu cả thẻ, vì bản thân việc "đã chốt" vẫn đúng. */
 function veKhoiChot(chot) {
   const khoa = bieuTuong("khoa", "icon icon-nho");
+  // Không đọc được kho (vd file kho do bản tool mới hơn tạo ra) — backend trả loi_kho.
+  // Không nuốt im lặng: hiện cảnh báo ngay chỗ hành động chốt, không kết luận đã/chưa chốt.
+  if (chot && chot.loi_kho) {
+    return `<div class="chot-mini lech" title="${esc(chot.loi_kho)}">
+      <div class="chot-mini-nhan">${bieuTuong("canh-bao", "icon icon-nho")}<b>Không đọc được kho chốt</b></div>
+    </div>`;
+  }
   if (chot && chot.trang_thai === "DA_CHOT") {
-    const ngay = chot.ngay_chot ? new Date(chot.ngay_chot).toLocaleString("vi-VN") : "";
-    const canhBao = chot.doi_chieu === "LECH"
-      ? `<div class="chot-lech">${bieuTuong("canh-bao", "icon icon-nho")}Dữ liệu nguồn đã khác bản đã chốt</div>`
-      : "";
-    return `<div class="khoi-chot da-chot">
-      <div class="khoi-chot-dong">${khoa}<b>Đã chốt</b>${ngay ? " " + esc(ngay) : ""}${chot.ghi_chu ? " · " + esc(chot.ghi_chu) : ""}</div>
-      ${canhBao}
+    // Đã chốt: một chip gọn "Đã chốt dd/mm/yyyy" + hai nút nhỏ. Ghi chú và tình
+    // trạng lệch KHÔNG lặp ở đây — dải drift ngay dưới banner lo phần cảnh báo,
+    // còn ghi chú xem ở tab Lịch sử chốt sổ. Giữ slot này thấp bằng ô thống kê.
+    const ngay = chot.ngay_chot ? new Date(chot.ngay_chot).toLocaleDateString("vi-VN") : "";
+    const lech = chot.doi_chieu === "LECH" ? " lech" : "";
+    return `<div class="chot-mini${lech}">
+      <div class="chot-mini-nhan">${khoa}<b>Đã chốt</b>${ngay ? " " + esc(ngay) : ""}</div>
       <div class="hang-nut">
-        <button class="btn btn-phu" type="button" onclick="moLaiKy()">Mở lại kỳ</button>
-        <button class="btn btn-phu" type="button" onclick="moModalChot(true)">Chốt lại</button>
+        <button class="btn btn-phu btn-nho" type="button" onclick="moLaiKy()">Mở lại</button>
+        <button class="btn btn-phu btn-nho" type="button" onclick="moModalChot(true)">Chốt lại</button>
       </div></div>`;
   }
-  return `<div class="khoi-chot">
-    <button class="btn btn-chinh" type="button" onclick="moModalChot(false)">${khoa}Chốt sổ kỳ này</button>
-  </div>`;
+  return `<button class="btn btn-chinh btn-chot" type="button" onclick="moModalChot(false)">${khoa}Chốt sổ kỳ này</button>`;
 }
 
 /* Banner đối chiếu với bản đã chốt — RIÊNG với khối "Chốt sổ" ở trên vì trả lời
@@ -334,11 +339,8 @@ function veKhoiChot(chot) {
    luận đã chốt. Không tự suy luận gì thêm ngoài chot.doi_chieu backend trả về. */
 function veBannerDrift(chot) {
   if (!chot || chot.trang_thai !== "DA_CHOT") return "";
-  if (chot.doi_chieu === "KHOP") {
-    const ngay = chot.ngay_chot ? new Date(chot.ngay_chot).toLocaleDateString("vi-VN") : "";
-    return `<div class="dai-khop">${bieuTuong("kiem", "icon icon-nho")}` +
-      `Dữ liệu khớp bản đã chốt${ngay ? " " + esc(ngay) : ""}</div>`;
-  }
+  // KHỚP không cần dải trấn an nữa: chip "Đã chốt" trong banner đã nói kỳ đã chốt,
+  // thêm một dải xanh chỉ tốn chiều cao. Chỉ LỆCH mới hiện băng cam (việc cần xử lý).
   if (chot.doi_chieu !== "LECH") return "";
   const t = chot.tom_tat_lech || {};
   const dDong = t.delta_dong || 0;
