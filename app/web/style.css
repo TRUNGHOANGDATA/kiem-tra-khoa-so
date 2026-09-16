@@ -545,6 +545,27 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .chot-lech .icon { color: var(--vang); flex: 0 0 auto; }
 .hang-nut { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 
+/* ============================ Banner đối chiếu bản chốt ====================
+   Dưới khối "Chốt sổ", nói về một câu hỏi khác: dữ liệu NGUỒN (file Excel) có
+   còn khớp với ảnh đã đóng băng lúc chốt không. Khớp -> dải xanh ngắn, không
+   cần làm gì. Lệch -> băng cam nổi bật hơn hẳn (cùng họ màu amber/rose với
+   .chip-chot.lech) vì đây là việc cần xử lý trước khi tin vào kết luận đã chốt. */
+.dai-khop {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  padding: 9px 16px; border-radius: var(--r); font-size: 13px; font-weight: 600;
+  background: var(--xanh-nen); color: var(--xanh-dam); border: 1px solid var(--xanh-vien);
+}
+.dai-khop .icon { color: var(--xanh); flex: 0 0 auto; }
+.banner-lech {
+  flex: 0 0 auto; margin-bottom: 14px; padding: 14px 18px;
+  border-radius: var(--r-lon); background: var(--vang-nen);
+  border: 1px solid var(--vang-vien); box-shadow: var(--bong-card);
+}
+.banner-lech-dau { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: var(--vang-dam); }
+.banner-lech-dau .icon { color: var(--vang); flex: 0 0 auto; }
+.banner-lech-chi-tiet { margin-top: 6px; font-size: 13px; color: var(--vang-dam); }
+.banner-lech-chi-tiet b { color: var(--chu); }
+
 /* ============================ Modal xác nhận chốt ==========================
    Lớp phủ tối phía sau + hộp trắng nổi giữa màn hình, cùng ngôn ngữ bo góc/đổ
    bóng với .khung-chi-tiet. Ẩn/hiện bằng .an như mọi vùng khác trong file này. */
@@ -570,6 +591,23 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .modal-hop input[type="text"]:hover { border-color: var(--chu-mo); }
 .modal-hop input[type="text"]:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
 .modal-hop input[type="text"]::placeholder { color: var(--chu-mo); }
+
+/* Biến thể rộng cho modal chứa bảng (Xem thay đổi) — cùng khung .modal-hop, chỉ
+   nới chiều rộng/chiều cao và cho bảng bên trong tự co giãn theo phần còn lại. */
+.modal-hop-lon {
+  width: min(1000px, 92vw); max-height: 82vh;
+  display: flex; flex-direction: column;
+}
+.modal-hop-lon .bang-cuon { flex: 1 1 auto; min-height: 240px; }
+#diff-tim-kiem {
+  font: inherit; font-size: 13px; padding: 8px 10px 8px 32px;
+  border: 1px solid var(--vien-dam); border-radius: var(--r-nho);
+  background: var(--be-mat); color: var(--chu); width: 220px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+#diff-tim-kiem:hover { border-color: var(--chu-mo); }
+#diff-tim-kiem:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
+#diff-tim-kiem::placeholder { color: var(--chu-mo); }
 
 /* ============================ Footer & toast ============================== */
 .footer { flex: 0 0 auto; display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--vien); }

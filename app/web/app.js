@@ -167,12 +167,14 @@ async function chepVaBao(s, moTa, nhayVao) {
 const _sach = (v) => String(v).replace(/\s+/g, " ").trim();
 const _oCuaDong = (tr) =>
   [...tr.children].filter((o) => !o.classList.contains("o-chep")).map((o) => _sach(o.textContent));
-function _tieuDeBang() {
-  const h = $("bang-chi-tiet").querySelector("thead tr");
+function _tieuDeBang(bang) {
+  const h = bang.querySelector("thead tr");
   return h ? _oCuaDong(h) : [];
 }
-function tsv(dsDong) {
-  const tieu = _tieuDeBang();
+// bang mặc định là bảng chi tiết — modal "Xem thay đổi" truyền bảng của chính nó
+// (#bang-diff) để chép đúng tiêu đề cột của bảng đang mở, không lẫn sang bảng kia.
+function tsv(dsDong, bang = $("bang-chi-tiet")) {
+  const tieu = _tieuDeBang(bang);
   return [tieu, ...dsDong].filter((h) => h.length).map((h) => h.join("\t")).join("\n");
 }
 
@@ -294,6 +296,7 @@ function veKetQua() {
   const tongCheck = ketQua.nhom.flatMap((n) => n.checks).filter((c) => !c.la_thong_ke).length;
   $("so-xanh").textContent = fmt(tongCheck - t.so_do - t.so_vang);
   $("khoi-chot-so").innerHTML = veKhoiChot(t.chot);
+  $("banner-drift").innerHTML = veBannerDrift(t.chot);
   veThanhDonVi(); veTabA(); veTabB(); anChiTiet();
 }
 
@@ -319,6 +322,35 @@ function veKhoiChot(chot) {
   }
   return `<div class="khoi-chot">
     <button class="btn btn-chinh" type="button" onclick="moModalChot(false)">${khoa}Chốt sổ kỳ này</button>
+  </div>`;
+}
+
+/* Banner đối chiếu với bản đã chốt — RIÊNG với khối "Chốt sổ" ở trên vì trả lời
+   một câu hỏi khác: dữ liệu NGUỒN (file Excel) có còn khớp với ảnh đã đóng băng
+   lúc chốt hay không. Chưa chốt thì không có gì để đối chiếu -> im lặng. Đã chốt
+   & khớp -> dải xanh ngắn, không cần làm gì. Đã chốt & lệch -> băng cam nổi bật
+   hơn hẳn khối "Chốt sổ", vì đây là việc kế toán cần xử lý trước khi tin vào kết
+   luận đã chốt. Không tự suy luận gì thêm ngoài chot.doi_chieu backend trả về. */
+function veBannerDrift(chot) {
+  if (!chot || chot.trang_thai !== "DA_CHOT") return "";
+  if (chot.doi_chieu === "KHOP") {
+    const ngay = chot.ngay_chot ? new Date(chot.ngay_chot).toLocaleDateString("vi-VN") : "";
+    return `<div class="dai-khop">${bieuTuong("kiem", "icon icon-nho")}` +
+      `Dữ liệu khớp bản đã chốt${ngay ? " " + esc(ngay) : ""}</div>`;
+  }
+  if (chot.doi_chieu !== "LECH") return "";
+  const t = chot.tom_tat_lech || {};
+  const dDong = t.delta_dong || 0;
+  const dPs = t.delta_ps || 0;
+  return `<div class="banner-lech">
+    <div class="banner-lech-dau">${bieuTuong("canh-bao", "icon icon-nho")}Kỳ đã chốt nhưng dữ liệu nguồn đã thay đổi</div>
+    <div class="banner-lech-chi-tiet">Δ dòng: <b>${dDong > 0 ? "+" : ""}${fmt(dDong)}</b> ·
+      Δ tổng phát sinh: <b>${dPs > 0 ? "+" : ""}${fmt(dPs)}</b> ·
+      <b>${fmt(t.so_ct_anh_huong || 0)}</b> chứng từ ảnh hưởng</div>
+    <div class="hang-nut">
+      <button class="btn btn-phu" type="button" onclick="moModalDiff()">Xem thay đổi</button>
+      <button class="btn btn-chinh" type="button" onclick="capNhatChotLai()">Cập nhật &amp; chốt lại</button>
+    </div>
   </div>`;
 }
 
@@ -360,6 +392,19 @@ async function moLaiKy() {
   if (kq2.loi) { toast(kq2.loi); return; }
   ketQua = kq2; veKetQua();
   toast("Đã mở lại kỳ");
+}
+
+/* Nút chính của banner-lech: đóng băng dữ liệu NGUỒN hiện tại làm bản chốt mới,
+   thay cho bản cũ đã lệch — bản cũ vẫn nằm trong lịch sử (Task 10), không mất gì. */
+async function capNhatChotLai() {
+  if (!confirm("Đóng băng dữ liệu MỚI làm bản chốt hiện hành? Bản cũ vẫn được giữ trong lịch sử."))
+    return;
+  const kq = await api.chot_so("Cập nhật dữ liệu mới");
+  if (kq.loi) { toast(kq.loi); return; }
+  const kq2 = await api.chon_don_vi(ketQua.dang_xem);
+  if (kq2.loi) { toast(kq2.loi); return; }
+  ketQua = kq2; veKetQua();
+  toast("Đã cập nhật và chốt lại kỳ này");
 }
 
 /* Thanh chọn chi nhánh. Ẩn hẳn khi chỉ một chi nhánh. Khi nhiều: một dòng TÓM TẮT
@@ -514,6 +559,50 @@ function veTabB() {
 function chonThe(d) { document.querySelectorAll(".the-nhom").forEach((x) => x.classList.remove("dang-chon")); d.classList.add("dang-chon"); }
 
 /* ---------- chi tiết ---------- */
+/* Dựng phần <thead>/<tbody> từ một gói dữ liệu dạng {tong,cot,nhan,cot_so,cot_so_le,dong}
+   — DÙNG CHUNG cho bảng chi tiết (moChiTiet) và bảng "Xem thay đổi" (modal-diff),
+   vì cả hai đọc đúng một shape cột/nhãn do backend cấp (app.checks.base.TEN_COT).
+   Không lặp lại nhãn cột hay danh sách cột số ở đây. */
+function dungNoiDungBang(kq, thongBaoRong) {
+  if (!kq.tong) {
+    return `<tbody><tr><td class="bang-trong">${bieuTuong("tim-kiem", "icon icon-to")}` +
+      `<span>${thongBaoRong}</span></td></tr></tbody>`;
+  }
+  const cot = kq.cot || [];
+  const nhan = kq.nhan || cot;
+  const soCot = new Set(kq.cot_so || []);
+  // Cột có phần thập phân (số lượng): làm tròn 0 chữ số biến 0,059 thành "0" —
+  // đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được nêu.
+  const soLe = new Set(kq.cot_so_le || []);
+  const fmtSo = (c, v) => soLe.has(c)
+    ? Number(v).toLocaleString("vi-VN", { maximumFractionDigits: 9 }) : fmt(v);
+  // Diễn giải chứng từ có thể dài vài trăm ký tự: kẹp còn 3 dòng để nhịp hàng
+  // không vỡ trên bảng 30.000 dòng, chuỗi đầy đủ đưa vào title để rê chuột đọc.
+  // Giá trị ngắn (số CT, ngày, số hiệu TK) không bao giờ được xuống dòng:
+  // "PX2608-000366" bị bẻ làm đôi vừa khó đọc vừa khó bôi đen trúng một mã —
+  // mà đây đúng là chuỗi kế toán cần mang sang Bravo.
+  const oChu = (v) => {
+    const s = String(v ?? "");
+    const tip = s.length > 60 ? ` title="${esc(s)}"` : "";
+    const lop = s.length <= 30 ? "o-chu o-ngan" : "o-chu";
+    return `<td><span class="${lop}"${tip}>${esc(v)}</span></td>`;
+  };
+  const oDuLieu = (r, c) => typeof r[c] === "boolean" ? `<td>${r[c] ? "Có" : "Không"}</td>`
+    : soCot.has(c) && typeof r[c] === "number" ? `<td class="so">${fmtSo(c, r[c])}</td>`
+    : oChu(r[c]);
+  // Cột đầu là nút chép cả dòng — <button> thật nên vào được bằng bàn phím và có
+  // focus ring; luôn hiện (không chỉ khi rê chuột) để người dùng còn biết là có.
+  // aria-label mang số thứ tự dòng do JS sinh, không phải chuỗi từ backend.
+  const nutChep = (i) =>
+    `<td class="o-chep"><button class="nut-chep" type="button" data-dong="${i}"` +
+    ` aria-label="Chép cả dòng ${i + 1}" title="Chép cả dòng này (kèm tiêu đề cột)">` +
+    `${bieuTuong("chep", "icon icon-nho")}</button></td>`;
+  return `<thead><tr><th scope="col" class="o-chep"><span class="an-chu">Chép dòng</span></th>${
+    cot.map((c, i) =>
+      `<th scope="col" class="${soCot.has(c) ? "so" : ""}">${esc(nhan[i] ?? c)}</th>`).join("")}</tr></thead><tbody>${
+    kq.dong.map((r, i) => `<tr>${nutChep(i)}${cot.map((c) => oDuLieu(r, c)).join("")}</tr>`).join("")}</tbody>`;
+}
+
 async function moChiTiet(ma, tieuDe, trang = 1) {
   // Giữ tiêu đề gốc trong state: tách lại từ DOM sẽ nuốt mất tên check ngay khi gõ tìm kiếm.
   chiTiet = { ma, tieuDe, trang, timKiem: chiTiet.ma === ma ? chiTiet.timKiem : "" };
@@ -522,48 +611,10 @@ async function moChiTiet(ma, tieuDe, trang = 1) {
   if (kq.loi) { toast(kq.loi); return; }
   $("chi-tiet-tieu-de").textContent = tieuDe;
   $("chi-tiet-dem").textContent = `${fmt(kq.tong)} dòng${chiTiet.timKiem ? " khớp từ khóa" : ""}`;
-  const tb = $("bang-chi-tiet");
   $("btn-chep-trang").disabled = !kq.tong;
-  if (!kq.tong) {
-    tb.innerHTML = `<tbody><tr><td class="bang-trong">${bieuTuong("tim-kiem", "icon icon-to")}` +
-      `<span>${chiTiet.timKiem ? "Không có dòng nào khớp từ khóa." : "Không có dòng nào."}</span></td></tr></tbody>`;
-  } else {
-    // Nhãn cột và danh sách cột số do backend cấp (app.checks.base.TEN_COT) — không lặp lại ở đây.
-    const cot = kq.cot || [];
-    const nhan = kq.nhan || cot;
-    const soCot = new Set(kq.cot_so || []);
-    // Cột có phần thập phân (số lượng): làm tròn 0 chữ số biến 0,059 thành "0" —
-    // đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được nêu.
-    const soLe = new Set(kq.cot_so_le || []);
-    const fmtSo = (c, v) => soLe.has(c)
-      ? Number(v).toLocaleString("vi-VN", { maximumFractionDigits: 9 }) : fmt(v);
-    // Diễn giải chứng từ có thể dài vài trăm ký tự: kẹp còn 3 dòng để nhịp hàng
-    // không vỡ trên bảng 30.000 dòng, chuỗi đầy đủ đưa vào title để rê chuột đọc.
-    // Giá trị ngắn (số CT, ngày, số hiệu TK) không bao giờ được xuống dòng:
-    // "PX2608-000366" bị bẻ làm đôi vừa khó đọc vừa khó bôi đen trúng một mã —
-    // mà đây đúng là chuỗi kế toán cần mang sang Bravo.
-    const oChu = (v) => {
-      const s = String(v ?? "");
-      const tip = s.length > 60 ? ` title="${esc(s)}"` : "";
-      const lop = s.length <= 30 ? "o-chu o-ngan" : "o-chu";
-      return `<td><span class="${lop}"${tip}>${esc(v)}</span></td>`;
-    };
-    const oDuLieu = (r, c) => typeof r[c] === "boolean" ? `<td>${r[c] ? "Có" : "Không"}</td>`
-      : soCot.has(c) && typeof r[c] === "number" ? `<td class="so">${fmtSo(c, r[c])}</td>`
-      : oChu(r[c]);
-    // Cột đầu là nút chép cả dòng — <button> thật nên vào được bằng bàn phím và có
-    // focus ring; luôn hiện (không chỉ khi rê chuột) để người dùng còn biết là có.
-    // aria-label mang số thứ tự dòng do JS sinh, không phải chuỗi từ backend.
-    const nutChep = (i) =>
-      `<td class="o-chep"><button class="nut-chep" type="button" data-dong="${i}"` +
-      ` aria-label="Chép cả dòng ${i + 1}" title="Chép cả dòng này (kèm tiêu đề cột)">` +
-      `${bieuTuong("chep", "icon icon-nho")}</button></td>`;
-    tb.innerHTML = `<thead><tr><th scope="col" class="o-chep"><span class="an-chu">Chép dòng</span></th>${
-      cot.map((c, i) =>
-        `<th scope="col" class="${soCot.has(c) ? "so" : ""}">${esc(nhan[i] ?? c)}</th>`).join("")}</tr></thead><tbody>${
-      kq.dong.map((r, i) => `<tr>${nutChep(i)}${cot.map((c) => oDuLieu(r, c)).join("")}</tr>`).join("")}</tbody>`;
-  }
-  vePhanTrang(kq.tong, trang);
+  $("bang-chi-tiet").innerHTML = dungNoiDungBang(kq,
+    chiTiet.timKiem ? "Không có dòng nào khớp từ khóa." : "Không có dòng nào.");
+  vePhanTrangVao($("phan-trang"), kq.tong, trang, (t) => moChiTiet(chiTiet.ma, chiTiet.tieuDe, t));
   $("khung-chi-tiet").classList.remove("an");
   // Bảng chiếm trọn vùng kết quả -> danh sách lui đi (xem style.css .co-chi-tiet).
   $("vung-cuon").classList.add("co-chi-tiet");
@@ -574,32 +625,40 @@ function anChiTiet() {
 }
 
 /* Bấm một ô = chép ô đó. Uỷ quyền trên <table> nên vẫn sống sau mỗi lần dựng lại
-   innerHTML, và chỉ gắn MỘT lần khi nạp trang.
+   innerHTML, và chỉ gắn MỘT lần khi nạp trang. DÙNG CHUNG cho bảng chi tiết và
+   bảng "Xem thay đổi" (modal-diff) — cả hai đều được dựng bởi dungNoiDungBang()
+   nên có cùng cấu trúc nút-chép-dòng/ô.
    Không được tranh chỗ với bôi đen: nếu con trỏ có di chuyển giữa mousedown và
    click (kéo để chọn), hoặc đang có sẵn một vùng bôi đen, thì đây là thao tác
    chọn chữ của người dùng — im lặng, không chép. */
-let _diemNhan = null;
-const _bang = $("bang-chi-tiet");
-_bang.addEventListener("mousedown", (ev) => { _diemNhan = [ev.clientX, ev.clientY]; });
-_bang.addEventListener("click", (ev) => {
-  const nut = ev.target.closest(".nut-chep");
-  if (nut) {
-    const tr = nut.closest("tr");
-    chepVaBao(tsv([_oCuaDong(tr)]), "cả dòng (kèm tiêu đề cột)", tr);
-    return;
-  }
-  const o = ev.target.closest("td");
-  if (!o || o.classList.contains("bang-trong")) return;
-  const keo = _diemNhan && (Math.abs(ev.clientX - _diemNhan[0]) > 4 || Math.abs(ev.clientY - _diemNhan[1]) > 4);
-  const dangBoiDen = !(document.getSelection()?.isCollapsed ?? true);
-  if (keo || dangBoiDen) return;
-  const gt = o.textContent.trim();
-  chepVaBao(gt, gt.length > 40 ? "ô này" : `“${gt}”`, o);
-});
+function ganChepBang(bang) {
+  let diemNhan = null;
+  bang.addEventListener("mousedown", (ev) => { diemNhan = [ev.clientX, ev.clientY]; });
+  bang.addEventListener("click", (ev) => {
+    const nut = ev.target.closest(".nut-chep");
+    if (nut) {
+      const tr = nut.closest("tr");
+      chepVaBao(tsv([_oCuaDong(tr)], bang), "cả dòng (kèm tiêu đề cột)", tr);
+      return;
+    }
+    const o = ev.target.closest("td");
+    if (!o || o.classList.contains("bang-trong")) return;
+    const keo = diemNhan && (Math.abs(ev.clientX - diemNhan[0]) > 4 || Math.abs(ev.clientY - diemNhan[1]) > 4);
+    const dangBoiDen = !(document.getSelection()?.isCollapsed ?? true);
+    if (keo || dangBoiDen) return;
+    const gt = o.textContent.trim();
+    chepVaBao(gt, gt.length > 40 ? "ô này" : `“${gt}”`, o);
+  });
+}
+ganChepBang($("bang-chi-tiet"));
+ganChepBang($("bang-diff"));
 
-function vePhanTrang(tong, trang) {
+/* Phân trang DÙNG CHUNG: nhận thẳng khung <div> đích và hàm đổi trang, để bảng
+   chi tiết (gọi lại moChiTiet) và modal-diff (gọi lại taiDiff) không phải chia
+   sẻ một state phân trang chung. */
+function vePhanTrangVao(p, tong, trang, onDoiTrang) {
   const soTrang = Math.max(1, Math.ceil(tong / KICH_THUOC));
-  const p = $("phan-trang"); p.innerHTML = "";
+  p.innerHTML = "";
   const nut = (ten, icon, ben, t, tat) => {
     const b = document.createElement("button");
     b.className = "btn"; b.type = "button"; b.disabled = tat;
@@ -607,7 +666,7 @@ function vePhanTrang(tong, trang) {
     b.innerHTML = ben === "trai" ? sv : "";
     b.append(document.createTextNode(ten));
     if (ben === "phai") b.insertAdjacentHTML("beforeend", sv);
-    b.onclick = () => moChiTiet(chiTiet.ma, chiTiet.tieuDe, t);
+    b.onclick = () => onDoiTrang(t);
     return b;
   };
   const dau = tong ? (trang - 1) * KICH_THUOC + 1 : 0;
@@ -632,6 +691,38 @@ $("btn-chep-trang").onclick = () => {
   chepVaBao(tsv(ds), `${fmt(ds.length)} dòng của trang này (kèm tiêu đề cột)`);
 };
 $("btn-dong-chi-tiet").onclick = anChiTiet;
+
+/* ---------- modal "Xem thay đổi" ----------
+   Chỉ mở được từ banner-lech (chot.doi_chieu === "LECH") — liệt kê dòng thêm/bớt
+   giữa dữ liệu nguồn hiện tại và bản đã chốt. Dùng LẠI dungNoiDungBang()/
+   vePhanTrangVao()/ganChepBang() của bảng chi tiết vì backend trả cùng một shape
+   {tong,trang,cot,nhan,cot_so,cot_so_le,dong}, chỉ thêm cột "Thay đổi". State
+   riêng (_diff), không đụng vào chiTiet của bảng kia. */
+let _diff = { trang: 1, timKiem: "" };
+async function moModalDiff() {
+  _diff = { trang: 1, timKiem: "" };
+  $("diff-tim-kiem").value = "";
+  $("modal-diff").classList.remove("an");
+  await taiDiff();
+}
+function dongModalDiff() { $("modal-diff").classList.add("an"); }
+
+async function taiDiff(trang = _diff.trang) {
+  _diff.trang = trang;
+  const kq = await api.lay_diff_chot(trang, KICH_THUOC, _diff.timKiem);
+  if (kq.loi) { toast(kq.loi); return; }
+  const tt = kq.tom_tat || {};
+  $("diff-tom-tat").textContent =
+    `Thêm ${fmt(tt.so_them)} · Bớt ${fmt(tt.so_bot)} · ${fmt(tt.so_ct_anh_huong)} chứng từ`;
+  $("bang-diff").innerHTML = dungNoiDungBang(kq,
+    _diff.timKiem ? "Không có dòng nào khớp từ khóa." : "Không có thay đổi nào.");
+  vePhanTrangVao($("phan-trang-diff"), kq.tong, trang, (t) => taiDiff(t));
+}
+
+$("diff-tim-kiem").addEventListener("input", (ev) => {
+  clearTimeout($("diff-tim-kiem")._t);
+  $("diff-tim-kiem")._t = setTimeout(() => { _diff.timKiem = ev.target.value.trim(); taiDiff(1); }, 300);
+});
 
 /* ---------- tabs & footer ---------- */
 $("tab-a").onclick = () => chuyenTab("a"); $("tab-b").onclick = () => chuyenTab("b");

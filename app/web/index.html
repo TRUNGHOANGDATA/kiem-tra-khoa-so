@@ -122,6 +122,11 @@
        ngay dưới banner kết luận vì cùng thuộc về một chi nhánh. -->
   <div id="khoi-chot-so"></div>
 
+  <!-- Đối chiếu với bản đã chốt — dựng bởi veBannerDrift() trong app.js. Chưa chốt
+       thì rỗng; đã chốt & khớp thì một dải xanh ngắn; đã chốt & lệch thì băng cam
+       kèm số liệu chênh lệch + hai lối xử lý (mở modal-diff / chốt lại). -->
+  <div id="banner-drift"></div>
+
   <nav class="tab-bar" aria-label="Khu vực kết quả">
     <button id="tab-a" class="tab dang-chon" type="button" aria-pressed="true">Trạng thái khóa sổ</button>
     <button id="tab-b" class="tab" type="button" aria-pressed="false">Lỗi &amp; cảnh báo</button>
@@ -208,6 +213,33 @@
     <div class="hang-nut">
       <button class="btn btn-phu" type="button" onclick="dongModalChot()">Hủy</button>
       <button class="btn btn-chinh" type="button" onclick="xacNhanChot()">Chốt sổ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal "Xem thay đổi" — mở từ banner-lech (banner-drift) khi kỳ đã chốt nhưng dữ
+     liệu nguồn đã khác. Bảng dòng thêm/bớt dùng LẠI đúng khung .khung-chi-tiet và
+     hàm dựng bảng dungNoiDungBang() của bảng chi tiết, vì backend trả cùng một
+     shape {tong,trang,cot,nhan,cot_so,cot_so_le,dong}. -->
+<div id="modal-diff" class="modal an" role="dialog" aria-modal="true" aria-labelledby="modal-diff-tieu-de">
+  <div class="modal-hop modal-hop-lon">
+    <div class="chi-tiet-dau">
+      <div class="chi-tiet-tieu">
+        <h3 id="modal-diff-tieu-de">Thay đổi so với bản đã chốt</h3>
+        <p id="diff-tom-tat" class="khoi-dau-phu so"></p>
+      </div>
+      <div class="chi-tiet-cong-cu">
+        <div class="o-tim">
+          <svg class="icon icon-nho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.9-3.9"/></svg>
+          <input id="diff-tim-kiem" type="search" placeholder="Tìm trong thay đổi…" aria-label="Tìm trong thay đổi">
+        </div>
+        <button id="btn-dong-modal-diff" class="btn btn-phu" type="button" onclick="dongModalDiff()">Đóng</button>
+      </div>
+    </div>
+    <div class="bang-cuon"><table id="bang-diff" class="bang"></table></div>
+    <div class="chi-tiet-chan">
+      <p class="chi-tiet-goi-y">Bấm một ô để chép ô đó · bôi đen rồi Ctrl+C · nút đầu dòng chép cả dòng</p>
+      <div id="phan-trang-diff" class="phan-trang"></div>
     </div>
   </div>
 </div>
