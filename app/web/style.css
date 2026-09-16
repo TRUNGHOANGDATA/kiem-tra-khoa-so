@@ -286,27 +286,35 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 }
 .chip-dv {
   font: inherit; cursor: pointer; text-align: left; width: 100%;
-  display: grid; grid-template-columns: auto 1fr; align-items: center;
-  column-gap: 9px; row-gap: 0; min-width: 0;
-  padding: 8px 12px; border-radius: var(--r); border: 1px solid var(--vien);
+  display: flex; flex-direction: column; gap: 7px; min-width: 0;
+  padding: 9px 11px; border-radius: var(--r); border: 1px solid var(--vien);
   background: var(--be-mat); color: var(--chu); box-shadow: var(--bong-nut);
   transition: border-color .16s ease, box-shadow .16s ease, transform .08s ease, background-color .16s ease;
 }
 .chip-dv:hover { box-shadow: var(--bong-card); transform: translateY(-1px); }
 .chip-dv:active { transform: none; }
+/* Hàng đầu: chấm trạng thái + mã chi nhánh + nhãn chốt (đẩy sang phải). */
+.chip-dv-dau { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .chip-dv .chip-dv-cham {
-  grid-row: 1 / span 3; width: 10px; height: 10px; border-radius: 50%;
+  width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
   box-shadow: 0 0 0 3px var(--be-mat-chim);
 }
-.chip-dv .chip-dv-ma { font-weight: 700; font-size: 13.5px; line-height: 1.15; }
-.chip-dv .chip-dv-phu { font-size: 11px; font-weight: 600; color: var(--chu-phu); line-height: 1.15; }
-.chip-dv .chip-dv-chot { grid-column: 2; margin-top: 4px; line-height: 1; }
+.chip-dv .chip-dv-ma { font-weight: 700; font-size: 14px; line-height: 1.1; }
+.chip-dv .chip-dv-chot { margin-left: auto; line-height: 1; }
 .chip-dv.kl-chua-san-sang .chip-dv-cham { background: var(--do); }
 .chip-dv.kl-can-ra-soat   .chip-dv-cham { background: var(--vang); }
 .chip-dv.kl-san-sang      .chip-dv-cham { background: var(--xanh); }
-.chip-dv.kl-chua-san-sang .chip-dv-phu { color: var(--do-dam); }
-.chip-dv.kl-can-ra-soat   .chip-dv-phu { color: var(--vang-dam); }
-.chip-dv.kl-san-sang      .chip-dv-phu { color: var(--xanh-dam); }
+/* Hàng số: ba mức Nghiêm trọng / Cảnh báo / Đạt — bản thu nhỏ của 3 ô banner. */
+.chip-dv-so { display: flex; gap: 6px; }
+.cds {
+  flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 4px 6px; border-radius: 8px; font-weight: 800; font-size: 13px;
+  background: var(--be-mat-chim); font-variant-numeric: tabular-nums;
+}
+.cds .cds-cham { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.cds-do   { color: var(--do-dam); }   .cds-do .cds-cham   { background: var(--do); }
+.cds-vang { color: var(--vang-dam); } .cds-vang .cds-cham { background: var(--vang); }
+.cds-xanh { color: var(--xanh-dam); } .cds-xanh .cds-cham { background: var(--xanh); }
 /* Chi nhánh đang xem: nổi hẳn bằng viền thương hiệu + nền + gờ trái. */
 .chip-dv.dang-chon {
   border-color: var(--chinh); background: var(--lam-nen);
@@ -317,7 +325,7 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .banner {
   flex: 0 0 auto;
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  border: 1px solid var(--vien); border-radius: var(--r-lon); padding: 12px 16px;
+  border: 1px solid var(--vien); border-radius: var(--r-lon); padding: 10px 14px;
   background: var(--be-mat); box-shadow: var(--bong-card);
   position: relative; overflow: hidden;
 }
@@ -327,11 +335,11 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .banner::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
 .banner-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto;
+  width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
 }
 .banner-chu { flex: 1 1 260px; min-width: 0; }
-.banner-ket-luan { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.3px; }
-.banner-ky { margin: 3px 0 0; font-size: 12.5px; color: var(--chu-phu); }
+.banner-ket-luan { margin: 0; font-size: 15.5px; font-weight: 800; letter-spacing: -.2px; line-height: 1.2; }
+.banner-ky { margin: 2px 0 0; font-size: 12px; color: var(--chu-phu); }
 .banner.san-sang::before      { background: var(--xanh); }
 .banner.can-ra-soat::before   { background: var(--vang); }
 .banner.chua-san-sang::before { background: var(--do); }
@@ -344,14 +352,17 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 
 /* Ba ô thống kê — thẻ nhỏ có gờ màu trên đỉnh, số lớn tabular. */
 .banner-o { display: flex; gap: 8px; margin-left: auto; }
+/* Ô thống kê gọn kiểu CHIP NGANG: nhãn + số cùng một dòng, gờ màu bên trái —
+   thấp hơn hẳn kiểu "nhãn trên, số to dưới", nhường chiều cao cho khu báo cáo. */
 .o-thong-ke {
-  position: relative; background: var(--be-mat); border: 1px solid var(--vien);
-  border-radius: var(--r); padding: 7px 12px 6px; min-width: 92px;
+  position: relative; display: flex; align-items: center; gap: 8px;
+  background: var(--be-mat); border: 1px solid var(--vien);
+  border-radius: var(--r); padding: 6px 11px 6px 13px; min-width: 0;
   box-shadow: var(--bong-the); overflow: hidden;
 }
-.o-thong-ke::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+.o-thong-ke::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .o-nhan { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; color: var(--chu-phu); }
-.o-so-lieu { display: block; font-size: 22px; font-weight: 800; line-height: 1.05; margin-top: 2px; letter-spacing: -.5px; }
+.o-so-lieu { display: inline; font-size: 18px; font-weight: 800; line-height: 1.05; letter-spacing: -.5px; }
 .o-do::before   { background: var(--do); }   .o-do   .o-nhan, .o-do   .o-so-lieu { color: var(--do-dam); }
 .o-vang::before { background: var(--vang); } .o-vang .o-nhan, .o-vang .o-so-lieu { color: var(--vang-dam); }
 .o-xanh::before { background: var(--xanh); } .o-xanh .o-nhan, .o-xanh .o-so-lieu { color: var(--xanh-dam); }

@@ -495,16 +495,27 @@ function veThanhDonVi() {
     .sort((a, b) => (HANG_KL[khoaKL(a.u.muc_do_ket_luan)] - HANG_KL[khoaKL(b.u.muc_do_ket_luan)])
       || (a.thu_tu - b.thu_tu));
 
+  // Tổng số check thực (bỏ dòng thống kê) — GIỐNG NHAU cho mọi chi nhánh vì cùng
+  // một bộ check chạy trên từng sổ, nên "Đạt" của mỗi chi nhánh = tổng − đỏ − vàng.
+  const tongCheck = (ketQua.nhom || []).flatMap((n) => n.checks).filter((c) => !c.la_thong_ke).length;
+
   const rail = sap.map(({ u }) => {
     const muc = khoaKL(u.muc_do_ket_luan);
     const dangXem = u.i === ketQua.dang_xem;
+    const dat = Math.max(0, tongCheck - (u.so_do || 0) - (u.so_vang || 0));
     return `<button type="button" class="chip-dv kl-${CLASS_KET_LUAN[muc]}${dangXem ? " dang-chon" : ""}"
         aria-pressed="${dangXem}" data-i="${u.i}"
         title="${esc(u.ma)} · kỳ ${esc(u.ky)} · ${esc(u.cau_ket_luan)}">
-      <span class="chip-dv-cham" aria-hidden="true"></span>
-      <span class="chip-dv-ma">${esc(u.ma)}</span>
-      <span class="chip-dv-phu">${esc(_nhanViec(u))}</span>
-      <span class="chip-dv-chot">${nhanChot(u.chot)}</span>
+      <div class="chip-dv-dau">
+        <span class="chip-dv-cham" aria-hidden="true"></span>
+        <span class="chip-dv-ma">${esc(u.ma)}</span>
+        <span class="chip-dv-chot">${nhanChot(u.chot)}</span>
+      </div>
+      <div class="chip-dv-so">
+        <span class="cds cds-do" title="Nghiêm trọng"><i class="cds-cham" aria-hidden="true"></i>${fmt(u.so_do || 0)}</span>
+        <span class="cds cds-vang" title="Cảnh báo"><i class="cds-cham" aria-hidden="true"></i>${fmt(u.so_vang || 0)}</span>
+        <span class="cds cds-xanh" title="Đạt"><i class="cds-cham" aria-hidden="true"></i>${fmt(dat)}</span>
+      </div>
     </button>`;
   }).join("");
 
