@@ -18,9 +18,6 @@ from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_mo
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
 GOC = Path(__file__).resolve().parents[1]
-THU_MUC_SOURCE = str(GOC / "1. Source")
-THU_MUC_REPORT = str(GOC / "2. Report")
-THU_MUC_CHOT = str(GOC / "3. Chot so")
 
 
 def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
