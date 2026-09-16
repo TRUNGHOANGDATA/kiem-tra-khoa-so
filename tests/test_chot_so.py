@@ -61,6 +61,7 @@ def test_doi_chieu_lech_va_bao_delta():
     assert kq.trang_thai == LECH
     assert kq.delta_dong == 1
     assert kq.delta_ps == 50.0
+    assert kq.so_ct_anh_huong == 1  # chỉ chứng từ PX·2 mới xuất hiện
 
 
 def test_dien_diff_them_bot():
@@ -75,4 +76,52 @@ def test_dien_diff_them_bot():
     d = dien_diff(cu, moi)
     assert len(d["them"]) == 1 and d["them"].iloc[0]["DocNo"] == "2"
     assert len(d["bot"]) == 1 and d["bot"].iloc[0]["DocNo"] == "9"
+    assert d["tom_tat"]["so_them"] == 1 and d["tom_tat"]["so_bot"] == 1
+    assert d["tom_tat"]["so_ct_anh_huong"] == 2  # PX·2 (thêm) và PX·9 (bớt)
+
+
+def test_dien_diff_index_trung_lap_van_dung():
+    """df.loc[idx] với index trùng lặp có thể trả nhiều dòng — dien_diff phải
+    reset index trước khi chọn dòng để không đếm nhầm."""
+    cu = _df([
+        {"DocCode": "PX", "DocNo": "1", "DebitAccount": "621", "Amount": 100.0},
+        {"DocCode": "PX", "DocNo": "9", "DebitAccount": "621", "Amount": 10.0},
+    ])
+    moi = _df([
+        {"DocCode": "PX", "DocNo": "1", "DebitAccount": "621", "Amount": 100.0},
+        {"DocCode": "PX", "DocNo": "2", "DebitAccount": "621", "Amount": 50.0},
+    ])
+    cu.index = [0, 0]
+    moi.index = [0, 0]
+    d = dien_diff(cu, moi)
+    assert len(d["them"]) == 1 and d["them"].iloc[0]["DocNo"] == "2"
+    assert len(d["bot"]) == 1 and d["bot"].iloc[0]["DocNo"] == "9"
+    assert d["tom_tat"]["so_them"] == 1 and d["tom_tat"]["so_bot"] == 1
+    assert d["tom_tat"]["so_ct_anh_huong"] == 2
+
+
+def test_dien_diff_thieu_doccode_dung_docno_de_dem():
+    cu = _df([
+        {"DocNo": "1", "DebitAccount": "621", "Amount": 100.0},
+        {"DocNo": "9", "DebitAccount": "621", "Amount": 10.0},
+    ])
+    moi = _df([
+        {"DocNo": "1", "DebitAccount": "621", "Amount": 100.0},
+        {"DocNo": "2", "DebitAccount": "621", "Amount": 50.0},
+    ])
+    d = dien_diff(cu, moi)
+    assert d["tom_tat"]["so_ct_anh_huong"] == 2  # thiếu DocCode vẫn đếm được qua DocNo
+
+
+def test_dien_diff_thieu_docno_khong_loi():
+    """Thiếu DocNo (chỉ có DocCode) không được ném lỗi — trước đây AttributeError."""
+    cu = _df([
+        {"DocCode": "PX", "DebitAccount": "621", "Amount": 100.0},
+        {"DocCode": "PX", "DebitAccount": "621", "Amount": 10.0},
+    ])
+    moi = _df([
+        {"DocCode": "PX", "DebitAccount": "621", "Amount": 100.0},
+        {"DocCode": "PX", "DebitAccount": "621", "Amount": 50.0},
+    ])
+    d = dien_diff(cu, moi)
     assert d["tom_tat"]["so_them"] == 1 and d["tom_tat"]["so_bot"] == 1

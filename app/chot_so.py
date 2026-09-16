@@ -70,9 +70,11 @@ class KetQuaDoiChieu:
 
 def _so_ct(df: pd.DataFrame) -> pd.Series:
     """Nhãn chứng từ để gom hiển thị: DocCode+DocNo (chấp nhận thiếu cột)."""
-    dc = df["DocCode"].astype("string").fillna("") if "DocCode" in df.columns else ""
-    dn = df["DocNo"].astype("string").fillna("") if "DocNo" in df.columns else ""
-    return (dc.astype(str) + "·" + dn.astype(str)) if hasattr(dc, "astype") else pd.Series([], dtype="string")
+    dc = df["DocCode"].astype("string").fillna("") if "DocCode" in df.columns \
+        else pd.Series("", index=df.index, dtype="string")
+    dn = df["DocNo"].astype("string").fillna("") if "DocNo" in df.columns \
+        else pd.Series("", index=df.index, dtype="string")
+    return dc.astype(str) + "·" + dn.astype(str)
 
 
 def doi_chieu(vt_chot, df_hien_tai, df_chot=None) -> KetQuaDoiChieu:
@@ -97,6 +99,8 @@ def dien_diff(df_chot: pd.DataFrame, df_hien_tai: pd.DataFrame) -> dict:
     Băm cả dòng (không phụ thuộc khóa chứng từ — vốn có known-issue ghép không dấu
     tách), rồi gom hiển thị theo chứng từ để chỉ đúng chỗ.
     """
+    df_chot = df_chot.reset_index(drop=True)
+    df_hien_tai = df_hien_tai.reset_index(drop=True)
     key_chot = chuoi_dong(df_chot)
     key_moi = chuoi_dong(df_hien_tai)
     dem_chot, dem_moi = Counter(key_chot.tolist()), Counter(key_moi.tolist())
