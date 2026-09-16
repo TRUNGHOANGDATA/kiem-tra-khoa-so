@@ -27,3 +27,14 @@ def test_thieu_khoa_thi_bu_mac_dinh(tmp_path):
     cfg = cau_hinh.doc_cau_hinh(str(tmp_path))
     assert cfg["thu_muc_nguon"].endswith("X")
     assert cfg["thu_muc_xuat"] == str(tmp_path / "2. Report")   # khóa thiếu -> mặc định
+
+def test_first_run_seed_tu_file_mau(tmp_path):
+    # co san file mau -> cau-hinh.json tao ra phai theo mau, va bo qua khoa _huong_dan
+    (tmp_path / "cau-hinh.mau.json").write_text(
+        json.dumps({"_huong_dan": "ghi chu", "thu_muc_nguon": "NguonMau",
+                    "thu_muc_xuat": "XuatMau", "thu_muc_kho": "KhoMau"}, ensure_ascii=False),
+        encoding="utf-8")
+    cfg = cau_hinh.doc_cau_hinh(str(tmp_path))
+    assert cfg["thu_muc_nguon"] == str(tmp_path / "NguonMau")   # gia tri tu mau
+    tho = json.loads((tmp_path / "cau-hinh.json").read_text(encoding="utf-8"))
+    assert set(tho.keys()) == {"thu_muc_nguon", "thu_muc_xuat", "thu_muc_kho"}  # chi 3 khoa, bo _huong_dan
