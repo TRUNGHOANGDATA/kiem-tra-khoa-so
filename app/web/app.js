@@ -363,11 +363,21 @@ function veBannerDrift(chot) {
    nhánh trên thanh chọn rồi mới bấm "Chốt sổ", modal phải nói đúng chi nhánh đó. */
 function moModalChot(chotLai) {
   const t = ketQua?.tomtat || {};
+  const chot = t.chot || {};
   $("modal-chot-tieu-de").textContent = chotLai ? "Chốt lại kỳ này" : "Chốt sổ kỳ này";
+  // Chốt ĐÈ một kỳ đã chốt: nói rõ bản đang có (ngày chốt) sẽ thành hết hiệu lực —
+  // không âm thầm tạo bản mới. Append-only nên bản cũ vẫn xem được ở Lịch sử.
+  let canhBao = "";
+  if (chot.trang_thai === "DA_CHOT") {
+    const ngay = chot.ngay_chot ? new Date(chot.ngay_chot).toLocaleString("vi-VN") : "";
+    canhBao = `<div class="modal-canh-bao">${bieuTuong("canh-bao", "icon icon-nho")}` +
+      `<span>Kỳ này <b>đã chốt</b>${ngay ? " ngày " + esc(ngay) : ""}. Chốt lại sẽ tạo bản mới; ` +
+      `bản đang có chuyển thành <b>hết hiệu lực</b> (vẫn xem được ở tab Lịch sử chốt sổ).</span></div>`;
+  }
   $("modal-chot-thong-tin").innerHTML =
     `Kỳ <b>${esc(t.ky)}</b> · Chi nhánh <b>${esc(t.chi_nhanh)}</b><br/>` +
     `Số dòng: <b>${fmt(t.so_dong)}</b> · Tổng phát sinh: <b>${fmt(t.tong_ps)}</b><br/>` +
-    `Kết luận: <b>${esc(t.cau_ket_luan || "")}</b>`;
+    `Kết luận: <b>${esc(t.cau_ket_luan || "")}</b>` + canhBao;
   $("modal-chot-ghi-chu").value = "";
   $("modal-chot").classList.remove("an");
   $("modal-chot-ghi-chu").focus();
@@ -810,10 +820,21 @@ async function saoLuuKho() {
   const k = await api.sao_luu_kho();
   toast(k.loi || ("Đã sao lưu kho tại: " + k.path));
 }
+/* Tóm tắt nội dung một file kho để hiện trong hộp xác nhận — cho người dùng đối
+   chiếu ĐÚNG file trước khi đè (phục hồi) hay trộn (nhập-gộp), tránh nhầm file. */
+function moTaKho(s) {
+  const khoang = s.ky_dau && s.ky_cuoi
+    ? (s.ky_dau === s.ky_cuoi ? s.ky_dau : `${s.ky_dau} → ${s.ky_cuoi}`) : "—";
+  return `• ${fmt(s.so_ban)} bản chốt (${fmt(s.so_ban_hieu_luc)} còn hiệu lực)\n`
+       + `• ${fmt(s.so_ky)} kỳ · ${fmt(s.so_chi_nhanh)} chi nhánh · kỳ ${khoang}`;
+}
 async function phucHoiKho() {
   const f = await api.chon_file_sqlite();
   if (!f || f.huy) return;    // người dùng bấm Huỷ hộp thoại — không phải lỗi
-  if (!confirm("Phục hồi sẽ THAY kho hiện tại bằng file đã chọn (bản cũ sẽ tự sao lưu trước). Tiếp tục?")) return;
+  const s = await api.tom_tat_kho(f.path);
+  if (s.loi) { toast(s.loi); return; }   // không phải kho / đọc lỗi -> dừng, không đè
+  if (!confirm(`File kho được chọn:\n${moTaKho(s)}\n\nPhục hồi sẽ THAY kho hiện tại bằng file này `
+             + `(bản cũ tự sao lưu trước). Tiếp tục?`)) return;
   const k = await api.phuc_hoi_kho(f.path);
   toast(k.loi || ("Đã phục hồi kho. Bản cũ đã sao lưu tại: " + k.da_sao_luu));
   await taiLichSu();
@@ -821,6 +842,10 @@ async function phucHoiKho() {
 async function nhapGopKho() {
   const f = await api.chon_file_sqlite();
   if (!f || f.huy) return;
+  const s = await api.tom_tat_kho(f.path);
+  if (s.loi) { toast(s.loi); return; }
+  if (!confirm(`File kho được chọn:\n${moTaKho(s)}\n\nNhập & gộp sẽ THÊM các bản chưa có từ file `
+             + `này vào kho hiện tại (không xóa gì). Tiếp tục?`)) return;
   const k = await api.nhap_gop_kho(f.path);
   toast(k.loi || `Đã thêm ${fmt(k.da_them)}, bỏ qua ${fmt(k.bo_qua_trung)} bản trùng.`);
   await taiLichSu();

@@ -422,6 +422,13 @@ class JsApi:
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không sao lưu được kho: {e}"}
 
+    def tom_tat_kho(self, path: str):
+        """Xem trước nội dung một file kho trước khi phục hồi/nhập-gộp (chỉ đọc)."""
+        try:
+            return kho_sao_luu.tom_tat_kho(path)
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không đọc được file kho: {e}"}
+
     def phuc_hoi_kho(self, path: str):
         try:
             bk = kho_sao_luu.phuc_hoi(self._duong_dan_kho(), path, str(Path(self._thu_muc_kho) / "backup"))

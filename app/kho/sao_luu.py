@@ -37,6 +37,35 @@ def phuc_hoi(path_kho: str, path_nguon: str, thu_muc_backup: str) -> str:
     return bk
 
 
+def tom_tat_kho(path_nguon: str) -> dict:
+    """Tóm tắt nội dung một file kho — CHỈ ĐỌC, để xem trước khi phục hồi/nhập-gộp.
+
+    Không dùng mo_kho (tránh chạm/tạo bảng lên file người dùng chọn): đọc thẳng
+    bảng snapshot. Trả số bản chốt, số bản còn hiệu lực, số kỳ, số chi nhánh và
+    khoảng kỳ (kỳ đầu → kỳ cuối) để hộp xác nhận hiện cho người dùng đối chiếu.
+    """
+    from . import ket_noi
+    if not ket_noi.la_kho(path_nguon):
+        raise ket_noi.KhongPhaiKho("File được chọn không phải kho chốt sổ (.sqlite thiếu bảng chuẩn)")
+    con = sqlite3.connect(path_nguon)
+    con.row_factory = sqlite3.Row
+    try:
+        r = con.execute(
+            "SELECT COUNT(*) so_ban, COALESCE(SUM(con_hieu_luc),0) so_hieu_luc, "
+            "COUNT(DISTINCT ky_nam*100+ky_thang) so_ky, COUNT(DISTINCT chi_nhanh) so_cn, "
+            "MIN(ky_nam*100+ky_thang) ky_min, MAX(ky_nam*100+ky_thang) ky_max FROM snapshot"
+        ).fetchone()
+    finally:
+        con.close()
+
+    def _ky(v: int | None) -> str:
+        return f"{v % 100:02d}/{v // 100}" if v else ""
+
+    return {"so_ban": int(r["so_ban"] or 0), "so_ban_hieu_luc": int(r["so_hieu_luc"] or 0),
+            "so_ky": int(r["so_ky"] or 0), "so_chi_nhanh": int(r["so_cn"] or 0),
+            "ky_dau": _ky(r["ky_min"]), "ky_cuoi": _ky(r["ky_max"])}
+
+
 def nhap_gop(path_kho: str, path_nguon: str) -> dict:
     """Gộp snapshot chưa trùng từ nguồn vào kho; tính lại con_hieu_luc mỗi (kỳ,chi nhánh)."""
     dich = mo_kho(path_kho); ng = mo_kho(path_nguon)

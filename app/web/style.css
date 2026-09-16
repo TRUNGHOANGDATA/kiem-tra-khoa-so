@@ -586,6 +586,15 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .modal-hop h3 { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: var(--chu); }
 .modal-tt { margin: 10px 0 16px; line-height: 1.7; color: var(--chu-phu); font-size: 13px; }
 .modal-tt b { color: var(--chu); }
+/* Cảnh báo trong modal chốt: khi chốt ĐÈ một kỳ đã chốt — băng vàng dịu, không
+   chặn, chỉ nói rõ hệ quả (bản cũ thành hết hiệu lực nhưng vẫn giữ trong lịch sử). */
+.modal-canh-bao {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 12px;
+  padding: 10px 12px; border-radius: var(--r); font-size: 12.5px; line-height: 1.55;
+  background: var(--vang-nen); color: var(--vang-dam); border: 1px solid var(--vang-vien);
+}
+.modal-canh-bao .icon { color: var(--vang); flex: 0 0 auto; margin-top: 1px; }
+.modal-canh-bao b { color: var(--chu); }
 .modal-hop label { display: block; font-size: 12px; font-weight: 600; color: var(--chu-phu); margin-bottom: 4px; }
 .modal-hop input[type="text"] {
   font: inherit; font-size: 13px; width: 100%; padding: 9px 12px;
