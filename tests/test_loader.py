@@ -114,6 +114,28 @@ def test_xac_dinh_ky_lay_thang_pho_bien():
     assert loader.xac_dinh_ky(df) == (8, 2026)
 
 
+def test_thong_ke_ngoai_ky_tra_tong_va_phan_ra_theo_thang():
+    """Cảnh báo sớm: dòng ngoài kỳ 08/2026 phải đếm đúng tổng và sắp nhiều->ít."""
+    df = pd.DataFrame({"DocDate": pd.to_datetime([
+        "2026-08-01", "2026-08-02", "2026-08-03",   # 3 dòng trong kỳ
+        "2026-07-30", "2026-07-31",                  # 2 dòng 07/2026
+        "2026-09-01",                                 # 1 dòng 09/2026
+    ])})
+    tong, ct = loader.thong_ke_ngoai_ky(df, 8, 2026)
+    assert tong == 3
+    assert ct == [("07/2026", 2), ("09/2026", 1)]
+
+
+def test_thong_ke_ngoai_ky_frame_sach_tra_rong():
+    df = pd.DataFrame({"DocDate": pd.to_datetime(["2026-08-01", "2026-08-31"])})
+    assert loader.thong_ke_ngoai_ky(df, 8, 2026) == (0, [])
+
+
+def test_thong_ke_ngoai_ky_khong_co_ngay_hop_le_tra_rong():
+    df = pd.DataFrame({"DocDate": pd.to_datetime(pd.Series([None, None], dtype="object"))})
+    assert loader.thong_ke_ngoai_ky(df, 8, 2026) == (0, [])
+
+
 def test_doc_bang_ke_tra_thong_tin(tmp_path):
     df, tt = loader.doc_bang_ke(str(_xlsx_mau(tmp_path)))
     assert tt.so_dong == 2 and tt.ky == "08/2026" and tt.tong_ps == 1000.0

@@ -34,6 +34,10 @@ class ThongTinFile:
     chi_nhanh: str = ""
     # Mọi file đã góp dòng vào đơn vị này — một chi nhánh có thể được xuất làm nhiều lần.
     cac_file: list[str] = field(default_factory=list)
+    # Cảnh báo sớm nạp nhầm file/sai khoảng xuất — số dòng có DocDate ngoài kỳ suy ra
+    # và bảng phân rã theo tháng, xem thong_ke_ngoai_ky().
+    so_dong_ngoai_ky: int = 0
+    ngoai_ky: list = field(default_factory=list)   # [(nhãn 'MM/YYYY', số dòng)]
 
 
 def doc_ngay(s: pd.Series) -> pd.Series:
@@ -94,6 +98,20 @@ def xac_dinh_ky(df: pd.DataFrame) -> tuple[int, int]:
     return int(ky % 100), int(ky // 100)
 
 
+def thong_ke_ngoai_ky(df: pd.DataFrame, thang: int, nam: int) -> tuple[int, list[tuple[str, int]]]:
+    """Dòng có DocDate NGOÀI kỳ (thang/nam) — cảnh báo sớm nạp nhầm file/sai khoảng xuất.
+    Trả (tổng số dòng ngoài kỳ, [(nhãn 'MM/YYYY', số dòng)] sắp nhiều→ít)."""
+    d = df["DocDate"].dropna()
+    if d.empty:
+        return 0, []
+    khac = d[(d.dt.month != thang) | (d.dt.year != nam)]
+    if khac.empty:
+        return 0, []
+    g = (khac.dt.year * 100 + khac.dt.month).value_counts().sort_values(ascending=False)
+    ct = [(f"{int(k) % 100:02d}/{int(k) // 100}", int(v)) for k, v in g.items()]
+    return int(len(khac)), ct
+
+
 def doc_bang_ke(path: str) -> tuple[pd.DataFrame, ThongTinFile]:
     try:
         raw = pd.read_excel(path, engine="calamine")
@@ -107,10 +125,12 @@ def doc_bang_ke(path: str) -> tuple[pd.DataFrame, ThongTinFile]:
         raise ValueError("Bảng kê không có dòng dữ liệu nào để kiểm tra")
     thang, nam = xac_dinh_ky(df)
     ten = Path(path).name
+    so_ngoai_ky, ngoai_ky = thong_ke_ngoai_ky(df, thang, nam)
     tt = ThongTinFile(path=path, ten=ten, ky=f"{thang:02d}/{nam}",
                       ky_thang=thang, ky_nam=nam, so_dong=len(df),
                       tong_ps=float(df["Amount"].sum()), nhat_ky=log,
-                      chi_nhanh=mot_chi_nhanh(df), cac_file=[ten])
+                      chi_nhanh=mot_chi_nhanh(df), cac_file=[ten],
+                      so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky)
     return df, tt
 
 
@@ -182,12 +202,14 @@ def doc_nhieu_bang_ke(paths, on_file=None) -> list[tuple[pd.DataFrame, ThongTinF
         goc = nguon.get(cn) or []
         ten_file = [t for t, _ in goc]
         duong_dan = [p for _, p in goc]
+        so_ngoai_ky, ngoai_ky = thong_ke_ngoai_ky(con, thang, nam)
         ds.append((con, ThongTinFile(
             path=duong_dan[0] if duong_dan else "",
             ten=" + ".join(ten_file), ky=f"{thang:02d}/{nam}",
             ky_thang=thang, ky_nam=nam, so_dong=len(con),
             tong_ps=float(con["Amount"].sum()), nhat_ky=nhat_ky,
-            chi_nhanh=cn, cac_file=list(ten_file))))
+            chi_nhanh=cn, cac_file=list(ten_file),
+            so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky)))
     return ds
 
 
