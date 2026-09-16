@@ -95,19 +95,26 @@ Check List Khoa So Ke Toan/
 
    Danh sách bước (nguồn dữ liệu từ check tương ứng ở mục 7):
 
-   | Bước | Suy ra từ |
-   |------|-----------|
-   | Tập hợp CP NVL trực tiếp 621 → 154 | C4.4 |
-   | Tập hợp CP nhân công trực tiếp 622 → 154 | C4.4 |
-   | Tập hợp & phân bổ CP SXC 627 → 154 | C4.4 |
-   | Nhập kho thành phẩm 154 → 155 (tính giá thành) | C4.5 |
-   | Xuất kho có đầy đủ giá (không dòng giá = 0) | C4.1 |
-   | Kết chuyển giá vốn 632 → 911 | C5.2 |
-   | Kết chuyển doanh thu 511/515/711 → 911 | C5.3 |
-   | Kết chuyển chi phí 635/641/642/811 → 911 | C5.4 |
-   | Khấu trừ thuế GTGT 33311 ↔ 1331 | C5.6 |
-   | Kết chuyển lãi/lỗ 911 ↔ 421 | C5.5 |
-   | TK đầu 5/6/7/8 đã về 0 (kết chuyển hết) | C5.1 |
+   | # | Bước | Suy ra từ |
+   |---|------|-----------|
+   | 1 | Khấu hao TSCĐ (Có 214 → 627/641/642) | C7.1 |
+   | 2 | Phân bổ chi phí trả trước 242 / CCDC | C7.2 |
+   | 3 | Trích lương & các khoản theo lương (334/338) | C7.3 |
+   | 4 | Tập hợp CP NVL trực tiếp 621 → 154 | C4.4 |
+   | 5 | Tập hợp CP nhân công trực tiếp 622 → 154 | C4.4 |
+   | 6 | Tập hợp & phân bổ CP SXC 627 → 154 | C4.4 |
+   | 7 | Nhập kho thành phẩm 154 → 155 (tính giá thành) | C4.5 |
+   | 8 | Tính giá xuất kho (mọi dòng xuất có giá trị) | C4.1 |
+   | 9 | Kết chuyển giá vốn 632 → 911 | C5.2 |
+   | 10 | Kết chuyển doanh thu 511/515/711 → 911 | C5.3 |
+   | 11 | Kết chuyển chi phí 635/641/642/811 → 911 | C5.4 |
+   | 12 | Đánh giá chênh lệch tỷ giá cuối kỳ (413) — nếu có ngoại tệ | C7.5 |
+   | 13 | Kết chuyển chi phí thuế TNDN 8211 → 911 | C7.6 |
+   | 14 | Khấu trừ thuế GTGT 33311 ↔ 1331 | C5.6 |
+   | 15 | Kết chuyển lãi/lỗ 911 ↔ 421 | C5.5 |
+   | 16 | TK đầu 5/6/7/8 đã về 0 (kết chuyển hết) | C5.1 |
+
+   > **Tầng phụ thuộc (từ close-management):** bước 1–3 (khấu hao, phân bổ, lương) là *Tầng 1* — phải xong TRƯỚC khi tập hợp giá thành (4–7), vì nếu quên thì 627/642 thiếu chi phí và giá thành ở bước 7 bị tính sai gốc. Đây đúng là nhóm "hay quên" mà v1 chưa soi.
 
    Click một bước → mở bảng chi tiết chứng minh (các dòng bút toán liên quan hoặc số net theo TK).
 
@@ -218,6 +225,21 @@ Xây "sổ phát sinh theo TK" (net theo mỗi TK = Σ phát sinh Nợ − Σ ph
 | C6.4 | Phát sinh theo người lập | Bảng Σ & đếm theo `CreatedByName` |
 | C6.5 | Phân bố theo ngày | Σ theo `DocDate`, đánh dấu ngày dồn bút toán bất thường |
 
+### Nhóm 7 — Bút toán phân bổ & trích lập cuối kỳ ⭐ (`g7_phan_bo_trich_lap.py`)
+Các bút toán **định kỳ, không gắn với một chứng từ mua/bán** nên rất dễ quên hẳn một kỳ. Chỉ dùng **phát sinh trong kỳ**, so khớp ở **tài khoản cấp 1** (prefix 3 chữ số). "Không thấy phát sinh" là **nhắc rà (🟡)**, không phải lỗi đỏ — sổ làm đủ thì các check này im.
+
+| Mã | Tên | Logic (cấp 1, trong kỳ) | Mức độ |
+|----|-----|-------------------------|--------|
+| C7.1 | Chưa hạch toán khấu hao TSCĐ | Không có bút toán **Có `214`** trong kỳ | 🟡 |
+| C7.2 | Chưa phân bổ chi phí trả trước / CCDC | Không có bút toán **Có `242`** trong kỳ | 🟡 |
+| C7.3 | Chưa trích lương & các khoản theo lương | Không có bút toán **Có `334`** hoặc **Có `338`** vào chi phí (`622/627/641/642`) | 🟡 |
+| C7.4 | Trích trước chi phí (335) | Thống kê phát sinh `335` trong kỳ | 📊 |
+| C7.5 | Chưa đánh giá tỷ giá cuối kỳ | Có dòng ngoại tệ (`CurrencyCode` ≠ VND) trong kỳ **nhưng** không có phát sinh `413` | 🟡 |
+| C7.6 | Chưa trích/kết chuyển thuế TNDN | KQKD có lãi (911 → 421 chiều lãi) **nhưng** không có phát sinh `8211` | 🟡 |
+| C7.7 | Dự phòng tổn thất tài sản (229) | Thống kê phát sinh `229` trong kỳ (thường cuối năm) | 📊 |
+
+> **Vì sao chỉ nhắc, không đỏ:** không có số dư đầu kỳ nên tool không biết chắc DN *có* TSCĐ/khoản trả trước hay không — chỉ biết kỳ này *không thấy* bút toán. Gọi thẳng là "lỗi" sẽ tái lập đúng bẫy dương-tính-giả của C4.1. Vì vậy đây là **checklist nhắc**: kế toán liếc một dòng là biết mình có bỏ sót không.
+
 ## 8. Đặc tả báo cáo Excel đầu ra
 
 - **Tên file:** `Bao cao kiem tra khoa so - <kỳ> - <yyyymmdd_hhmm>.xlsx` trong `2. Report/`.
@@ -292,7 +314,7 @@ Chạy: `Kiem_tra_khoa_so.bat` → `python app/main.py`.
 ## 14. Tiêu chí hoàn thành (acceptance)
 
 1. Mở app, chọn file `Bang ke chung tu 082027.xlsx`, bấm Kiểm tra → chạy < 10 giây, không lỗi.
-2. Sau khi bấm Kiểm tra, app **tự chuyển sang màn hình Kết quả** với banner kết luận; **Tab "Trạng thái khóa sổ"** hiện đủ 11 bước với trạng thái ✅/❌/⚠️/➖ đúng theo dữ liệu; **Tab "Lỗi & cảnh báo"** hiện 6 nhóm, click xem được bảng chi tiết có tìm kiếm/lọc/phân trang, không đơ với check có hàng chục nghìn dòng.
+2. Sau khi bấm Kiểm tra, app **tự chuyển sang màn hình Kết quả** với banner kết luận; **Tab "Trạng thái khóa sổ"** hiện đủ 16 bước với trạng thái ✅/❌/⚠️/➖ đúng theo dữ liệu; **Tab "Lỗi & cảnh báo"** hiện 6 nhóm, click xem được bảng chi tiết có tìm kiếm/lọc/phân trang, không đơ với check có hàng chục nghìn dòng.
 3. Xuất báo cáo Excel (tùy chọn) có sheet Tổng quan + sheet "Trạng thái khóa sổ" + các sheet chi tiết đúng định dạng; nút "Mở file Excel" / "Mở thư mục" hoạt động.
 4. Các check ⭐ (giá vốn C4.x, kết chuyển C5.x) chạy đúng logic trên dữ liệu thật.
 5. Giao diện Segoe UI, light mode, đúng bảng màu; chạy offline.
