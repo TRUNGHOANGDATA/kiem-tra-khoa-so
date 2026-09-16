@@ -13,7 +13,7 @@ import pandas as pd
 
 from . import checks, chot_so, report
 from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, ten_cot
-from .kho import KhoChotSo, sao_luu as kho_sao_luu
+from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
@@ -257,7 +257,7 @@ class JsApi:
             # lặng lẽ vứt bỏ các chi nhánh còn lại mà màn hình 1 vừa báo là đã nạp.
             ds = [path] if isinstance(path, str) else list(path or [])
             vua_doc_lai = False
-            if ds and self._duong_dan != ds:
+            if ds and (self._duong_dan != ds or self._co_don_vi_da_chot()):
                 self._nap_nhieu(ds)
                 vua_doc_lai = True
             if not self._dv:
@@ -299,11 +299,28 @@ class JsApi:
     def _duong_dan_kho(self) -> str:
         return str(Path(self._thu_muc_kho) / "kho_chot_so.sqlite")
 
+    def _co_don_vi_da_chot(self) -> bool:
+        """True nếu có chi nhánh đang nạp đã được chốt (có snapshot hiệu lực) — dùng
+        để buộc đọc lại file: kỳ đã chốt phải đối chiếu với ĐĨA hiện tại, không phải
+        df cũ trong bộ nhớ, nếu không người dùng sửa file rồi bấm lại sẽ thấy KHỚP giả."""
+        if not self._dv:
+            return False
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001 (kho lỗi không được làm chết luồng kiểm tra)
+            return False
+        try:
+            return any(kho.doc_hieu_luc(d.tt.ky_nam, d.tt.ky_thang, d.nhan) for d in self._dv)
+        finally:
+            kho.dong()
+
     def _trang_thai_chot(self, d: "DonVi") -> dict:
         """Trạng thái chốt + đối chiếu cho một chi nhánh. Không có snapshot → CHUA_CHOT (im lặng)."""
         try:
             kho = self._kho()
-        except Exception:  # noqa: BLE001 (kho lỗi không được làm chết màn kết quả)
+        except PhienBanMoiHon as e:
+            return {"trang_thai": "CHUA_CHOT", "doi_chieu": chot_so.CHUA_CHOT, "loi_kho": str(e)}
+        except Exception:  # noqa: BLE001 (kho lỗi khác không được làm chết màn kết quả)
             return {"trang_thai": "CHUA_CHOT", "doi_chieu": chot_so.CHUA_CHOT}
         try:
             h = kho.doc_hieu_luc(d.tt.ky_nam, d.tt.ky_thang, d.nhan)

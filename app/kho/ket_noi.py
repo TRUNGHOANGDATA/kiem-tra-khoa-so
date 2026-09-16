@@ -11,6 +11,27 @@ class PhienBanMoiHon(Exception):
     """File kho được tạo bởi bản tool mới hơn — từ chối để không làm hỏng dữ liệu."""
 
 
+class KhongPhaiKho(Exception):
+    """File được chọn không phải kho chốt sổ (thiếu bảng chuẩn)."""
+
+
+BANG_KHO = ("snapshot", "snapshot_check", "snapshot_du_lieu", "schema_version")
+
+
+def la_kho(path: str) -> bool:
+    """True nếu file .sqlite đã có đủ các bảng của kho — KHÔNG tạo bảng mới (khác mo_kho)."""
+    if not Path(path).exists():
+        return False
+    con = sqlite3.connect(path)
+    try:
+        ten = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    except sqlite3.DatabaseError:
+        return False
+    finally:
+        con.close()
+    return set(BANG_KHO) <= ten
+
+
 def mo_kho(path: str) -> sqlite3.Connection:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(path)
