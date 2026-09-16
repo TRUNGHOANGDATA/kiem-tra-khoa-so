@@ -23,7 +23,7 @@ def test_css_segoe_ui_light_mode():
 def test_app_js_co_ham_tien_trinh_va_goi_api():
     js = (WEB / "app.js").read_text(encoding="utf-8")
     assert "function onTienTrinh" in js
-    for f in ["lay_file_moi_nhat", "chon_nhieu_file", "nap_nhieu_file", "quet_thu_muc",
+    for f in ["chon_nhieu_file", "nap_nhieu_file", "quet_thu_muc",
               "chay_kiem_tra", "chon_don_vi", "lay_chi_tiet", "xuat_bao_cao",
               "xuat_tong_hop", "mo_file", "mo_thu_muc"]:
         assert f"api.{f}(" in js, f
@@ -118,3 +118,10 @@ def test_app_js_biet_trang_thai_tu_xac_nhan():
     assert "tu_xac_nhan" in js
     css = (WEB / "style.css").read_text(encoding="utf-8")
     assert "tt-tu_xac_nhan" in css
+
+
+def test_khoi_tao_khong_tu_nap_file_mac_dinh():
+    """Người dùng luôn tự chọn file — khoiTao không được gọi lay_file_moi_nhat khi mở."""
+    js = (WEB / "app.js").read_text(encoding="utf-8")
+    than = re.search(r"async function khoiTao\(\) \{(.*?)\n\}", js, re.S).group(1)
+    assert "lay_file_moi_nhat" not in than, "khoiTao vẫn còn tự nạp file mặc định"

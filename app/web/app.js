@@ -224,8 +224,9 @@ function hienFile(info) {
 
 async function khoiTao() {
   api = window.pywebview.api;
-  const info = await taiFile(() => api.lay_file_moi_nhat(), "Đang đọc file…");
-  if (info) hienFile(info); else toast("Chưa có file trong thư mục '1. Source' — hãy chọn hoặc kéo file vào.");
+  // KHÔNG tự nạp file mặc định: người dùng luôn tự chọn (kéo-thả / "Chọn file…" /
+  // "Nạp cả thư mục"). Tránh nạp nhầm file cũ hay file không phải bảng kê rồi báo lỗi
+  // ngay khi mở. Màn hình 1 (chọn file) là màn mặc định nên không cần làm gì thêm.
 }
 
 $("btn-chon-file").onclick = async () => {
