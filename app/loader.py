@@ -12,11 +12,12 @@ COT_SO = ["Amount", "OriginalAmount", "ExchangeRate", "Quantity9", "UnitCost"]
 COT_CHUOI = ["DocCode", "DocNo", "Description", "DebitAccount", "CreditAccount", "TaxCode",
              "CustomerCode", "CustomerName", "ItemCode", "ItemName", "WarehouseName",
              "CurrencyCode", "CreatedByName", "CashFlowName", "ExpenseCatgName", "DeptName",
-             "BranchCode"]
-# Chi nhánh nằm ở cột BranchCode của bảng kê Bravo (file 08/2026: "A01" cho cả 79.450 dòng).
-# Một file có thể chứa nhiều chi nhánh, và một chi nhánh có thể trải trên nhiều file —
-# nên đơn vị kiểm tra được suy từ giá trị cột này, không phải từ tên file.
-COT_CHI_NHANH = "BranchCode"
+             "BranchCode", "Đơn vị", "ExpenseCatgCode"]
+# Chi nhánh có thể nằm ở nhiều cột tùy cách xuất Bravo: "BranchCode" (file 08/2026:
+# "A01"), hoặc cột tiếng Việt "Đơn vị" (file BC quản trị: VXHN/VXHO). Thử theo thứ tự
+# ưu tiên, dùng cột đầu tiên CÓ giá trị. Một file có thể chứa nhiều chi nhánh, một chi
+# nhánh có thể trải trên nhiều file — nên đơn vị suy từ giá trị cột này, không từ tên file.
+COT_CHI_NHANH = ("BranchCode", "Đơn vị")
 CHI_NHANH_KHONG_RO = "(không có mã chi nhánh)"
 
 
@@ -121,10 +122,14 @@ def ma_chi_nhanh(df: pd.DataFrame) -> pd.Series:
     lọt qua sẽ thành một chi nhánh mang nhãn rỗng — trên thanh chọn chi nhánh nó
     là một nút không có chữ, không cách nào biết đang xem sổ của ai.
     """
-    if COT_CHI_NHANH not in df.columns:
-        return pd.Series(CHI_NHANH_KHONG_RO, index=df.index, dtype="object")
-    s = df[COT_CHI_NHANH].astype("string").str.strip()
-    return s.mask(s.isna() | s.eq("")).fillna(CHI_NHANH_KHONG_RO).astype("object")
+    for cot in COT_CHI_NHANH:
+        if cot not in df.columns:
+            continue
+        s = df[cot].astype("string").str.strip()
+        s = s.mask(s.isna() | s.eq("") | s.str.upper().eq("NULL"))
+        if s.notna().any():
+            return s.fillna(CHI_NHANH_KHONG_RO).astype("object")
+    return pd.Series(CHI_NHANH_KHONG_RO, index=df.index, dtype="object")
 
 
 def mot_chi_nhanh(df: pd.DataFrame) -> str:

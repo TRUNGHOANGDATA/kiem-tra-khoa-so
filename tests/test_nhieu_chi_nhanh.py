@@ -251,3 +251,31 @@ def test_tong_so_dong_bang_tong_cac_chi_nhanh(tmp_path):
     assert info["so_dong"] == 4
     assert sum(u["so_dong"] for u in info["don_vi"]) == 4
     assert pd.Series([u["ma"] for u in info["don_vi"]]).tolist() == ["A01", "B02", "C03"]
+
+
+# ---------------------------------------------- chi nhánh đa cột (cột "Đơn vị")
+def test_nhan_chi_nhanh_tu_cot_don_vi_khi_khong_co_branchcode():
+    from app.loader import ma_chi_nhanh
+    df = pd.DataFrame({"DebitAccount": ["621", "621"], "Đơn vị": ["VXHN", "VXHO"]})
+    assert list(ma_chi_nhanh(df)) == ["VXHN", "VXHO"]
+
+
+def test_branchcode_uu_tien_hon_don_vi():
+    from app.loader import ma_chi_nhanh
+    df = pd.DataFrame({"BranchCode": ["A01", "A01"], "Đơn vị": ["VXHN", "VXHO"]})
+    assert list(ma_chi_nhanh(df)) == ["A01", "A01"]
+
+
+def test_cot_branchcode_rong_thi_roi_xuong_don_vi():
+    from app.loader import ma_chi_nhanh, CHI_NHANH_KHONG_RO
+    df = pd.DataFrame({"BranchCode": [None, None], "Đơn vị": ["VXHN", None]})
+    assert list(ma_chi_nhanh(df)) == ["VXHN", CHI_NHANH_KHONG_RO]
+
+
+def test_tach_theo_don_vi_thanh_hai_chi_nhanh(tmp_path):
+    p = tmp_path / "vx.xlsx"
+    tao_df([{"Đơn vị": "VXHN", "DocNo": "H1"}, {"Đơn vị": "VXHO", "DocNo": "O1"},
+            {"Đơn vị": "VXHN", "DocNo": "H2"}]).to_excel(p, index=False)
+    from app.loader import doc_nhieu_bang_ke
+    ds = doc_nhieu_bang_ke([str(p)])
+    assert [(tt.chi_nhanh, tt.so_dong) for _, tt in ds] == [("VXHN", 2), ("VXHO", 1)]

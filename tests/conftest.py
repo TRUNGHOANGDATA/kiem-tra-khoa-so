@@ -13,8 +13,10 @@ MAC_DINH = {
     "ItemCode": None, "ItemName": None, "WarehouseName": None,
     "CreatedByName": "Kế toán A",
     # Mặc định để trống: phần lớn test chỉ quan tâm một đơn vị, các test nhiều chi
-    # nhánh tự ghi đè cột này (xem tests/test_nhieu_chi_nhanh.py).
-    "BranchCode": None,
+    # nhánh / báo cáo quản trị tự ghi đè các cột này.
+    "BranchCode": None, "Đơn vị": None,
+    # Trục dựng báo cáo quản trị (Nhóm 8): mã khoản mục chi phí & bộ phận.
+    "ExpenseCatgCode": None, "ExpenseCatgName": None, "DeptName": None,
 }
 
 
