@@ -62,6 +62,7 @@ def test_main_bat_text_select():
     khách lại không lấy được số chứng từ mang sang Bravo."""
     main = Path("app/main.py").read_text(encoding="utf-8")
     assert "text_select=True" in main
+    assert "maximized=True" in main   # mở ra phóng to hết màn hình
 
 
 def test_css_khong_khoa_boi_den_bang():
