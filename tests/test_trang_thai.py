@@ -110,14 +110,14 @@ def test_buoc_can_xu_ly_luon_tro_toi_bang_chung_co_that(ten, ctx):
             assert so_dong == 0
 
 
-def test_kich_ban_phu_du_bon_trang_thai(ctx):
+def test_kich_ban_phu_du_nam_trang_thai(ctx):
     """Bất biến trên chỉ có giá trị nếu tập kịch bản thật sự chạm mọi trạng thái."""
     gap = set()
     for ten in KICH_BAN:
         df = kb(ten)
         kq = {r.ma: r for r in checks.chay_tat_ca(df, ctx)}
         gap |= {b.trang_thai for b in tt.suy_trang_thai(df, kq)}
-    assert gap == {tt.DA_LAM, tt.CHUA_LAM, tt.CAN_RA, tt.KHONG_AP_DUNG}
+    assert gap == {tt.DA_LAM, tt.CHUA_LAM, tt.CAN_RA, tt.KHONG_AP_DUNG, tt.TU_XAC_NHAN}
 
 
 def test_co_kich_ban_ket_chuyen_vuot():
@@ -126,10 +126,27 @@ def test_co_kich_ban_ket_chuyen_vuot():
 
 
 # --------------------------------------------------------------------------
-def test_du_11_buoc_dung_thu_tu(ctx):
+def test_du_16_buoc_dung_thu_tu(ctx):
     _, ds = _suy(kb("mac_dinh"), ctx)
-    assert len(ds) == 11
-    assert ds[0].buoc.startswith("Tập hợp CP NVL") and ds[-1].buoc.startswith("TK đầu 5/6/7/8")
+    assert len(ds) == 16
+    assert ds[0].buoc.startswith("Khấu hao TSCĐ")
+    assert ds[-1].buoc.startswith("TK đầu 5/6/7/8")
+    assert [b.buoc for b in ds[3:6]] == [
+        "Tập hợp CP NVL trực tiếp 621 → 154",
+        "Tập hợp CP nhân công trực tiếp 622 → 154",
+        "Tập hợp & phân bổ CP SXC 627 → 154"]
+    assert any("thuế TNDN" in b.buoc for b in ds) and any("tỷ giá" in b.buoc for b in ds)
+
+
+def test_buoc_nhac_dung_trang_thai_tu_xac_nhan(ctx):
+    b, _ = _suy(kb("mac_dinh"), ctx)      # sổ mặc định không có 214
+    assert b["Khấu hao TSCĐ (Có 214 → 627/641/642)"].trang_thai == tt.TU_XAC_NHAN
+
+
+def test_buoc_moi_chiu_duoc_ket_qua_rong(ctx):
+    ds = tt.suy_trang_thai(kb("mac_dinh"), {})     # chưa chạy kiểm tra -> khong KeyError
+    assert len(ds) == 16
+    assert all(b.trang_thai == tt.KHONG_AP_DUNG for b in ds if b.ma_check.startswith("C7."))
 
 
 def test_khong_phat_sinh_thi_khong_ap_dung(ctx):

@@ -83,8 +83,39 @@ def _nhom_ve_911(df, ten, cac_tk, huong, ma) -> BuocKhoaSo:
     return BuocKhoaSo(ten, DA_LAM, f"Đã kết chuyển: {', '.join(co_ps)}", ma)
 
 
+def _buoc_tu_check(ten, ma, ket_qua, tom_tat_dat, tom_tat_thieu, trang_thai_thieu) -> BuocKhoaSo:
+    """Bước suy THẲNG từ check được trích dẫn — không tự tính lại, để Tab A không bao
+    giờ nói lệch với bảng chứng minh nó trỏ tới (lỗi đã tái diễn 7 lần trên nhánh trước).
+
+    - check thống kê (C7.1–C7.3): đọc cột co_phat_sinh của dòng checklist.
+    - check thường (C7.5/C7.6): đạt khi so_loi == 0.
+    - ket_qua rỗng (chưa chạy kiểm tra) -> KHONG_AP_DUNG, không KeyError (F5/F7).
+    """
+    r = ket_qua.get(ma)
+    if r is None:
+        return BuocKhoaSo(ten, KHONG_AP_DUNG, f"Chưa chạy kiểm tra {ma}", ma)
+    if r.la_thong_ke:
+        dat = bool(r.chi_tiet.iloc[0]["co_phat_sinh"]) if len(r.chi_tiet) else False
+    else:
+        dat = r.so_loi == 0
+    if dat:
+        return BuocKhoaSo(ten, DA_LAM, tom_tat_dat, ma)
+    return BuocKhoaSo(ten, trang_thai_thieu, tom_tat_thieu, ma)
+
+
 def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[BuocKhoaSo]:
+    # Tầng 1 — bút toán phân bổ/trích lập (hay quên nhất). Trạng thái nhắc TU_XAC_NHAN
+    # KHÔNG kéo kết luận khóa sổ (xem g7 + tinh_ket_luan).
     ds = [
+        _buoc_tu_check("Khấu hao TSCĐ (Có 214 → 627/641/642)", "C7.1", ket_qua,
+                       "Đã hạch toán khấu hao TSCĐ trong kỳ",
+                       "Kỳ này không thấy khấu hao TSCĐ — tự xác nhận nếu DN có TSCĐ", TU_XAC_NHAN),
+        _buoc_tu_check("Phân bổ chi phí trả trước 242 / CCDC", "C7.2", ket_qua,
+                       "Đã phân bổ chi phí trả trước / CCDC trong kỳ",
+                       "Kỳ này không thấy phân bổ 242 — tự xác nhận nếu DN có khoản đang phân bổ", TU_XAC_NHAN),
+        _buoc_tu_check("Trích lương & các khoản theo lương (334/338)", "C7.3", ket_qua,
+                       "Đã trích lương/BHXH vào chi phí trong kỳ",
+                       "Kỳ này không thấy trích lương vào chi phí — tự xác nhận", TU_XAC_NHAN),
         _ket_chuyen(df, "Tập hợp CP NVL trực tiếp 621 → 154", "621", ("154",), ("621",), "C4.4", True),
         _ket_chuyen(df, "Tập hợp CP nhân công trực tiếp 622 → 154", "622", ("154",), ("622",), "C4.4", True),
         _ket_chuyen(df, "Tập hợp & phân bổ CP SXC 627 → 154", "627", ("154",), ("627",), "C4.4", True),
@@ -131,6 +162,13 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
     ds.append(_ket_chuyen(df, "Kết chuyển giá vốn 632 → 911", "632", ("911",), ("632",), "C5.2"))
     ds.append(_nhom_ve_911(df, "Kết chuyển doanh thu 511/515/711 → 911", ("511", "515", "711"), "nguon->911", "C5.3"))
     ds.append(_nhom_ve_911(df, "Kết chuyển chi phí 635/641/642/811 → 911", ("635", "641", "642", "811"), "911->nguon", "C5.4"))
+
+    ds.append(_buoc_tu_check("Đánh giá chênh lệch tỷ giá cuối kỳ (413)", "C7.5", ket_qua,
+                             "Không có số dư gốc ngoại tệ cần đánh giá, hoặc đã đánh giá 413",
+                             "Có ngoại tệ trên TK tiền tệ nhưng chưa thấy bút toán 413", CAN_RA))
+    ds.append(_buoc_tu_check("Kết chuyển chi phí thuế TNDN 8211 → 911", "C7.6", ket_qua,
+                             "Đã có 8211, hoặc kỳ không phát sinh lãi phải trích thuế",
+                             "KQKD có lãi nhưng chưa thấy chi phí thuế TNDN (8211)", CAN_RA))
 
     vao, _ = phat_sinh_theo_prefix(df, "1331")
     _, ra = phat_sinh_theo_prefix(df, "3331")
