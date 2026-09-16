@@ -57,7 +57,7 @@ const khoaKL = (v) => (CLASS_KET_LUAN[v] ? v : "chua_san_sang");
    hiện tượng khách báo. Vì vậy:
      - pct không phải số dương  -> chế độ KHÔNG XÁC ĐỊNH: vệt sáng chạy bằng
        CSS animation của trình duyệt, chuyển động không phụ thuộc Python;
-     - pct > 0 (giai đoạn 29 check, callback tới thật) -> thanh phần trăm thật.
+     - pct > 0 (giai đoạn 37 check, callback tới thật) -> thanh phần trăm thật.
    Cả hai chế độ đều kèm chữ mô tả pha + aria-busy, không bao giờ chỉ có
    chuyển động làm tín hiệu "đang chạy". */
 function datTienTrinh(nhan, pct) {
@@ -332,7 +332,7 @@ async function doiDonVi(i) {
 
 function veTabA() {
   const ul = $("ds-buoc"); ul.innerHTML = "";
-  const dem = { da_lam: 0, chua_lam: 0, can_ra: 0, khong_ap_dung: 0 };
+  const dem = { da_lam: 0, chua_lam: 0, can_ra: 0, tu_xac_nhan: 0, khong_ap_dung: 0 };
   ketQua.trang_thai.forEach((b, i) => {
     const tt = khoaTT(b.trang_thai);
     dem[tt] += 1;
@@ -351,8 +351,12 @@ function veTabA() {
     if (bamDuoc) o.onclick = () => moChiTiet(b.ma_check, b.buoc + ` — chứng minh (${b.ma_check})`);
     const li = document.createElement("li"); li.append(o); ul.append(li);
   });
-  $("dem-buoc").textContent =
-    `${dem.da_lam} đã làm · ${dem.chua_lam} chưa làm · ${dem.can_ra} cần rà · ${dem.khong_ap_dung} không áp dụng`;
+  $("tieu-de-buoc").textContent = `${ketQua.trang_thai.length} bước khóa sổ cuối kỳ`;
+  // "tự xác nhận" phải nằm trong dòng đếm, nếu không tổng các mục < số bước và
+  // kế toán tưởng thiếu bước. Chỉ hiện mục nào có số > 0 để dòng không rối.
+  const phan = [[dem.da_lam, "đã làm"], [dem.chua_lam, "chưa làm"], [dem.can_ra, "cần rà"],
+                [dem.tu_xac_nhan, "tự xác nhận"], [dem.khong_ap_dung, "không áp dụng"]];
+  $("dem-buoc").textContent = phan.filter(([n]) => n > 0).map(([n, t]) => `${n} ${t}`).join(" · ");
 }
 
 function veTabB() {

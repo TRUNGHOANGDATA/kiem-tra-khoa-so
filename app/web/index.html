@@ -64,7 +64,7 @@
          - Chế độ KHÔNG XÁC ĐỊNH (.khong-xac-dinh): giai đoạn Python chặn luồng
            (đọc Excel ~8,4s) — không callback nào tới được, nên chuyển động do
            CSS của trình duyệt sinh ra, không do phần trăm từ Python.
-         - Chế độ xác định: giai đoạn chạy 29 check, callback tới thật.
+         - Chế độ xác định: giai đoạn chạy 37 check, callback tới thật.
          Chữ ở #tien-trinh-ten và #tien-trinh-pct luôn nói rõ pha đang chạy —
          không bao giờ chỉ dựa vào chuyển động để báo "đang làm việc". -->
     <section id="tien-trinh" class="tien-trinh an">
@@ -84,7 +84,7 @@
 <main id="man-hinh-2" class="man-hinh man-hinh-2 an">
   <!-- Thanh chọn chi nhánh — chỉ hiện khi có từ 2 chi nhánh trở lên. Mỗi chi nhánh
        khóa sổ trên sổ của chính mình, nên mọi thứ dưới thanh này (băng kết luận,
-       11 bước, 30 check, bảng chi tiết) đều thuộc về đúng một chi nhánh. -->
+       các bước, 37 check, bảng chi tiết) đều thuộc về đúng một chi nhánh. -->
   <nav id="thanh-don-vi" class="thanh-don-vi an" aria-label="Chọn chi nhánh"></nav>
 
   <section id="banner" class="banner chua-san-sang" aria-live="polite">
@@ -127,7 +127,7 @@
     <section id="noi-dung-a" class="noi-dung">
       <div class="khoi">
         <div class="khoi-dau">
-          <h3>11 bước khóa sổ cuối kỳ</h3>
+          <h3 id="tieu-de-buoc">Các bước khóa sổ cuối kỳ</h3>
           <p id="dem-buoc" class="khoi-dau-phu"></p>
         </div>
         <ul id="ds-buoc" class="ds-buoc"></ul>
@@ -177,7 +177,7 @@
       Xuất báo cáo Excel
     </button>
     <button id="btn-xuat-tong-hop" class="btn btn-phu an" type="button"
-            title="Một file Excel so sánh toàn bộ chi nhánh, kèm tổng quan và 11 bước của từng chi nhánh">
+            title="Một file Excel so sánh toàn bộ chi nhánh, kèm tổng quan và các bước của từng chi nhánh">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17v-6.5"/><path d="M13 17V6.5"/><path d="M18 17v-3.5"/></svg>
       Xuất tổng hợp chi nhánh
     </button>
