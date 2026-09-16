@@ -11,16 +11,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import checks, chot_so, report
+from . import cau_hinh, checks, chot_so, report
 from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, ten_cot
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
 GOC = Path(__file__).resolve().parents[1]
-THU_MUC_SOURCE = str(GOC / "1. Source")
-THU_MUC_REPORT = str(GOC / "2. Report")
-THU_MUC_CHOT = str(GOC / "3. Chot so")
 
 
 def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
@@ -62,9 +59,27 @@ class JsApi:
         self._dv: list[DonVi] = []
         self._i = 0
         self._duong_dan: list[str] = []
-        self.thu_muc_source = THU_MUC_SOURCE
-        self.thu_muc_report = THU_MUC_REPORT
-        self._thu_muc_kho = THU_MUC_CHOT
+        self._ovr_thu_muc: dict[str, str] = {}   # thư mục gán đè (test/phiên tạm) — thắng cấu hình
+
+    def _tm(self, khoa: str) -> str:
+        if khoa in self._ovr_thu_muc:
+            return self._ovr_thu_muc[khoa]
+        return cau_hinh.doc_cau_hinh(str(GOC))[khoa]
+
+    @property
+    def thu_muc_source(self) -> str: return self._tm("thu_muc_nguon")
+    @thu_muc_source.setter
+    def thu_muc_source(self, v: str): self._ovr_thu_muc["thu_muc_nguon"] = v
+
+    @property
+    def thu_muc_report(self) -> str: return self._tm("thu_muc_xuat")
+    @thu_muc_report.setter
+    def thu_muc_report(self, v: str): self._ovr_thu_muc["thu_muc_xuat"] = v
+
+    @property
+    def _thu_muc_kho(self) -> str: return self._tm("thu_muc_kho")
+    @_thu_muc_kho.setter
+    def _thu_muc_kho(self, v: str): self._ovr_thu_muc["thu_muc_kho"] = v
 
     # ---- đơn vị đang xem ----
     # _df/_tt/_kq/… là khung nhìn vào đơn vị đang chọn: mọi phương thức viết cho
@@ -551,3 +566,30 @@ class JsApi:
             return True
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không mở được thư mục: {e}"}
+
+    # ---- cài đặt thư mục ----
+    def lay_cau_hinh(self) -> dict:
+        """Giá trị thô (để hiện trong ô nhập) + đường dẫn đã giải (để hiển thị)."""
+        tho = cau_hinh._doc_tho(str(GOC))
+        giai = cau_hinh.doc_cau_hinh(str(GOC))
+        return {"tho": {k: str(tho.get(k, cau_hinh.MAC_DINH[k])) for k in cau_hinh.KHOA}, "giai": giai}
+
+    def luu_cau_hinh(self, cfg: dict):
+        try:
+            c = cfg or {}
+            sach = {k: (str(c.get(k, "")).strip() or cau_hinh.MAC_DINH[k]) for k in cau_hinh.KHOA}
+            cau_hinh.ghi_cau_hinh(str(GOC), sach)
+            return {"ok": True, "sach": sach}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không lưu được cấu hình: {e}"}
+
+    def chon_thu_muc(self, directory: str = ""):
+        if self._window is None:
+            return {"loi": "Chưa có cửa sổ"}
+        try:
+            import webview
+            loai = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
+            chon = self._window.create_file_dialog(loai, directory=directory or "")
+            return {"path": chon[0]} if chon else {"huy": True}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được hộp thoại thư mục: {e}"}

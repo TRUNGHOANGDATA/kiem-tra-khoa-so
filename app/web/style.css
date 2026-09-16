@@ -617,6 +617,22 @@ html body { -webkit-user-select: text; user-select: text; cursor: auto; }
 .modal-hop input[type="text"]:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
 .modal-hop input[type="text"]::placeholder { color: var(--chu-mo); }
 
+/* Modal "Cài đặt thư mục" — mỗi dòng: nhãn phía trên, rồi ô nhập + nút "Chọn…"
+   cùng một hàng (ô nhập co giãn, nút giữ kích thước tự nhiên). */
+.cd-hang { margin-top: 14px; }
+.cd-hang:first-of-type { margin-top: 0; }
+.cd-hang label { display: block; font-size: 12px; font-weight: 600; color: var(--chu-phu); margin-bottom: 4px; }
+.cd-o { display: flex; gap: 8px; align-items: center; }
+.cd-o input[type="text"] {
+  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13px; padding: 9px 12px;
+  border: 1px solid var(--vien-dam); border-radius: var(--r-nho);
+  background: var(--be-mat); color: var(--chu);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.cd-o input[type="text"]:hover { border-color: var(--chu-mo); }
+.cd-o input[type="text"]:focus { border-color: var(--chinh-2); box-shadow: 0 0 0 3px var(--lam-nen); outline: none; }
+.cd-o .btn { flex: 0 0 auto; }
+
 /* Biến thể rộng cho modal chứa bảng (Xem thay đổi) — cùng khung .modal-hop, chỉ
    nới chiều rộng/chiều cao và cho bảng bên trong tự co giãn theo phần còn lại. */
 .modal-hop-lon {
