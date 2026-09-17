@@ -101,6 +101,25 @@ def test_c76_co_lai_ma_khong_co_thue_tndn(ctx):
     assert _kq(lo, ctx)["C7.6"].so_loi == 0
 
 
+def test_c76_net_lo_khong_canh_bao_du_co_dong_ket_chuyen_lai(ctx):
+    # Trong kỳ có tháng kết chuyển lãi (911->4212) nhưng CẢ KỲ NET LỖ (lỗ > lãi).
+    # Cả kỳ lỗ thì không phát sinh 8211 là ĐÚNG -> C7.6 KHÔNG được cảnh báo.
+    net_lo = tao_df([
+        {"DebitAccount": "911", "CreditAccount": "4212", "Amount": 30},    # lãi lẻ
+        {"DebitAccount": "4212", "CreditAccount": "911", "Amount": 100},   # lỗ lớn hơn -> net lỗ
+    ])
+    assert _kq(net_lo, ctx)["C7.6"].so_loi == 0
+
+
+def test_c76_net_lai_van_canh_bao_khi_thieu_8211(ctx):
+    # Có cả dòng lỗ lẻ lẫn dòng lãi, nhưng NET LÃI -> thiếu 8211 vẫn phải cảnh báo.
+    net_lai = tao_df([
+        {"DebitAccount": "4212", "CreditAccount": "911", "Amount": 40},    # lỗ lẻ
+        {"DebitAccount": "911", "CreditAccount": "4212", "Amount": 100},   # lãi lớn hơn -> net lãi
+    ])
+    assert _kq(net_lai, ctx)["C7.6"].so_loi == 1
+
+
 def test_du_7_ma(ctx):
     assert [r.ma for r in g7.kiem_tra(tao_df([{}]), ctx)] == [
         "C7.1", "C7.2", "C7.3", "C7.4", "C7.5", "C7.6", "C7.7"]
