@@ -125,3 +125,59 @@ def test_nap_lai_cdps_khac_thi_bao_thay_doi(tmp_path, monkeypatch):
     assert len(td) == 1 and td[0]["chi_nhanh"] == "A08"
     assert (td[0]["so_doi"], td[0]["so_them"], td[0]["so_bot"]) == (1, 1, 0)
     assert {d["account"] for d in td[0]["dong"]} == {"911", "642"}
+
+
+# ----------------------------------------------- CĐPS kỳ liền trước bơm vào ctx
+KHO_COLS = ["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+            "du_cuoi_no", "du_cuoi_co", "is_group", "level"]
+
+
+def _kho_df(rows):
+    return pd.DataFrame(rows, columns=KHO_COLS)
+
+
+def test_boi_canh_mac_dinh_chua_co_cdps_truoc():
+    from app.checks.base import BoiCanh
+    assert BoiCanh(8, 2026).cdps_truoc is None
+
+
+def test_cdps_truoc_doc_ky_lien_truoc(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._cdps_truoc(d) is None                    # chưa có kho -> None
+    kho = api._kho()
+    kho.luu_cdps("A08", 2026, 7, _kho_df([["1111", "Tiền mặt", 0, 0, 0, 0, 500, 0, False, 1]]))
+    kho.dong()
+    got = api._cdps_truoc(d)
+    assert got is not None and got["account"].tolist() == ["1111"]
+    # kỳ 07 chưa có kỳ 06 -> None, không được trả nhầm chính kỳ đó
+    assert api._cdps_truoc(SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=7))) is None
+
+
+def test_cdps_truoc_bom_vao_boi_canh(tmp_path, monkeypatch):
+    """Đường ống phải nối tới BoiCanh — có ở api thôi thì check vẫn không thấy."""
+    from app.api import DonVi
+    from app.checks.base import BoiCanh
+    from app.loader import ThongTinFile
+    from tests.conftest import tao_df
+
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    kho = api._kho()
+    kho.luu_cdps("A01", 2026, 7, _kho_df([["1111", "Tiền mặt", 0, 0, 0, 0, 500, 0, False, 1]]))
+    kho.dong()
+    df = tao_df([{"DocNo": "1", "DebitAccount": "621", "CreditAccount": "1521", "Amount": 100.0}])
+    d = DonVi(df=df, tt=ThongTinFile(path="x.xlsx", ten="x.xlsx", ky="08/2026", ky_thang=8,
+                                     ky_nam=2026, so_dong=1, tong_ps=100.0, chi_nhanh="A01"))
+    ghi = []
+
+    def _ghi(*a, **kw):
+        ctx = BoiCanh(*a, **kw)
+        ghi.append(ctx)
+        return ctx
+
+    monkeypatch.setattr("app.api.BoiCanh", _ghi)
+    api._chay_mot_don_vi(d)
+    assert ghi[0].cdps_truoc is not None
+    assert ghi[0].cdps_truoc["account"].tolist() == ["1111"]

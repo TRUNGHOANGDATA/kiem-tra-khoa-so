@@ -146,6 +146,11 @@ class KhoChotSo:
             (chi_nhanh, ky_nam, ky_thang)).fetchall()
         return pd.DataFrame([dict(r) for r in rows])
 
+    def doc_cdps_ky_truoc(self, chi_nhanh, ky_nam, ky_thang) -> pd.DataFrame:
+        """CĐPS của kỳ LIỀN TRƯỚC (tháng 1 lùi về tháng 12 năm trước); rỗng nếu chưa nạp."""
+        nam, thang = (ky_nam - 1, 12) if ky_thang == 1 else (ky_nam, ky_thang - 1)
+        return self.doc_cdps(chi_nhanh, nam, thang)
+
     def du_dau_theo_prefix(self, chi_nhanh, ky_nam, ky_thang, prefix) -> tuple[float, float]:
         """Tổng dư đầu Nợ/Có các DÒNG LÁ (is_group=0) có account bắt đầu bằng prefix."""
         r = self.con.execute(

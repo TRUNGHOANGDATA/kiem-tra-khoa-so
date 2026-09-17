@@ -83,6 +83,10 @@ class BoiCanh:
     # G9/G10 và bản nâng cấp C7.1–C7.3 chỉ chạy khi có bảng này — không có thì đứng
     # ngoài (la_thong_ke) chứ KHÔNG báo "đạt" giả.
     cdps: pd.DataFrame | None = None
+    # CĐPS của kỳ LIỀN TRƯỚC, cùng cột với `cdps`; None = chưa nạp kỳ trước.
+    # Dùng để so biến động giữa hai kỳ — không có thì check phải đứng ngoài
+    # (la_thong_ke), KHÔNG được coi "không có kỳ trước" là "không biến động".
+    cdps_truoc: pd.DataFrame | None = None
 
 
 @dataclass
