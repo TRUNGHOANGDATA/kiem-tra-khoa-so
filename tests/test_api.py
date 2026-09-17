@@ -30,7 +30,7 @@ def test_chay_kiem_tra_tra_json_hop_le(tmp_path):
     json.dumps(kq)  # không numpy scalar
     assert kq["tomtat"]["ky"] == "08/2026" and kq["tomtat"]["so_dong"] == 3
     assert kq["tomtat"]["san_sang"] is False           # 632 chưa kết chuyển -> C5.2 đỏ
-    assert len(kq["trang_thai"]) == 19 and len(kq["nhom"]) == 10
+    assert len(kq["trang_thai"]) == 19 and len(kq["nhom"]) == 11
     g5 = next(n for n in kq["nhom"] if n["ma"] == "G5")
     assert g5["muc_do"] == "do"
 

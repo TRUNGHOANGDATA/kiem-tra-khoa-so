@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import cau_hinh, cdps, checks, chot_so, report
-from .checks.base import (COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult,
+from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
@@ -643,7 +643,7 @@ class JsApi:
             tong = int(len(df)); kich_thuoc = max(1, min(int(kich_thuoc), 500))
             a = max(0, (int(trang) - 1) * kich_thuoc); cot = list(df.columns)
             return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
-                    "cot_so": [c for c in cot if c in COT_SO_HIEN_THI],
+                    "cot_so": cot_so_cua(df),
                     "cot_so_le": [c for c in cot if c in COT_SO_LE],
                     "tom_tat": diff["tom_tat"],
                     "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
@@ -739,7 +739,7 @@ class JsApi:
         cot = list(df.columns)
         # Nhãn tiếng Việt và danh sách cột số đi kèm dữ liệu, không nhân bản sang JS.
         return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
-                "cot_so": [c for c in cot if c in COT_SO_HIEN_THI],
+                "cot_so": cot_so_cua(df),
                 "cot_so_le": [c for c in cot if c in COT_SO_LE],
                 "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
 

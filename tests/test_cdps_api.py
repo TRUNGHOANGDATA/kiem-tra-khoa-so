@@ -181,3 +181,33 @@ def test_cdps_truoc_bom_vao_boi_canh(tmp_path, monkeypatch):
     api._chay_mot_don_vi(d)
     assert ghi[0].cdps_truoc is not None
     assert ghi[0].cdps_truoc["account"].tolist() == ["1111"]
+
+
+def test_cot_so_nhan_dien_theo_kieu_du_lieu(tmp_path, monkeypatch):
+    """Mọi cột SỐ phải vào `cot_so`, kể cả bảng đã đổi sang nhãn tiếng Việt.
+
+    G9/G10/G11 dựng bảng với tên cột tiếng Việt sẵn ("Dư cuối Nợ", "PS Nợ bảng kê")
+    nên danh sách tên cố định COT_SO_HIEN_THI không khớp -> số tiền hiện trần trụi
+    464282494 thay vì 464.282.494, kế toán đọc không nổi.
+    """
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    src = _nguon(tmp_path, [
+        ["1111", "Tien mat", "900000000", "0", "0", "800000000", "100000000", "0", "False", "0"],
+        ["6421", "CP QLDN", "0", "0", "800000000", "0", "800000000", "0", "False", "0"],
+    ])
+    bk = src / "Bang ke chung tu 082026 A08.xlsx"
+    pd.DataFrame([{"BranchCode": "A08", "DocNo": "A", "DocDate": "2026-08-01",
+                   "DebitAccount": "6421", "CreditAccount": "1111", "Amount": 800000000}]
+                 ).to_excel(bk, sheet_name="Table1", index=False)
+    api = JsApi()
+    api.nap_cdps_thu_muc()
+    api.chay_kiem_tra(str(bk))
+    thieu = {}
+    for ma in api._kq:
+        ct = api.lay_chi_tiet(ma)
+        so = set(ct["cot_so"]) | set(ct["cot_so_le"])
+        for dong in ct["dong"][:5]:
+            for cot, gt in dong.items():
+                if isinstance(gt, (int, float)) and not isinstance(gt, bool) and cot not in so:
+                    thieu.setdefault(ma, set()).add(cot)
+    assert thieu == {}, f"cột số không được định dạng: {thieu}"
