@@ -462,6 +462,20 @@ class JsApi:
         finally:
             kho.dong()
 
+    def chi_tiet_cdps(self, chi_nhanh, ky_nam, ky_thang):
+        """Chi tiết các tài khoản của một CĐPS (chi nhánh × kỳ) — cho màn xem CĐPS."""
+        if not Path(self._duong_dan_kho()).exists():
+            return {"dong": []}
+        try:
+            kho = self._kho()
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được kho: {e}"}
+        try:
+            df = kho.doc_cdps(chi_nhanh, int(ky_nam), int(ky_thang))
+            return {"dong": df.to_dict("records") if not df.empty else []}
+        finally:
+            kho.dong()
+
     def trang_thai_cdps(self):
         """Danh sách (chi nhánh × kỳ) đã nhập CĐPS — cho màn nhập hiện trạng thái."""
         if not Path(self._duong_dan_kho()).exists():

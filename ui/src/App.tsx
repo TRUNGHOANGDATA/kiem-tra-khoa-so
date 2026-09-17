@@ -8,8 +8,9 @@ import BangChiTiet from "./BangChiTiet";
 import ModalChot from "./ModalChot";
 import ModalCaiDat from "./ModalCaiDat";
 import ManLichSu from "./LichSu";
+import ManCanDoi from "./CanDoi";
 
-type ManHinh = "chon" | "ketqua" | "lichsu";
+type ManHinh = "chon" | "ketqua" | "lichsu" | "candoi";
 type TienTrinh = { ten: string; pct: number } | null;
 
 function NutHeader({ children, icon, onClick }: { children: React.ReactNode; icon: React.ReactNode; onClick?: () => void }) {
@@ -111,11 +112,11 @@ function Noi() {
       if (bang) setBang(null);
       else if (modalChot.mo) setModalChot({ mo: false, chotLai: false });
       else if (modalCaiDat) setModalCaiDat(false);
-      else if (man === "lichsu") setMan("ketqua");
+      else if (man === "lichsu" || man === "candoi") setMan(kq ? "ketqua" : "chon");
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [bang, modalChot.mo, modalCaiDat, man]);
+  }, [bang, modalChot.mo, modalCaiDat, man, kq]);
 
   return (
     <div className="flex h-full flex-col nen-so-cai font-sans text-ink">
@@ -138,6 +139,7 @@ function Noi() {
         </div>
         <div className="ml-auto flex items-center gap-2.5">
           {kq && <span className="hidden items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-[13px] font-semibold md:inline-flex">{nhieu ? `${kq.don_vi.length} chi nhánh · ` : ""}kỳ {kq.tomtat.ky}</span>}
+          <NutHeader icon={IC.bar} onClick={() => setMan("candoi")}>Cân đối phát sinh</NutHeader>
           <NutHeader icon={IC.clock} onClick={() => setMan("lichsu")}>Lịch sử chốt sổ</NutHeader>
           <NutHeader icon={IC.gear} onClick={() => setModalCaiDat(true)}>Cài đặt</NutHeader>
         </div>
@@ -160,6 +162,7 @@ function Noi() {
           onKiemTraLai={kiemTra} onFileKhac={() => { setMan("chon"); }} />
       )}
       {man === "lichsu" && <ManLichSu onQuayLai={() => setMan(kq ? "ketqua" : "chon")} />}
+      {man === "candoi" && <ManCanDoi onQuayLai={() => setMan(kq ? "ketqua" : "chon")} />}
 
       {/* Modals */}
       <ModalChot

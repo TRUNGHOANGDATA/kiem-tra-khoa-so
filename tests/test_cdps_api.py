@@ -78,3 +78,18 @@ def test_thieu_cdps_liet_ke_chi_nhanh_chua_co(tmp_path, monkeypatch):
     kho.luu_cdps(cn, 2026, 8, df)
     kho.dong()
     assert api.thieu_cdps() == []                                # đã đủ CĐPS -> không thiếu
+
+
+def test_chi_tiet_cdps(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    kho = api._kho()
+    df = pd.DataFrame([["4212", "LN", 2981950998, 0, 0, 1571960518, 1409990480, 0, False, 1]],
+                      columns=["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+                               "du_cuoi_no", "du_cuoi_co", "is_group", "level"])
+    kho.luu_cdps("A08", 2026, 8, df)
+    kho.dong()
+    r = api.chi_tiet_cdps("A08", 2026, 8)
+    assert len(r["dong"]) == 1 and r["dong"][0]["account"] == "4212"
+    assert r["dong"][0]["du_dau_no"] == 2981950998.0
+    assert api.chi_tiet_cdps("A08", 2026, 9)["dong"] == []       # kỳ chưa có -> rỗng
