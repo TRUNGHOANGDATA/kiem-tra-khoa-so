@@ -13,22 +13,24 @@ export function TheThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
     { ic: IC.x, nhan: "Nghiêm trọng", so: soDo, phu: "cần xử lý ngay", nen: "bg-do-nen", vien: "border-do-vien", ico: "bg-do/15 text-do", chu: "text-do-dam", nhay: true },
     { ic: IC.warn, nhan: "Cảnh báo", so: soVang, phu: "cần kiểm tra thêm", nen: "bg-vang-nen", vien: "border-vang-vien", ico: "bg-vang/15 text-vang", chu: "text-vang-dam", nhay: true },
     { ic: IC.check, nhan: "Đạt", so: dat, phu: "đã hoàn thành", nen: "bg-xanh-nen", vien: "border-xanh-vien", ico: "bg-xanh/15 text-xanh", chu: "text-xanh-dam", nhay: false },
-    { ic: IC.toanha, nhan: "Tổng chi nhánh", so: soChiNhanh, phu: "trong kỳ này", nen: "bg-navy/5", vien: "border-navy/15", ico: "bg-navy/12 text-navy", chu: "text-navy", nhay: false },
+    { ic: IC.toanha, nhan: "Tổng chi nhánh", so: soChiNhanh, phu: "trong kỳ này", nen: "bg-steel-50", vien: "border-steel-200", ico: "bg-steel-200/70 text-steel-700", chu: "text-steel-700", nhay: false },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
       {cards.map((c) => {
         const bam = !!onXemLoi && c.nhay && c.so > 0;
         return (
           <button key={c.nhan} type="button" disabled={!bam} onClick={bam ? onXemLoi : undefined}
-            className={cx("rounded-2xl border p-4 text-left shadow-soft transition", c.nen, c.vien,
+            className={cx("flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left shadow-soft transition", c.nen, c.vien,
               bam ? "cursor-pointer hover:shadow-card" : "cursor-default")}>
-            <div className="flex items-center gap-2.5">
-              <span className={cx("grid h-10 w-10 shrink-0 place-items-center rounded-full", c.ico)}><Icon d={c.ic} className="h-5 w-5" /></span>
-              <span className={cx("text-[13px] font-bold", c.chu)}>{c.nhan}</span>
+            <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-full", c.ico)}><Icon d={c.ic} className="h-[18px] w-[18px]" /></span>
+            <div className="min-w-0">
+              <div className={cx("text-[12px] font-bold leading-tight", c.chu)}>{c.nhan}</div>
+              <div className="flex items-baseline gap-1.5">
+                <span className={cx("text-[22px] font-extrabold leading-tight tabular-nums", c.chu)}>{fso(c.so)}</span>
+                <span className="truncate text-[11px] text-steel-500">{c.phu}</span>
+              </div>
             </div>
-            <div className={cx("mt-2.5 text-[30px] font-extrabold leading-none tabular-nums", c.chu)}>{fso(c.so)}</div>
-            <div className="mt-1.5 text-[12px] text-steel-500">{c.phu}</div>
           </button>
         );
       })}

@@ -15,7 +15,8 @@ export default {
           50: "#F5F6F8", 100: "#EDEEF1", 200: "#E1E4EA",
           300: "#C6CDD8", 400: "#8E9AAB", 500: "#4F5E73", 700: "#2A3B4E", 900: "#0C1B2A",
         },
-        navy: { DEFAULT: "#1B4B7A", dark: "#10395F", 600: "#16416B", 400: "#2F6CA6" },
+        // Tone chính: Emerald (thay cho navy cũ — giữ tên khoá "navy" để không phải sửa hàng loạt class).
+        navy: { DEFAULT: "#059669", dark: "#047857", 600: "#059669", 400: "#10B981" },
         // Đồng thau — điểm nhấn thật của bản sắc (huy hiệu, đường kẻ sổ).
         brass: { DEFAULT: "#B4842B", 50: "#FAF3E2", 300: "#D6AF57", 600: "#8A6320" },
         do:   { DEFAULT: "#CB4242", nen: "#FCF2F2", vien: "#F0C9C9", dam: "#8E2C2C" },

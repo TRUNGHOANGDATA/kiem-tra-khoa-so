@@ -120,7 +120,7 @@ function Noi() {
   return (
     <div className="flex h-full bg-[#F3F5F8] font-sans text-ink">
       {/* ------------------------------- Sidebar ------------------------------- */}
-      <aside className="flex w-[240px] shrink-0 flex-col bg-[#12273E] text-white">
+      <aside className="flex w-[240px] shrink-0 flex-col bg-[#0E3B2E] text-white">
         <div className="flex items-center gap-3 px-5 py-5">
           <img src={logo} alt="Logo" className="h-11 w-11 shrink-0 rounded-xl object-cover shadow-soft ring-1 ring-white/15" />
           <div className="min-w-0">
