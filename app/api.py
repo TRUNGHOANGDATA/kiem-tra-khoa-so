@@ -442,7 +442,7 @@ class JsApi:
         """Nạp mọi file CĐPS trong `thu_muc` (mặc định thư mục nguồn): suy chi nhánh+kỳ
         từ tên file, lưu vào kho (thay sạch từng kỳ). Bỏ qua file không đúng quy ước."""
         try:
-            nap, bo_qua = [], []
+            nap, bo_qua, thay_doi = [], [], []
             kho = self._kho()
             try:
                 for p in tim_file_excel(thu_muc or self.thu_muc_source):
@@ -455,12 +455,21 @@ class JsApi:
                     except cdps.KhongPhaiCdps:
                         bo_qua.append(ten)
                         continue
+                    # Soi TRƯỚC khi ghi đè: nạp lại là thay sạch, không so trước thì
+                    # số liệu kế toán đã xem hôm qua đổi lặng lẽ.
+                    doi = kho.so_sanh_cdps(m.ma, m.nam, m.thang, df)
                     kho.luu_cdps(m.ma, m.nam, m.thang, df)
                     nap.append({"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
                                 "ky": f"{m.thang:02d}/{m.nam}", "file": ten})
+                    if doi:
+                        doi["chi_nhanh_ten"] = self._ten(m.ma)
+                        doi["ky"] = f"{m.thang:02d}/{m.nam}"
+                        doi["dong"] = doi["dong"][:20]     # đủ để nhìn, không ngập UI
+                        thay_doi.append(doi)
             finally:
                 kho.dong()
-            return {"nap": nap, "bo_qua": bo_qua, "trang_thai": self.trang_thai_cdps()}
+            return {"nap": nap, "bo_qua": bo_qua, "thay_doi": thay_doi,
+                    "trang_thai": self.trang_thai_cdps()}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không nạp được CĐPS: {e}"}
 

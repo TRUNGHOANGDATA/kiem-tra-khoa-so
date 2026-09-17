@@ -8,6 +8,7 @@ sổ sai CHẮC CHẮN, không phải nghi ngờ — nên để ĐỎ, khác h�
     C9.2  Từng TK: dư đầu + PS Nợ − PS Có = dư cuối
     C9.3  TK cha = Σ TK con
     C9.4  TK loại 5/6/7/8/9 phải hết số dư cuối kỳ (đã kết chuyển hết)
+    C9.5  Phát sinh trên bảng kê chứng từ = phát sinh trên CĐPS (theo TK cấp 1)
 
 Chưa nạp CĐPS -> cả nhóm đứng ngoài (la_thong_ke), KHÔNG báo "đạt" giả.
 """
@@ -16,11 +17,18 @@ from __future__ import annotations
 import pandas as pd
 
 from . import cdps_tien_ich as cd
-from .base import DO, BoiCanh, CheckResult, fmt_so
+from .base import DO, BoiCanh, CheckResult, fmt_so, so_phat_sinh_tai_khoan
 
 NHOM = "G9"
 # TK loại 5–9 (doanh thu, chi phí, xác định KQKD) không được còn số dư cuối kỳ.
 LOAI_KHONG_DU = ("5", "6", "7", "8", "9")
+
+# C9.5 — chỉ đối chiếu ở CẤP 1 (3 chữ số đầu). Xem test_g9_doi_chieu.py: hai nguồn khác
+# độ chi tiết, và cây tài khoản của phần mềm kế toán KHÔNG theo tiền tố mã (62781 nằm
+# dưới 6277). Cấp 1 là cấp sâu nhất mà tiền tố chắc chắn đúng.
+CAP_DOI_CHIEU = 3
+# Chênh do làm tròn đơn giá bình quân: trên dữ liệu thật lớn nhất 980đ/tài khoản.
+NGUONG_DOI_CHIEU = 1_000.0
 
 
 def _tong(df: pd.DataFrame, cot: str) -> float:
@@ -97,13 +105,49 @@ def _c94(la: pd.DataFrame) -> CheckResult:
                        cd.bang_chi_tiet(bat, ly_do))
 
 
+TEN_C95 = "Phát sinh bảng kê ≠ phát sinh CĐPS"
+
+
+def _gop_cap_1(df: pd.DataFrame, cot_ma: str) -> pd.DataFrame:
+    ma = df[cot_ma].fillna("").astype(str).str.strip().str[:CAP_DOI_CHIEU]
+    return df.assign(_c1=ma).groupby("_c1")[["ps_no", "ps_co"]].sum()
+
+
+def _c95(df: pd.DataFrame, la: pd.DataFrame) -> CheckResult:
+    """Hai nguồn phải cùng một quyển sổ: lệch = một bên thiếu/thừa chứng từ."""
+    cot = ["Tài khoản", "PS Nợ bảng kê", "PS Nợ CĐPS", "Chênh Nợ",
+           "PS Có bảng kê", "PS Có CĐPS", "Chênh Có", "ly_do"]
+    bk = _gop_cap_1(so_phat_sinh_tai_khoan(df), "TK")
+    cp = _gop_cap_1(la, "account") if len(la) else bk.iloc[0:0]
+    g = cp.join(bk, how="outer", lsuffix="_cd", rsuffix="_bk").fillna(0.0)
+    if g.empty:
+        return CheckResult("C9.5", TEN_C95, NHOM, DO, pd.DataFrame(columns=cot))
+    d_no = g["ps_no_bk"] - g["ps_no_cd"]
+    d_co = g["ps_co_bk"] - g["ps_co_cd"]
+    bat = g[(d_no.abs() > NGUONG_DOI_CHIEU) | (d_co.abs() > NGUONG_DOI_CHIEU)]
+
+    dong = []
+    for tk, r in bat.iterrows():
+        dn, dc = r["ps_no_bk"] - r["ps_no_cd"], r["ps_co_bk"] - r["ps_co_cd"]
+        ve = [f"{ben} lệch {fmt_so(abs(v))} ({'bảng kê thừa' if v > 0 else 'bảng kê thiếu'})"
+              for ben, v in (("PS Nợ", dn), ("PS Có", dc)) if abs(v) > NGUONG_DOI_CHIEU]
+        dong.append({"Tài khoản": tk,
+                     "PS Nợ bảng kê": r["ps_no_bk"], "PS Nợ CĐPS": r["ps_no_cd"], "Chênh Nợ": dn,
+                     "PS Có bảng kê": r["ps_co_bk"], "PS Có CĐPS": r["ps_co_cd"], "Chênh Có": dc,
+                     "ly_do": "TK " + str(tk) + ": " + " · ".join(ve)})
+    return CheckResult("C9.5", TEN_C95, NHOM, DO, pd.DataFrame(dong, columns=cot),
+                       ghi_chu=f"Đối chiếu ở TK cấp 1 ({CAP_DOI_CHIEU} chữ số), bỏ qua chênh"
+                               f" dưới {fmt_so(NGUONG_DOI_CHIEU)}đ do làm tròn")
+
+
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     ten = {"C9.1": "CĐPS không cân (tổng Nợ ≠ tổng Có)",
            "C9.2": "Số dư không khớp phát sinh (từng TK)",
            "C9.3": "Tài khoản cha ≠ tổng tài khoản con",
-           "C9.4": "TK loại 5/6/7/8/9 còn số dư cuối kỳ"}
+           "C9.4": "TK loại 5/6/7/8/9 còn số dư cuối kỳ",
+           "C9.5": TEN_C95}
     if not cd.co_cdps(ctx):
         return [cd.khong_co_cdps(ma, t, NHOM, DO) for ma, t in ten.items()]
     cdps = ctx.cdps
     la = cd.dong_la(cdps)
-    return [_c91(la), _c92(la), _c93(cdps, la), _c94(la)]
+    return [_c91(la), _c92(la), _c93(cdps, la), _c94(la), _c95(df, la)]

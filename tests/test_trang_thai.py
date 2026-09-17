@@ -134,13 +134,14 @@ def test_co_kich_ban_ket_chuyen_vuot():
 
 
 # --------------------------------------------------------------------------
-def test_du_18_buoc_dung_thu_tu(ctx):
+def test_du_19_buoc_dung_thu_tu(ctx):
     _, ds = _suy(kb("mac_dinh"), ctx)
-    assert len(ds) == 18
+    assert len(ds) == 19
     assert ds[0].buoc.startswith("Khấu hao TSCĐ")
-    # Hai bước cuối dựa trên CĐPS (B17/B18) — chưa nạp CĐPS thì "không áp dụng".
-    assert ds[-2].buoc.startswith("CĐPS cân") and ds[-1].buoc.startswith("Xử lý chênh lệch kiểm kê")
-    assert ds[-3].buoc.startswith("TK đầu 5/6/7/8")
+    # Ba bước cuối dựa trên CĐPS (B17/B18/B19) — chưa nạp CĐPS thì "không áp dụng".
+    assert ds[-3].buoc.startswith("CĐPS cân") and ds[-2].buoc.startswith("Xử lý chênh lệch kiểm kê")
+    assert ds[-1].buoc.startswith("Đối chiếu bảng kê")
+    assert ds[-4].buoc.startswith("TK đầu 5/6/7/8")
     assert [b.buoc for b in ds[3:6]] == [
         "Tập hợp CP NVL trực tiếp 621 → 154",
         "Tập hợp CP nhân công trực tiếp 622 → 154",
@@ -155,7 +156,7 @@ def test_buoc_nhac_dung_trang_thai_tu_xac_nhan(ctx):
 
 def test_buoc_moi_chiu_duoc_ket_qua_rong(ctx):
     ds = tt.suy_trang_thai(kb("mac_dinh"), {})     # chưa chạy kiểm tra -> khong KeyError
-    assert len(ds) == 18
+    assert len(ds) == 19
     assert all(b.trang_thai == tt.KHONG_AP_DUNG for b in ds if b.ma_check.startswith("C7."))
 
 

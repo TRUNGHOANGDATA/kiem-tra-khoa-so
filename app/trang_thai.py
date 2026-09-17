@@ -216,6 +216,7 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
 
     ds.append(_buoc_cdps_can(ket_qua))
     ds.append(_buoc_cho_xu_ly(ket_qua))
+    ds.append(_buoc_doi_chieu(ket_qua))
     return ds
 
 
@@ -237,6 +238,18 @@ def _buoc_cdps_can(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:
         return BuocKhoaSo(ten, DA_LAM, "CĐPS cân, không TK doanh thu/chi phí nào còn số dư", "C9.1")
     tom = "; ".join(f"{ma}: {len(r.chi_tiet)} dòng" for ma, r in hong)
     return BuocKhoaSo(ten, CHUA_LAM, f"CĐPS chưa toàn vẹn — {tom}", hong[0][0])
+
+
+def _buoc_doi_chieu(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:
+    """Bước 19 — bảng kê chứng từ và CĐPS phải là cùng một quyển sổ (C9.5)."""
+    ten = "Đối chiếu bảng kê chứng từ với CĐPS"
+    r = ket_qua.get("C9.5")
+    if _chua_nap_cdps(r):
+        return BuocKhoaSo(ten, KHONG_AP_DUNG, "Chưa nạp CĐPS cho kỳ này", "C9.5", co_chung_cu=False)
+    if len(r.chi_tiet) == 0:
+        return BuocKhoaSo(ten, DA_LAM, "Phát sinh hai nguồn khớp nhau", "C9.5")
+    return BuocKhoaSo(ten, CHUA_LAM,
+                      f"{len(r.chi_tiet)} tài khoản lệch phát sinh giữa hai nguồn", "C9.5")
 
 
 def _buoc_cho_xu_ly(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:

@@ -7,6 +7,12 @@ import { cx, fso, Icon, IC, Nut, useToast } from "./ui";
 
 interface TrangThaiCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; thoi_diem_nap?: string }
 interface ThieuCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string }
+/** CĐPS nạp lại KHÁC bản đang lưu — nạp lại là ghi đè sạch nên phải báo trước. */
+interface ThayDoiCdps {
+  chi_nhanh: string; chi_nhanh_ten?: string; ky: string;
+  so_doi: number; so_them: number; so_bot: number;
+  dong: { account: string; kieu: string; cot: string }[];
+}
 
 export interface ChonFileProps {
   nap?: ThongTinNap;
@@ -53,6 +59,7 @@ export default function ManChonFile(p: ChonFileProps) {
   const [ts, setTs] = useState<TrangThaiCdps[]>([]);
   const [thieu, setThieu] = useState<ThieuCdps[]>([]);
   const [dangNapCdps, setDangNapCdps] = useState(false);
+  const [doi, setDoi] = useState<ThayDoiCdps[]>([]);
   const dangChay = !!tienTrinh;
 
   const taiTs = useCallback(async () => {
@@ -74,6 +81,7 @@ export default function ManChonFile(p: ChonFileProps) {
     const r = await A.goi("nap_cdps_thu_muc", (r0 as { path: string }).path);
     setDangNapCdps(false);
     if (laLoi(r)) { toast(r.loi); return; }
+    setDoi((r.thay_doi as ThayDoiCdps[]) ?? []);
     const nn = (r.nap as { chi_nhanh: string }[]) ?? [];
     const bq = (r.bo_qua as unknown[])?.length ?? 0;
     toast(nn.length
@@ -108,6 +116,30 @@ export default function ManChonFile(p: ChonFileProps) {
           <Nut bien={coCdps ? "phu" : "chinh"} onClick={napCdps} disabled={dangNapCdps} className="justify-center">
             <Icon d={IC.thu_muc} className="h-4 w-4" />{dangNapCdps ? "Đang nạp…" : coCdps ? "Nạp thêm / nạp lại CĐPS" : "Nạp CĐPS (chọn thư mục)"}
           </Nut>
+
+          {doi.length > 0 && (
+            <div className="rounded-xl border border-vang-vien bg-vang-nen px-3 py-2.5 text-[12.5px] text-vang-dam">
+              <div className="flex items-center gap-2 font-bold">
+                <Icon d={IC.warn} className="h-4 w-4 shrink-0" />
+                CĐPS vừa nạp KHÁC bản đang lưu ở {doi.length} kỳ/chi nhánh
+              </div>
+              <div className="mt-1.5 space-y-1.5">
+                {doi.map((d) => (
+                  <div key={d.chi_nhanh + d.ky}>
+                    <b>{d.chi_nhanh_ten || d.chi_nhanh}</b> · kỳ {d.ky} —
+                    {d.so_doi > 0 && <> {d.so_doi} TK đổi số</>}
+                    {d.so_them > 0 && <> · thêm {d.so_them} TK</>}
+                    {d.so_bot > 0 && <> · mất {d.so_bot} TK</>}
+                    <div className="text-[11.5px] text-steel-500">
+                      {d.dong.slice(0, 6).map((r) => `${r.account} (${r.kieu}${r.cot ? ": " + r.cot : ""})`).join(" · ")}
+                      {d.dong.length > 6 && ` … +${d.dong.length - 6}`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-1.5">Số liệu cũ đã bị thay. Kiểm tra lại kết quả của các kỳ này.</div>
+            </div>
+          )}
 
           {coCdps && (
             <div className="max-h-[220px] overflow-auto rounded-xl border border-steel-200">
