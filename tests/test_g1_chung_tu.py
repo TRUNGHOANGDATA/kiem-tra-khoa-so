@@ -10,21 +10,45 @@ def test_du_6_ma_theo_thu_tu(ctx):
     assert [r.ma for r in g1.kiem_tra(tao_df([{}]), ctx)] == ["C1.1", "C1.2", "C1.3", "C1.4", "C1.5", "C1.6", "C1.7"]
 
 
-def test_c11_thieu_dien_giai(ctx):
-    df = tao_df([{"Description": None}, {"Description": "  "}, {"Description": "ok"}])
-    assert _kq(df, ctx)["C1.1"].so_loi == 2
+def test_c11_chung_tu_khong_co_dien_giai_nao(ctx):
+    df = tao_df([{"DocNo": "A", "Description": None}, {"DocNo": "A", "Description": "  "},
+                 {"DocNo": "B", "Description": "ok"}])
+    assert _kq(df, ctx)["C1.1"].so_loi == 2          # cả chứng từ A đều trống
+
+
+def test_c11_khong_bat_dong_thue_cua_hoa_don_da_co_dien_giai(ctx):
+    """Dữ liệu thật: 10.308 dòng bị bắt ở A01/A02/A03, 100% là cặp 1311/33311 —
+    dòng thuế GTGT của hóa đơn bán hàng. Nó không có tên vật tư (không phải dòng
+    hàng) và Bravo không điền diễn giải, nhưng CHỨNG TỪ thì đã được mô tả ở dòng
+    doanh thu. Không một chứng từ nào trong 8 chi nhánh thiếu diễn giải hoàn toàn."""
+    df = tao_df([
+        {"DocNo": "0045281", "DebitAccount": "1311", "CreditAccount": "5111",
+         "Description": "Bán hàng theo HĐ 0045281"},
+        {"DocNo": "0045281", "DebitAccount": "1311", "CreditAccount": "33311",
+         "Description": None, "ItemName": None},                # dòng thuế -> KHÔNG báo
+    ])
+    assert _kq(df, ctx)["C1.1"].so_loi == 0
+
+
+def test_c11_gom_theo_quyen_va_so_ct(ctx):
+    """Hai quyển trùng số CT: phiếu trống không được núp bóng phiếu kia đã có mô tả."""
+    df = tao_df([
+        {"DocCode": "PC", "DocNo": "001", "Description": "Chi tiền mặt"},
+        {"DocCode": "PN", "DocNo": "001", "Description": None, "ItemName": None},
+    ])
+    assert _kq(df, ctx)["C1.1"].so_loi == 1
 
 
 def test_c11_item_name_duoc_tinh_la_dien_giai(ctx):
     """A3: Bravo để diễn giải ở cột tên vật tư — chỉ báo thiếu khi cả hai cột đều trống."""
     df = tao_df([
-        {"Description": None, "ItemName": "Trần nhựa nano P06 - 5.0kg"},   # có tên vật tư -> bỏ qua
-        {"Description": "  ", "ItemName": "  "},                            # cả hai trống -> báo
-        {"Description": None, "ItemName": None},                            # cả hai trống -> báo
-        {"Description": "Thuế GTGT", "ItemName": None},                     # có diễn giải -> bỏ qua
+        {"DocNo": "A", "Description": None, "ItemName": "Trần nhựa nano P06 - 5.0kg"},
+        {"DocNo": "B", "Description": "  ", "ItemName": "  "},
+        {"DocNo": "B", "Description": None, "ItemName": None},
+        {"DocNo": "C", "Description": "Thuế GTGT", "ItemName": None},
     ])
     kq = _kq(df, ctx)["C1.1"]
-    assert kq.so_loi == 2
+    assert kq.so_loi == 2                 # chỉ chứng từ B trống hoàn toàn
     assert kq.ghi_chu == g1.GHI_CHU_C11
 
 

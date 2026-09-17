@@ -1,21 +1,10 @@
 """Nhóm 3 — Thuế GTGT."""
 import pandas as pd
 
-from .base import VANG, XANH, BoiCanh, CheckResult, bat_dau, tao_ket_qua
+from .base import VANG, XANH, BoiCanh, CheckResult, bat_dau, khoa_chung_tu, tao_ket_qua
 
 NHOM = "G3"
 TK_THUE = ("1331", "33311")
-
-
-def _khoa_chung_tu(df: pd.DataFrame) -> pd.Series:
-    """Số chứng từ chỉ duy nhất trong từng quyển: phải gộp theo (DocCode, DocNo).
-
-    Trên file thật có 16.385 DocNo nhưng 16.411 cặp (DocCode, DocNo) — 26 số dùng
-    chung giữa các quyển. Gộp theo DocNo thôi thì một phiếu nhập thiếu dòng 1331
-    sẽ lọt lưới nhờ một phiếu chi trùng số đã có dòng đó.
-    """
-    return (df["DocCode"].fillna("").astype(str).str.strip() + ""
-            + df["DocNo"].fillna("").astype(str).str.strip())
 
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
@@ -23,7 +12,7 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     tax = df["TaxCode"].fillna("").astype(str).str.strip().str.upper()
     co_thue = tax.ne("") & tax.ne("V00")
     dong_tk_thue = bat_dau(df["DebitAccount"], *TK_THUE) | bat_dau(df["CreditAccount"], *TK_THUE)
-    ct = _khoa_chung_tu(df)
+    ct = khoa_chung_tu(df)
 
     docs_thieu = set(ct[co_thue]) - set(ct[dong_tk_thue])
     r31 = tao_ket_qua(df[co_thue & ct.isin(docs_thieu)], "C3.1",

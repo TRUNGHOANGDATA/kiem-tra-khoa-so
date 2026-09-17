@@ -1,11 +1,12 @@
 """Nhóm 1 — Hình thức chứng từ."""
 import pandas as pd
 
-from .base import DO, VANG, BoiCanh, CheckResult, tao_ket_qua
+from .base import DO, VANG, BoiCanh, CheckResult, khoa_chung_tu, tao_ket_qua
 
 NHOM = "G1"
 DOC_DIEU_CHUYEN = ("DC", "LR", "BN", "BT")   # điều chuyển kho / xử lý / chuyển tiền nội bộ
-GHI_CHU_C11 = "Tên vật tư (ItemName) được tính là diễn giải hợp lệ"
+GHI_CHU_C11 = ("Tên vật tư (ItemName) được tính là diễn giải hợp lệ; chỉ báo khi CẢ"
+               " chứng từ không có dòng nào có diễn giải")
 GHI_CHU_C14 = f"Đã loại trừ chứng từ điều chuyển nội bộ: {'/'.join(DOC_DIEU_CHUYEN)}"
 
 
@@ -15,10 +16,17 @@ def _trong(s: pd.Series) -> pd.Series:
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
-    # Bravo để diễn giải ở ItemName với các dòng vật tư — chỉ báo thiếu khi cả hai cột đều trống.
-    thieu_dien_giai = _trong(df["Description"]) & _trong(df["ItemName"])
-    kq.append(tao_ket_qua(df[thieu_dien_giai], "C1.1", "Thiếu diễn giải", NHOM, VANG,
-                          "Cả diễn giải và tên vật tư đều trống", ghi_chu=GHI_CHU_C11))
+    # Đơn vị xét là CHỨNG TỪ, không phải dòng. Bravo để diễn giải ở ItemName với dòng
+    # vật tư, và không điền gì cho dòng thuế — trên file thật 10.308 dòng bị bắt ở
+    # A01/A02/A03 đều là cặp 1311/33311 (dòng thuế GTGT của hóa đơn bán hàng), trong khi
+    # KHÔNG chứng từ nào của cả 8 chi nhánh thiếu diễn giải hoàn toàn. Một chứng từ đã
+    # được mô tả ở dòng doanh thu thì dòng thuế của nó không phải "thiếu diễn giải".
+    thieu_mo_ta = _trong(df["Description"]) & _trong(df["ItemName"])
+    ct = khoa_chung_tu(df)
+    ct_da_mo_ta = set(ct[~thieu_mo_ta])
+    kq.append(tao_ket_qua(df[thieu_mo_ta & ~ct.isin(ct_da_mo_ta)], "C1.1", "Thiếu diễn giải",
+                          NHOM, VANG, "Cả chứng từ không có dòng nào ghi diễn giải",
+                          ghi_chu=GHI_CHU_C11))
 
     d = df["DocDate"]
     ngoai_ky = d.notna() & ((d.dt.month != ctx.ky_thang) | (d.dt.year != ctx.ky_nam))

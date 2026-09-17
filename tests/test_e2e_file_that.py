@@ -43,8 +43,11 @@ def test_pipeline_file_that_chay_nhanh_va_hop_ly(tmp_path):
     assert c17["la_thong_ke"] is True and c17["so_loi"] == 0   # số âm chỉ để soát
     assert tt["Tính giá xuất kho (mọi dòng xuất có giá trị)"]["trang_thai"] == "da_lam"
     assert kq["tomtat"]["con_viec"] == 2 and kq["tomtat"]["so_chua_lam"] == 0
+    # C1.1 nay xét theo CHỨNG TỪ: file thật không có chứng từ nào thiếu diễn giải
+    # hoàn toàn (10.308 dòng cũ đều là dòng thuế 1311/33311 của hóa đơn đã mô tả).
+    assert api.lay_chi_tiet("C1.1")["tong"] == 0
     # chi tiết theo trang không đổ toàn bộ
-    ct = api.lay_chi_tiet("C1.1", 1, 100)
+    ct = api.lay_chi_tiet("C6.1", 1, 100)
     assert len(ct["dong"]) <= 100 and ct["tong"] > 0
     path = api.xuat_bao_cao()["path"]
     assert os.path.exists(path)

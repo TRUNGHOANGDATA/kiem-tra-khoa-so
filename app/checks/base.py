@@ -52,6 +52,17 @@ def ten_cot(cot) -> list[str]:
     return [TEN_COT.get(c, c) for c in cot]
 
 
+def khoa_chung_tu(df: pd.DataFrame) -> pd.Series:
+    """Khoá nhận dạng một chứng từ: phải gộp theo (DocCode, DocNo), không chỉ DocNo.
+
+    Trên file thật có 16.385 DocNo nhưng 16.411 cặp (DocCode, DocNo) — 26 số dùng
+    chung giữa các quyển. Gộp theo DocNo thôi thì một phiếu thiếu dữ liệu sẽ lọt lưới
+    nhờ một phiếu khác trùng số đã có đủ. Dùng chung cho C1.1, C3.1, C3.2.
+    """
+    return (df["DocCode"].fillna("").astype(str).str.strip() + "␟"
+            + df["DocNo"].fillna("").astype(str).str.strip())
+
+
 def cot_so_cua(df: pd.DataFrame) -> list[str]:
     """Các cột cần canh phải & chấm phân cách nghìn, nhận diện theo KIỂU DỮ LIỆU.
 
