@@ -1,7 +1,7 @@
 /** Màn KẾT QUẢ — sidebar chi nhánh + banner kết luận + bảng bước/lỗi. Nối dữ liệu thật. */
 import { useMemo, useState } from "react";
 import type { Buoc, Check, DonVi, KetQua, Nhom } from "./api";
-import { cx, fso, Icon, IC, khoaKL, Nut } from "./ui";
+import { cx, Dau, fso, Icon, IC, khoaKL, KY_HIEU, Nut } from "./ui";
 
 const MUC = { chua_san_sang: "do", can_ra_soat: "vang", san_sang: "xanh" } as const;
 const mucDonVi = (d: DonVi) => MUC[khoaKL(d.muc_do_ket_luan)];
@@ -41,8 +41,8 @@ export function TheThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
 /* --------------------- khu mục theo mức độ (đỏ / vàng) -------------------- */
 function KhuMuc({ mau, tieuDe, ds, onCheck }: { mau: "do" | "vang"; tieuDe: string; ds: Check[]; onCheck: (c: Check) => void }) {
   const s = mau === "do"
-    ? { vien: "border-do-vien", nen: "bg-do-nen", chu: "text-do-dam", dot: "bg-do", ic: IC.x }
-    : { vien: "border-vang-vien", nen: "bg-vang-nen", chu: "text-vang-dam", dot: "bg-vang", ic: IC.warn };
+    ? { vien: "border-do-vien", nen: "bg-do-nen", chu: "text-do-dam", ic: IC.x }
+    : { vien: "border-vang-vien", nen: "bg-vang-nen", chu: "text-vang-dam", ic: IC.warn };
   return (
     <section className={cx("overflow-hidden rounded-xl border-2", s.vien)}>
       <div className={cx("flex items-center gap-2 px-4 py-2.5", s.nen)}>
@@ -54,7 +54,7 @@ function KhuMuc({ mau, tieuDe, ds, onCheck }: { mau: "do" | "vang"; tieuDe: stri
         {ds.map((c) => (
           <button key={c.ma} onClick={() => onCheck(c)}
             className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-steel-50">
-            <span className={cx("h-2.5 w-2.5 shrink-0 rounded-full", s.dot)} />
+            <Dau muc={mau} />
             <span className="shrink-0 text-[12px] font-bold text-steel-400">{c.ma}</span>
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{c.ten}{c.ghi_chu ? <span className="text-steel-400"> — {c.ghi_chu}</span> : null}</span>
             <span className={cx("shrink-0 text-[12px] font-extrabold tabular-nums", s.chu)}>{fso(c.so_loi)}</span>
@@ -68,10 +68,9 @@ function KhuMuc({ mau, tieuDe, ds, onCheck }: { mau: "do" | "vang"; tieuDe: stri
 
 function DongSo({ mau, nhan, so }: { mau: "do" | "vang" | "xanh"; nhan: string; so: number }) {
   const t = { do: "text-do-dam", vang: "text-vang-dam", xanh: "text-xanh-dam" }[mau];
-  const dot = { do: "bg-do", vang: "bg-vang", xanh: "bg-xanh" }[mau];
   return (
     <div className="flex items-center gap-2 rounded-md bg-steel-50 px-2 py-1">
-      <span className={cx("h-1.5 w-1.5 rounded-full", dot)} />
+      <Dau muc={mau} className="h-[15px] w-[15px] text-[9px]" />
       <span className={cx("flex-1 text-[11.5px] font-semibold", t)}>{nhan}</span>
       <span className={cx("text-[13px] font-extrabold tabular-nums", t)}>{fso(so)}</span>
     </div>
@@ -87,7 +86,6 @@ function ChotChip({ chot }: { chot?: DonVi["chot"] }) {
 }
 
 function TheChiNhanh({ d, tongCheck, chon, onClick }: { d: DonVi; tongCheck: number; chon: boolean; onClick: () => void }) {
-  const dot = { do: "bg-do", vang: "bg-vang", xanh: "bg-xanh" }[mucDonVi(d)];
   const dat = Math.max(0, tongCheck - (d.so_do ?? 0) - (d.so_vang ?? 0));
   return (
     <button
@@ -99,7 +97,7 @@ function TheChiNhanh({ d, tongCheck, chon, onClick }: { d: DonVi; tongCheck: num
       style={chon ? { boxShadow: "inset 3px 0 0 #1B4B7A" } : undefined}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className={cx("h-2.5 w-2.5 rounded-full ring-2 ring-steel-100", dot)} />
+        <Dau muc={mucDonVi(d)} className="h-[19px] w-[19px] text-[11px]" />
         <span className="min-w-0 truncate text-[14px] font-bold text-ink">{d.ten_hien || d.ma}</span>
         {d.ten_hien && d.ten_hien !== d.ma && <span className="shrink-0 text-[11px] font-semibold text-steel-400">{d.ma}</span>}
         <span className="ml-auto shrink-0"><ChotChip chot={d.chot} /></span>
@@ -115,11 +113,13 @@ function TheChiNhanh({ d, tongCheck, chon, onClick }: { d: DonVi; tongCheck: num
 
 /* -------------------------------- bảng bước ------------------------------- */
 const CFG_BUOC = {
-  DA_LAM: { pill: "bg-xanh-nen text-xanh-dam", nhan: "Đã làm", ic: IC.checkNho, ring: "border-xanh-vien text-xanh" },
+  // Mù màu: mỗi trạng thái một NÉT icon riêng — trước đây 3 trạng thái dùng chung
+  // IC.checkNho và chỉ phân biệt bằng màu pill.
+  DA_LAM: { pill: "bg-xanh-nen text-xanh-dam", nhan: "Đã làm", ic: IC.check, ring: "border-xanh-vien text-xanh" },
   CAN_RA: { pill: "bg-vang-nen text-vang-dam", nhan: "Cần rà", ic: IC.warn, ring: "border-vang-vien text-vang" },
   CHUA_LAM: { pill: "bg-do-nen text-do-dam", nhan: "Chưa làm", ic: IC.x, ring: "border-do-vien text-do" },
-  TU_XAC_NHAN: { pill: "bg-steel-100 text-steel-500", nhan: "Tự xác nhận", ic: IC.checkNho, ring: "border-steel-200 text-steel-400" },
-  KHONG_AP_DUNG: { pill: "bg-steel-100 text-steel-400", nhan: "Không áp dụng", ic: IC.checkNho, ring: "border-steel-200 text-steel-300" },
+  TU_XAC_NHAN: { pill: "bg-steel-100 text-steel-500", nhan: "Tự xác nhận", ic: IC.oTick, ring: "border-steel-200 text-steel-400" },
+  KHONG_AP_DUNG: { pill: "bg-steel-100 text-steel-400", nhan: "Không áp dụng", ic: IC.khongApDung, ring: "border-steel-200 text-steel-300" },
 } as const;
 function cfgBuoc(tt: string) {
   // Backend gửi trạng thái bước dạng CHỮ THƯỜNG (da_lam, can_ra, chua_lam,
@@ -157,11 +157,10 @@ function TheNhom({ n, onCheck }: { n: Nhom; onCheck: (c: Check) => void }) {
   const [mo, setMo] = useState(true);
   const muc = n.checks.some((c) => !c.la_thong_ke && c.so_loi > 0 && c.muc_do === "do")
     ? "do" : n.checks.some((c) => !c.la_thong_ke && c.so_loi > 0) ? "vang" : "xanh";
-  const dot = { do: "bg-do", vang: "bg-vang", xanh: "bg-xanh" }[muc];
   return (
     <div className="overflow-hidden rounded-xl border border-steel-200">
       <button onClick={() => setMo((v) => !v)} className="flex w-full items-center gap-3 bg-steel-50 px-4 py-2.5 text-left">
-        <span className={cx("h-2.5 w-2.5 rounded-full", dot)} />
+        <Dau muc={muc} />
         <span className="rounded-md bg-white px-2 py-0.5 text-[12px] font-bold text-steel-500 ring-1 ring-steel-200">{n.ma}</span>
         <span className="text-[13.5px] font-semibold text-ink">{n.ten}</span>
         <span className="ml-auto text-[12px] font-semibold text-steel-400 tabular-nums">{fso(n.so_loi)} lỗi</span>
@@ -170,12 +169,11 @@ function TheNhom({ n, onCheck }: { n: Nhom; onCheck: (c: Check) => void }) {
       {mo && (
         <div className="divide-y divide-steel-100">
           {n.checks.map((c) => {
-            const md = c.la_thong_ke || c.so_loi === 0 ? "xanh" : c.muc_do;
-            const dotc = { do: "bg-do", vang: "bg-vang", xanh: "bg-xanh" }[md];
+            const md = c.la_thong_ke ? "xam" : c.so_loi === 0 ? "xanh" : c.muc_do;
             return (
               <button key={c.ma} onClick={() => onCheck(c)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-steel-50">
-                <span className={cx("h-2 w-2 rounded-full", dotc)} />
+                <Dau muc={md} className="h-[15px] w-[15px] text-[9px]" />
                 <span className="text-[12px] font-bold text-steel-400">{c.ma}</span>
                 <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{c.ten}{c.ghi_chu ? <span className="text-steel-400"> — {c.ghi_chu}</span> : null}</span>
                 {!c.la_thong_ke && c.so_loi > 0 && <span className="text-[12px] font-bold tabular-nums text-do-dam">{fso(c.so_loi)}</span>}
@@ -254,9 +252,9 @@ export default function ManKetQua(p: KetQuaProps) {
             <span className="text-[12px] font-semibold text-steel-400 tabular-nums">{kq.don_vi.length}</span>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11.5px] font-semibold">
-            {demMuc.do > 0 && <span className="text-do-dam">● {demMuc.do} chưa sẵn sàng</span>}
-            {demMuc.vang > 0 && <span className="text-vang-dam">● {demMuc.vang} cần rà</span>}
-            {demMuc.xanh > 0 && <span className="text-xanh-dam">● {demMuc.xanh} sẵn sàng</span>}
+            {demMuc.do > 0 && <span className="text-do-dam">{KY_HIEU.do} {demMuc.do} chưa sẵn sàng</span>}
+            {demMuc.vang > 0 && <span className="text-vang-dam">{KY_HIEU.vang} {demMuc.vang} cần rà</span>}
+            {demMuc.xanh > 0 && <span className="text-xanh-dam">{KY_HIEU.xanh} {demMuc.xanh} sẵn sàng</span>}
           </div>
           <div className="-mr-1 flex flex-col gap-2 overflow-y-auto pr-1">
             {dsSap.map((d) => (
@@ -326,10 +324,10 @@ export default function ManKetQua(p: KetQuaProps) {
                 className={cx("relative flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-semibold transition", tab === k ? "text-navy" : "text-steel-500 hover:text-ink")}>
                 {k === "trangthai" ? "Trạng thái khóa sổ" : "Lỗi & cảnh báo"}
                 {k === "loi" && dsDo.length > 0 && (
-                  <span className="rounded-full bg-do-nen px-1.5 py-0.5 text-[11px] font-bold text-do-dam tabular-nums">{dsDo.length}</span>
+                  <span className="rounded-full bg-do-nen px-1.5 py-0.5 text-[11px] font-bold text-do-dam tabular-nums">{KY_HIEU.do} {dsDo.length}</span>
                 )}
                 {k === "loi" && dsVang.length > 0 && (
-                  <span className="rounded-full bg-vang-nen px-1.5 py-0.5 text-[11px] font-bold text-vang-dam tabular-nums">{dsVang.length}</span>
+                  <span className="rounded-full bg-vang-nen px-1.5 py-0.5 text-[11px] font-bold text-vang-dam tabular-nums">{KY_HIEU.vang} {dsVang.length}</span>
                 )}
                 {tab === k && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-navy" />}
               </button>

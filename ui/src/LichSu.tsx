@@ -2,10 +2,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as A from "./api";
 import { laLoi } from "./api";
-import { cx, Icon, IC, Nut, useToast } from "./ui";
+import { cx, Dau, Icon, IC, Nut, useToast } from "./ui";
 
 const NHAN_KL: Record<string, string> = { san_sang: "Sẵn sàng", can_ra_soat: "Cần rà soát", chua_san_sang: "Chưa sẵn sàng", SAN_SANG: "Sẵn sàng", CAN_RA_SOAT: "Cần rà soát", CHUA_SAN_SANG: "Chưa sẵn sàng" };
-const mauKL = (m: string) => (m.toLowerCase().includes("san_sang") && !m.toLowerCase().includes("chua") ? "text-xanh-dam" : m.toLowerCase().includes("can_ra") ? "text-vang-dam" : "text-do-dam");
+/** Mù màu: kết luận phải có KÝ HIỆU đứng trước, không chỉ khác màu chữ. */
+const mucKL = (m: string): "do" | "vang" | "xanh" => {
+  const s = m.toLowerCase();
+  return s.includes("san_sang") && !s.includes("chua") ? "xanh" : s.includes("can_ra") ? "vang" : "do";
+};
+const mauKL = (m: string) => ({ do: "text-do-dam", vang: "text-vang-dam", xanh: "text-xanh-dam" })[mucKL(m)];
 
 function moTaKho(s: { so_ban: number; so_ban_hieu_luc: number; so_ky: number; so_chi_nhanh: number; ky_dau: string; ky_cuoi: string }) {
   const khoang = s.ky_dau && s.ky_cuoi ? (s.ky_dau === s.ky_cuoi ? s.ky_dau : `${s.ky_dau} → ${s.ky_cuoi}`) : "—";
@@ -98,8 +103,13 @@ export default function ManLichSu({ onQuayLai }: { onQuayLai: () => void }) {
                   {r.chi_nhanh_ten && r.chi_nhanh_ten !== r.chi_nhanh && <span className="ml-1.5 text-[11px] font-medium text-steel-400">{r.chi_nhanh}</span>}
                 </td>
                 <td className="px-4 py-2.5 tabular-nums text-steel-500">{r.thoi_diem_chot}</td>
-                <td className={cx("px-4 py-2.5 font-semibold", mauKL(r.ket_luan_ma))}>{NHAN_KL[r.ket_luan_ma] ?? r.ket_luan_ma}</td>
-                <td className="px-4 py-2.5">{r.con_hieu_luc ? <span className="text-xanh-dam">Hiệu lực</span> : <span className="text-steel-400">Đã thay</span>}</td>
+                <td className={cx("px-4 py-2.5 font-semibold", mauKL(r.ket_luan_ma))}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Dau muc={mucKL(r.ket_luan_ma)} className="h-[15px] w-[15px] text-[9px]" />
+                    {NHAN_KL[r.ket_luan_ma] ?? r.ket_luan_ma}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5">{r.con_hieu_luc ? <span className="text-xanh-dam">✓ Hiệu lực</span> : <span className="text-steel-400">– Đã thay</span>}</td>
                 <td className="px-4 py-2.5 text-steel-500">{r.ghi_chu}</td>
               </tr>
             ))}

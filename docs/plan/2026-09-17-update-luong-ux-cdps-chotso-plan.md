@@ -26,9 +26,15 @@ Bốn việc người dùng nêu sau khi C7.6 (lỗ lũy kế) đã chạy đún
 **Ý người dùng:** nhập CĐPS trước và **bắt buộc**, rồi mới tới bảng kê.
 
 **Thay đổi (UI `ChonFile.tsx` + api):**
-- Màn nhập thành **stepper 2 bước**: **Bước 1 — Cân đối phát sinh (CĐPS)** (nút chọn thư
-  mục, hiện kỳ/chi nhánh đã nhập), **Bước 2 — Bảng kê chứng từ**.
+- Màn nhập thành **stepper 2 bước** có trạng thái từng bước:
+  - **Bước 1 — Cân đối phát sinh (CĐPS)**: nút chọn thư mục nạp; hiện kỳ/chi nhánh đã có
+    trong kho. **Nếu kho ĐÃ CÓ CĐPS** → hiện dòng "Đã có CĐPS cho N kỳ/chi nhánh" + nút
+    **[Bỏ qua]** (đi tiếp Bước 2 không nạp lại) và **[Nạp lại/nạp thêm]**. CĐPS bền trong
+    kho nên không bắt nạp lại mỗi phiên.
+  - **Bước 2 — Bảng kê chứng từ**: chỉ mở khi Bước 1 đã "xong" (đã có CĐPS hoặc bấm Bỏ qua).
 - Sau khi nạp bảng kê: đối chiếu chi nhánh × kỳ với CĐPS đã có → hiện **✓ đã nhập / ⚠ thiếu**.
+- "Bỏ qua" chỉ là bỏ qua *bước nạp*, KHÔNG bỏ ràng buộc: lúc **Kiểm tra** vẫn chặn cứng
+  chi nhánh nào thiếu CĐPS đúng (chi nhánh × kỳ) — xem mục bắt buộc dưới.
 
 **Mức "bắt buộc" — ĐÃ CHỐT: CỨNG.** Chi nhánh nào thiếu CĐPS (đúng chi nhánh × kỳ) thì
 **không cho Kiểm tra/kết luận** chi nhánh đó cho tới khi nạp đủ. Nút Kiểm tra chặn + nêu rõ

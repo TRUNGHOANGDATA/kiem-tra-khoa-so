@@ -12,9 +12,11 @@ from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, DO, VANG, XANH, CheckResult
 from .loader import ThongTinFile
 from .trang_thai import BuocKhoaSo, tinh_ket_luan
 
-TEN_MUC_DO = {DO: "Nghiêm trọng", VANG: "Cảnh báo", XANH: "Đạt"}
-TEN_TRANG_THAI = {"da_lam": "Đã làm", "chua_lam": "CHƯA LÀM", "can_ra": "Cần rà",
-                  "khong_ap_dung": "Không áp dụng", "tu_xac_nhan": "Tự xác nhận"}
+# Người dùng MÙ MÀU: mọi nhãn mức độ phải mang KÝ HIỆU riêng đứng trước; màu tô chỉ là
+# lớp phụ trợ. Không dùng emoji hình tròn đỏ/vàng/lục: chúng chỉ khác nhau về sắc.
+TEN_MUC_DO = {DO: "✕ Nghiêm trọng", VANG: "▲ Cảnh báo", XANH: "✓ Đạt"}
+TEN_TRANG_THAI = {"da_lam": "✓ Đã làm", "chua_lam": "✕ CHƯA LÀM", "can_ra": "▲ Cần rà",
+                  "khong_ap_dung": "– Không áp dụng", "tu_xac_nhan": "☐ Tự xác nhận"}
 MAU = {DO: "#FFC7CE", VANG: "#FFEB9C", XANH: "#C6EFCE",
        "da_lam": "#C6EFCE", "chua_lam": "#FFC7CE", "can_ra": "#FFEB9C",
        "khong_ap_dung": "#EDEDED", "tu_xac_nhan": "#E7F0FA"}
@@ -81,7 +83,8 @@ def _sheet_tong_quan(writer, fmt, ten_sheet: str, tieu_de: str, ket_qua, trang_t
     ws.write(1, 0, f"Nguồn: {thong_tin.ten} · {fmt_so(thong_tin.so_dong)} dòng"
                    f" · Tổng phát sinh {fmt_so(thong_tin.tong_ps)}")
     ws.write(2, 0, f"Kết luận: {ket_luan['cau_ket_luan']}"
-                   f"  ·  🔴 {ket_luan['so_do']}  🟡 {ket_luan['so_vang']}", fmt["tieu_de"])
+                   f"  ·  ✕ {ket_luan['so_do']} nghiêm trọng"
+                   f"  ·  ▲ {ket_luan['so_vang']} cảnh báo", fmt["tieu_de"])
     for i, r in enumerate(loi, start=5):
         ws.write(i, 4, TEN_MUC_DO[r.muc_do_thuc], fmt[r.muc_do_thuc])
     return ws

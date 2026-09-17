@@ -11,6 +11,9 @@ export const IC = {
   warn: <path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z M12 9.5v4.2 M12 17.2h.01" />,
   check: <><circle cx="12" cy="12" r="9" /><path d="m8.4 12.3 2.5 2.5 4.7-5.1" /></>,
   checkNho: <path d="m5 13 4 4L19 7" />,
+  // Mù màu: "Đã làm" / "Tự xác nhận" / "Không áp dụng" phải khác NÉT, không chỉ khác màu.
+  oTick: <><rect x="4" y="4" width="16" height="16" rx="2.5" /><path d="m8.4 12 2.4 2.4 4.8-5.2" /></>,
+  khongApDung: <><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></>,
   lock: <><path d="M7 11V8a5 5 0 0 1 10 0v3" /><rect x="5" y="11" width="14" height="9" rx="2" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 12a7.4 7.4 0 0 0-.1-1.3l2-1.6-2-3.4-2.4 1a7.3 7.3 0 0 0-2.2-1.3L14.3 2h-4l-.4 2.4A7.3 7.3 0 0 0 7.7 5.7l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.6l-2 1.6 2 3.4 2.4-1a7.3 7.3 0 0 0 2.2 1.3l.4 2.4h4l.4-2.4a7.3 7.3 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.6a7.4 7.4 0 0 0 .1-1.3Z" /></>,
@@ -100,6 +103,27 @@ export function Modal({ mo, dong, tieuDe, children, rong }: {
         {children}
       </div>
     </div>
+  );
+}
+
+/* ------------------------- ký hiệu mức độ (mù màu) ------------------------ */
+/** Người dùng MÙ MÀU: mức độ phải đọc được bằng KÝ HIỆU, màu chỉ là lớp phụ.
+ *  Mọi chấm tròn chỉ-có-màu trước đây đều thay bằng <Dau/>. */
+export const KY_HIEU = { do: "✕", vang: "▲", xanh: "✓", xam: "–" } as const;
+export const NHAN_MUC = { do: "Lỗi", vang: "Cảnh báo", xanh: "Đạt", xam: "Không áp dụng" } as const;
+export type MucKH = keyof typeof KY_HIEU;
+
+export function Dau({ muc, className }: { muc: MucKH; className?: string }) {
+  const s = {
+    do: "border-do/70 text-do-dam", vang: "border-vang/70 text-vang-dam",
+    xanh: "border-xanh/70 text-xanh-dam", xam: "border-steel-300 text-steel-400",
+  }[muc];
+  return (
+    <span title={NHAN_MUC[muc]} aria-label={NHAN_MUC[muc]}
+      className={cx("grid shrink-0 place-items-center rounded-full border bg-white font-bold leading-none",
+        s, className ?? "h-[17px] w-[17px] text-[10px]")}>
+      {KY_HIEU[muc]}
+    </span>
   );
 }
 
