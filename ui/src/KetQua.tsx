@@ -7,7 +7,7 @@ const MUC = { chua_san_sang: "do", can_ra_soat: "vang", san_sang: "xanh" } as co
 const mucDonVi = (d: DonVi) => MUC[khoaKL(d.muc_do_ket_luan)];
 
 /* ------------------------------ pill thống kê ----------------------------- */
-function Pill({ mau, nhan, so }: { mau: "do" | "vang" | "xanh"; nhan: string; so: number }) {
+function Pill({ mau, nhan, so, onClick }: { mau: "do" | "vang" | "xanh"; nhan: string; so: number; onClick?: () => void }) {
   const c = {
     do: "border-do-vien bg-do-nen text-do-dam",
     vang: "border-vang-vien bg-vang-nen text-vang-dam",
@@ -15,13 +15,44 @@ function Pill({ mau, nhan, so }: { mau: "do" | "vang" | "xanh"; nhan: string; so
   }[mau];
   const ic = { do: IC.x, vang: IC.warn, xanh: IC.check }[mau];
   return (
-    <div className={cx("flex items-center gap-2.5 rounded-xl border px-3.5 py-2", c)}>
+    <button type="button" onClick={onClick} disabled={!onClick}
+      className={cx("flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-left transition",
+        c, onClick && "cursor-pointer hover:brightness-95", !onClick && "cursor-default")}
+      title={onClick ? "Xem chi tiết ở tab Lỗi & cảnh báo" : undefined}>
       <Icon d={ic} className="h-4 w-4" />
       <div className="leading-none">
         <div className="text-[11px] font-semibold opacity-80">{nhan}</div>
         <div className="mt-1 text-xl font-extrabold tabular-nums">{fso(so)}</div>
       </div>
-    </div>
+    </button>
+  );
+}
+
+/* --------------------- khu mục theo mức độ (đỏ / vàng) -------------------- */
+function KhuMuc({ mau, tieuDe, ds, onCheck }: { mau: "do" | "vang"; tieuDe: string; ds: Check[]; onCheck: (c: Check) => void }) {
+  const s = mau === "do"
+    ? { vien: "border-do-vien", nen: "bg-do-nen", chu: "text-do-dam", dot: "bg-do", ic: IC.x }
+    : { vien: "border-vang-vien", nen: "bg-vang-nen", chu: "text-vang-dam", dot: "bg-vang", ic: IC.warn };
+  return (
+    <section className={cx("overflow-hidden rounded-xl border-2", s.vien)}>
+      <div className={cx("flex items-center gap-2 px-4 py-2.5", s.nen)}>
+        <Icon d={s.ic} className={cx("h-4 w-4", s.chu)} />
+        <span className={cx("text-[13.5px] font-extrabold uppercase tracking-wide", s.chu)}>{tieuDe}</span>
+        <span className={cx("ml-auto rounded-full bg-white/80 px-2.5 py-0.5 text-[12px] font-extrabold tabular-nums", s.chu)}>{ds.length}</span>
+      </div>
+      <div className="divide-y divide-steel-100 bg-white">
+        {ds.map((c) => (
+          <button key={c.ma} onClick={() => onCheck(c)}
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-steel-50">
+            <span className={cx("h-2.5 w-2.5 shrink-0 rounded-full", s.dot)} />
+            <span className="shrink-0 text-[12px] font-bold text-steel-400">{c.ma}</span>
+            <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{c.ten}{c.ghi_chu ? <span className="text-steel-400"> — {c.ghi_chu}</span> : null}</span>
+            <span className={cx("shrink-0 text-[12px] font-extrabold tabular-nums", s.chu)}>{fso(c.so_loi)}</span>
+            <Icon d={IC.chevR} className="h-4 w-4 shrink-0 text-steel-300" />
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -181,6 +212,12 @@ export default function ManKetQua(p: KetQuaProps) {
     () => [...kq.don_vi].sort((a, b) => ({ do: 0, vang: 1, xanh: 2 })[mucDonVi(a)] - ({ do: 0, vang: 1, xanh: 2 })[mucDonVi(b)]),
     [kq.don_vi],
   );
+  const dsLoi = useMemo(
+    () => kq.nhom.flatMap((n) => n.checks).filter((c) => !c.la_thong_ke && c.so_loi > 0),
+    [kq.nhom],
+  );
+  const dsDo = dsLoi.filter((c) => c.muc_do === "do");
+  const dsVang = dsLoi.filter((c) => c.muc_do === "vang");
   const demMuc = { do: 0, vang: 0, xanh: 0 };
   kq.don_vi.forEach((d) => (demMuc[mucDonVi(d)] += 1));
 
@@ -230,8 +267,8 @@ export default function ManKetQua(p: KetQuaProps) {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Pill mau="do" nhan="Nghiêm trọng" so={t.so_do} />
-              <Pill mau="vang" nhan="Cảnh báo" so={t.so_vang} />
+              <Pill mau="do" nhan="Nghiêm trọng" so={t.so_do} onClick={t.so_do > 0 ? () => setTab("loi") : undefined} />
+              <Pill mau="vang" nhan="Cảnh báo" so={t.so_vang} onClick={t.so_vang > 0 ? () => setTab("loi") : undefined} />
               <Pill mau="xanh" nhan="Đạt" so={dat} />
             </div>
             {/* Hành động chốt */}
@@ -274,10 +311,16 @@ export default function ManKetQua(p: KetQuaProps) {
         {/* Tabs + nội dung */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-steel-200 bg-white shadow-card">
           <div className="flex items-center gap-1 border-b border-steel-200 px-3">
-            {([["trangthai", `Trạng thái khóa sổ`], ["loi", "Lỗi & cảnh báo"]] as const).map(([k, ten]) => (
+            {(["trangthai", "loi"] as const).map((k) => (
               <button key={k} onClick={() => setTab(k)}
-                className={cx("relative px-4 py-3 text-[13.5px] font-semibold transition", tab === k ? "text-navy" : "text-steel-500 hover:text-ink")}>
-                {ten}
+                className={cx("relative flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-semibold transition", tab === k ? "text-navy" : "text-steel-500 hover:text-ink")}>
+                {k === "trangthai" ? "Trạng thái khóa sổ" : "Lỗi & cảnh báo"}
+                {k === "loi" && dsDo.length > 0 && (
+                  <span className="rounded-full bg-do-nen px-1.5 py-0.5 text-[11px] font-bold text-do-dam tabular-nums">{dsDo.length}</span>
+                )}
+                {k === "loi" && dsVang.length > 0 && (
+                  <span className="rounded-full bg-vang-nen px-1.5 py-0.5 text-[11px] font-bold text-vang-dam tabular-nums">{dsVang.length}</span>
+                )}
                 {tab === k && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-navy" />}
               </button>
             ))}
@@ -297,10 +340,31 @@ export default function ManKetQua(p: KetQuaProps) {
               </div>
             </>
           ) : (
-            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
-              {kq.nhom.map((n) => (
-                <TheNhom key={n.ma} n={n} onCheck={(c) => p.onXemChiTiet(c.ma, `${c.ma} · ${c.ten}`)} />
-              ))}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              {dsDo.length === 0 && dsVang.length === 0 && (
+                <div className="rounded-xl border-2 border-xanh-vien bg-xanh-nen px-4 py-6 text-center text-[13px] font-bold text-xanh-dam">
+                  Không có lỗi hay cảnh báo nào.
+                </div>
+              )}
+              {dsDo.length > 0 && (
+                <KhuMuc mau="do" tieuDe="Nghiêm trọng — phải xử lý" ds={dsDo}
+                  onCheck={(c) => p.onXemChiTiet(c.ma, `${c.ma} · ${c.ten}`)} />
+              )}
+              {dsVang.length > 0 && (
+                <KhuMuc mau="vang" tieuDe="Cảnh báo — nên rà soát" ds={dsVang}
+                  onCheck={(c) => p.onXemChiTiet(c.ma, `${c.ma} · ${c.ten}`)} />
+              )}
+              {/* Chi tiết đầy đủ theo nhóm (gồm mục thống kê & đã đạt) — thu gọn */}
+              <details className="overflow-hidden rounded-xl border border-steel-200">
+                <summary className="cursor-pointer select-none px-4 py-2.5 text-[13px] font-semibold text-steel-500 hover:bg-steel-50">
+                  Xem tất cả theo nhóm (gồm mục thống kê &amp; đã đạt)
+                </summary>
+                <div className="space-y-2.5 border-t border-steel-100 p-3">
+                  {kq.nhom.map((n) => (
+                    <TheNhom key={n.ma} n={n} onCheck={(c) => p.onXemChiTiet(c.ma, `${c.ma} · ${c.ten}`)} />
+                  ))}
+                </div>
+              </details>
             </div>
           )}
         </div>

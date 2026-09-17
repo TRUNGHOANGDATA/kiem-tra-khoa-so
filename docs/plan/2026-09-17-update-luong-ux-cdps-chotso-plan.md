@@ -30,10 +30,9 @@ Bốn việc người dùng nêu sau khi C7.6 (lỗ lũy kế) đã chạy đún
   mục, hiện kỳ/chi nhánh đã nhập), **Bước 2 — Bảng kê chứng từ**.
 - Sau khi nạp bảng kê: đối chiếu chi nhánh × kỳ với CĐPS đã có → hiện **✓ đã nhập / ⚠ thiếu**.
 
-**QUYẾT ĐỊNH CẦN CHỐT — mức "bắt buộc":**
-- (a) **Cứng:** chi nhánh thiếu CĐPS thì **không cho Kiểm tra** (chặn).
-- (b) **Mềm (đề xuất):** vẫn cho Kiểm tra, nhưng chi nhánh thiếu CĐPS bị **cảnh báo nổi bật**
-  và C7.6 mất khả năng trừ lỗ lũy kế (ghi chú rõ). Tránh kẹt khi chưa xuất kịp CĐPS.
+**Mức "bắt buộc" — ĐÃ CHỐT: CỨNG.** Chi nhánh nào thiếu CĐPS (đúng chi nhánh × kỳ) thì
+**không cho Kiểm tra/kết luận** chi nhánh đó cho tới khi nạp đủ. Nút Kiểm tra chặn + nêu rõ
+"còn N chi nhánh chưa có CĐPS: …". (Cần xuất đủ mỗi chi nhánh 1 file CĐPS trước khi kiểm.)
 
 ---
 
@@ -55,7 +54,7 @@ Bốn việc người dùng nêu sau khi C7.6 (lỗ lũy kế) đã chạy đún
 
 ---
 
-## Thứ tự đề xuất
+## Thứ tự — ĐÃ CHỐT: 1 → 4 → 3 → 2
 1. Việc 1 (UX lỗi/cảnh báo) — nhanh, giá trị ngay.
 2. Việc 4 (filter lịch sử) — nhỏ, độc lập.
 3. Việc 3 (màn xem CĐPS) — vừa, dùng lại dữ liệu đã có.
