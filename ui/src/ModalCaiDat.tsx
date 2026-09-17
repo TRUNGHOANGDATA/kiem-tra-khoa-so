@@ -16,6 +16,7 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
   const [ma, setMa] = useState<string[]>([]);              // các mã chi nhánh (gợi ý từ file + đã quy đổi)
   const [ten, setTen] = useState<Record<string, string>>({}); // mã -> tên hiển thị
   const [maMoi, setMaMoi] = useState("");                  // ô thêm mã thủ công
+  const [tab, setTab] = useState<"thu_muc" | "quy_doi">("thu_muc");
 
   useEffect(() => {
     if (!mo) return;
@@ -25,6 +26,7 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
       setMa(r.ma_goi_y ?? []);
       setTen({ ...(r.quy_doi ?? {}) });
       setMaMoi("");
+      setTab("thu_muc");
     });
   }, [mo, toast]);
 
@@ -55,68 +57,85 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
     dong(); toast("Đã lưu cài đặt");
   };
 
+  const TAB: [typeof tab, string][] = [["thu_muc", "Thư mục"], ["quy_doi", "Quy đổi chi nhánh"]];
+
   return (
     <Modal mo={mo} dong={dong} tieuDe="Cài đặt">
-      <div className="mt-2 max-h-[68vh] space-y-5 overflow-auto pr-1">
-        {/* Thư mục */}
-        <section className="space-y-3">
-          <h4 className="text-[12px] font-bold uppercase tracking-wide text-steel-400">Thư mục mặc định</h4>
-          <p className="-mt-1.5 text-[12.5px] text-steel-500">App đọc lại cấu hình mỗi lần dùng — lưu xong là có hiệu lực ngay.</p>
-          {HANG.map(([khoa, nhan]) => (
-            <div key={khoa}>
-              <label className="block text-[12px] font-semibold text-steel-500">{nhan}</label>
-              <div className="mt-1 flex gap-2">
-                <input value={gt[khoa]} onChange={(e) => setGt((g) => ({ ...g, [khoa]: e.target.value }))}
-                  className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
-                <Nut bien="phu" onClick={() => chon(khoa)}><Icon d={IC.thu_muc} className="h-4 w-4" />Chọn…</Nut>
-              </div>
-            </div>
-          ))}
-        </section>
+      {/* Thanh tab — mỗi mục một khu riêng, không dồn hết vào một trang cuộn dài */}
+      <div className="mt-1 flex gap-1 border-b border-steel-200">
+        {TAB.map(([k, nhan]) => (
+          <button key={k} type="button" onClick={() => setTab(k)}
+            className={
+              "-mb-px rounded-t-lg px-4 py-2 text-[13px] font-semibold transition " +
+              (tab === k
+                ? "border-b-2 border-navy text-navy"
+                : "border-b-2 border-transparent text-steel-400 hover:text-steel-600")
+            }>
+            {nhan}
+          </button>
+        ))}
+      </div>
 
-        {/* Quy đổi chi nhánh */}
-        <section className="space-y-2.5 border-t border-steel-200 pt-4">
-          <h4 className="text-[12px] font-bold uppercase tracking-wide text-steel-400">Quy đổi chi nhánh</h4>
-          <p className="-mt-1 text-[12.5px] text-steel-500">
-            Đặt tên dễ nhớ cho từng mã (A01 = “Nhà máy Hải Phòng”); bấm 🗑 để xóa một mã. Lưu vào kho SQLite.
-            Tên hiển thị khắp nơi và trong file Excel; <b>mã gốc vẫn là danh tính khi chốt sổ</b> nên đổi tên/xóa tên không ảnh hưởng đối chiếu kỳ cũ.
-          </p>
-
-          {ma.length === 0 && (
-            <p className="rounded-xl bg-steel-50 px-3 py-2.5 text-[12.5px] text-steel-500">
-              Chưa có mã nào. Nạp một file bảng kê để hiện sẵn danh sách mã, hoặc thêm mã thủ công bên dưới.
-            </p>
-          )}
-
-          <div className="space-y-2">
-            {ma.map((m) => (
-              <div key={m} className="flex items-center gap-2">
-                <span className="w-16 shrink-0 rounded-lg bg-steel-100 px-2 py-1.5 text-center text-[12.5px] font-bold text-steel-700">{m}</span>
-                <span className="shrink-0 text-steel-300">→</span>
-                <input
-                  value={ten[m] ?? ""}
-                  placeholder="Tên hiển thị…"
-                  onChange={(e) => setTen((t) => ({ ...t, [m]: e.target.value }))}
-                  className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
-                <button type="button" onClick={() => xoaMa(m)} title="Xóa mã này"
-                  className="shrink-0 rounded-lg p-2 text-steel-400 transition hover:bg-rose-50 hover:text-rose-500">
-                  <Icon d={IC.thung} className="h-4 w-4" />
-                </button>
+      <div className="mt-4 max-h-[60vh] overflow-auto pr-1">
+        {tab === "thu_muc" && (
+          <section className="space-y-3">
+            <p className="text-[12.5px] text-steel-500">App đọc lại cấu hình mỗi lần dùng — lưu xong là có hiệu lực ngay.</p>
+            {HANG.map(([khoa, nhan]) => (
+              <div key={khoa}>
+                <label className="block text-[12px] font-semibold text-steel-500">{nhan}</label>
+                <div className="mt-1 flex gap-2">
+                  <input value={gt[khoa]} onChange={(e) => setGt((g) => ({ ...g, [khoa]: e.target.value }))}
+                    className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+                  <Nut bien="phu" onClick={() => chon(khoa)}><Icon d={IC.thu_muc} className="h-4 w-4" />Chọn…</Nut>
+                </div>
               </div>
             ))}
-          </div>
+          </section>
+        )}
 
-          {/* Thêm mã thủ công */}
-          <div className="flex items-center gap-2 pt-0.5">
-            <input
-              value={maMoi}
-              placeholder="Thêm mã khác…"
-              onChange={(e) => setMaMoi(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), themMa())}
-              className="w-28 rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
-            <Nut bien="phu" onClick={themMa}>Thêm mã</Nut>
-          </div>
-        </section>
+        {tab === "quy_doi" && (
+          <section className="space-y-2.5">
+            <p className="text-[12.5px] text-steel-500">
+              Đặt tên dễ nhớ cho từng mã (A01 = “Nhà máy Hải Phòng”); bấm 🗑 để xóa một mã. Lưu vào kho SQLite.
+              Tên hiển thị khắp nơi và trong file Excel; <b>mã gốc vẫn là danh tính khi chốt sổ</b> nên đổi tên/xóa tên không ảnh hưởng đối chiếu kỳ cũ.
+            </p>
+
+            {ma.length === 0 && (
+              <p className="rounded-xl bg-steel-50 px-3 py-2.5 text-[12.5px] text-steel-500">
+                Chưa có mã nào. Nạp một file bảng kê để hiện sẵn danh sách mã, hoặc thêm mã thủ công bên dưới.
+              </p>
+            )}
+
+            <div className="space-y-2">
+              {ma.map((m) => (
+                <div key={m} className="flex items-center gap-2">
+                  <span className="w-16 shrink-0 rounded-lg bg-steel-100 px-2 py-1.5 text-center text-[12.5px] font-bold text-steel-700">{m}</span>
+                  <span className="shrink-0 text-steel-300">→</span>
+                  <input
+                    value={ten[m] ?? ""}
+                    placeholder="Tên hiển thị…"
+                    onChange={(e) => setTen((t) => ({ ...t, [m]: e.target.value }))}
+                    className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+                  <button type="button" onClick={() => xoaMa(m)} title="Xóa mã này"
+                    className="shrink-0 rounded-lg p-2 text-steel-400 transition hover:bg-rose-50 hover:text-rose-500">
+                    <Icon d={IC.thung} className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Thêm mã thủ công */}
+            <div className="flex items-center gap-2 pt-0.5">
+              <input
+                value={maMoi}
+                placeholder="Thêm mã khác…"
+                onChange={(e) => setMaMoi(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), themMa())}
+                className="w-28 rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+              <Nut bien="phu" onClick={themMa}>Thêm mã</Nut>
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="mt-5 flex justify-end gap-2 border-t border-steel-200 pt-3">
