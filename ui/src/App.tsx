@@ -170,7 +170,11 @@ function Noi() {
           )}
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* Ảnh nền phủ toàn vùng nội dung + lớp phủ trắng mờ cho dễ đọc */}
+          <div className="pointer-events-none absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${nen})` }} />
+          <div className="pointer-events-none absolute inset-0 bg-white/45" />
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
           {man === "tongquan" && (
             kq ? (
               <ManKetQua kq={kq} nhieu={nhieu}
@@ -185,11 +189,9 @@ function Noi() {
                 onKiemTraLai={kiemTra} onFileKhac={() => setMan("kiemtra")} />
             ) : (
               <div className="w-full flex-1 overflow-auto p-6">
-                {/* Hero — ảnh nền mờ, fade sang trắng phía chữ để dễ đọc */}
-                <section className="relative min-h-[240px] overflow-hidden rounded-2xl border border-steel-200 bg-white shadow-card">
-                  <div className="absolute inset-0 bg-cover bg-right" style={{ backgroundImage: `url(${nen})` }} />
-                  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-white/35" />
-                  <div className="relative z-10 max-w-[560px] p-8">
+                {/* Hero — chữ nổi trên ảnh nền của main */}
+                <section className="relative min-h-[150px] px-2 pt-2">
+                  <div className="relative z-10 max-w-[560px]">
                     <h1 className="text-[28px] font-extrabold text-ink">Xin chào! <span className="align-middle">👋</span></h1>
                     <p className="mt-2 max-w-[440px] text-[14px] font-medium leading-relaxed text-steel-700">
                       Cùng kiểm tra khóa sổ để đảm bảo dữ liệu chính xác và đầy đủ cho kỳ {ky}.
@@ -198,7 +200,7 @@ function Noi() {
                       <Icon d={IC.soKiemTra} className="h-4 w-4" />Bắt đầu kiểm tra khóa sổ
                     </Nut>
                   </div>
-                  <div className="pointer-events-none absolute right-6 top-6 z-10 hidden text-right text-[16px] font-semibold italic leading-snug text-navy/70 md:block">
+                  <div className="pointer-events-none absolute right-4 top-1 z-10 hidden text-right text-[16px] font-semibold italic leading-snug text-navy/70 md:block">
                     Kiểm tra hôm nay,<br />An tâm ngày mai
                   </div>
                 </section>
@@ -211,6 +213,7 @@ function Noi() {
           )}
           {man === "lichsu" && <ManLichSu onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
           {man === "candoi" && <ManCanDoi onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
+          </div>
         </main>
       </div>
 
