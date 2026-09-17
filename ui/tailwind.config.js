@@ -23,7 +23,7 @@ export default {
         xanh: { DEFAULT: "#1C8A5F", nen: "#ECF6F1", vien: "#B4DEC8", dam: "#0E5B3E" },
       },
       fontFamily: {
-        sans: ['Inter', '"Segoe UI"', "system-ui", "sans-serif"],
+        sans: ['"Segoe UI"', "system-ui", "Tahoma", "sans-serif"],
       },
       boxShadow: {
         soft: "0 1px 1px rgba(12,27,42,.05)",

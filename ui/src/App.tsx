@@ -9,53 +9,11 @@ import ModalChot from "./ModalChot";
 import ModalCaiDat from "./ModalCaiDat";
 import ManLichSu from "./LichSu";
 import ManCanDoi from "./CanDoi";
+import nen from "./assets/nen.png";
+import logo from "./assets/logo.png";
 
 type ManHinh = "tongquan" | "kiemtra" | "candoi" | "lichsu";
 type TienTrinh = { ten: string; pct: number } | null;
-
-const HUY_HIEU = (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7}
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M12 2.8 19.5 5.6V11.5c0 5-3.3 7.8-7.5 9.1-4.2-1.3-7.5-4.1-7.5-9.1V5.6Z" />
-    <line x1="7.2" y1="8.4" x2="16.8" y2="8.4" />
-    <line x1="7.2" y1="16.2" x2="16.8" y2="16.2" />
-    <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" />
-    <path d="M12 12.4 11.2 16h1.6Z" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-function HinhMinhHoa({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 320 160" className={className} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      {/* lá trang trí */}
-      <path d="M232 40c-14 2-24 12-26 26 14-2 24-12 26-26Z" fill="#1C8A5F" opacity="0.35" />
-      <path d="M250 30c-10 6-14 18-10 30 10-6 14-18 10-30Z" fill="#1C8A5F" opacity="0.25" />
-      {/* trang sổ sau */}
-      <rect x="150" y="44" width="118" height="100" rx="12" fill="#E1E4EA" />
-      {/* trang sổ chính */}
-      <g>
-        <path d="M170 34h74l24 24v78a10 10 0 0 1-10 10h-88a10 10 0 0 1-10-10V44a10 10 0 0 1 10-10Z" fill="#fff" stroke="#C6CDD8" strokeWidth="2" />
-        <path d="M244 34v24h24" fill="#EDEEF1" stroke="#C6CDD8" strokeWidth="2" strokeLinejoin="round" />
-        {/* dòng kẻ sổ */}
-        <g stroke="#C6CDD8" strokeWidth="3" strokeLinecap="round">
-          <line x1="182" y1="72" x2="256" y2="72" />
-          <line x1="182" y1="86" x2="256" y2="86" />
-          <line x1="182" y1="100" x2="238" y2="100" />
-          <line x1="182" y1="114" x2="248" y2="114" />
-        </g>
-        {/* dấu kẻ đồng thau */}
-        <line x1="182" y1="58" x2="214" y2="58" stroke="#B4842B" strokeWidth="4" strokeLinecap="round" />
-      </g>
-      {/* huy hiệu kiểm — vòng tròn xanh + check */}
-      <circle cx="244" cy="126" r="22" fill="#1C8A5F" />
-      <path d="M234 126l7 7 13-15" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      {/* kính lúp */}
-      <circle cx="120" cy="96" r="30" fill="#fff" stroke="#1B4B7A" strokeWidth="5" />
-      <circle cx="120" cy="96" r="30" fill="#1B4B7A" opacity="0.08" />
-      <line x1="142" y1="118" x2="162" y2="138" stroke="#1B4B7A" strokeWidth="8" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 const NAV: { id: ManHinh; nhan: string; icon: React.ReactNode }[] = [
   { id: "tongquan", nhan: "Tổng quan", icon: IC.home },
@@ -164,9 +122,7 @@ function Noi() {
       {/* ------------------------------- Sidebar ------------------------------- */}
       <aside className="flex w-[236px] shrink-0 flex-col bg-gradient-to-b from-muc-cao to-muc-tram text-white">
         <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brass-300 to-brass-600 text-muc-tram shadow-soft ring-1 ring-brass-300/40">
-            {HUY_HIEU}
-          </div>
+          <img src={logo} alt="Logo" className="h-11 w-11 shrink-0 rounded-xl object-cover shadow-soft ring-1 ring-white/15" />
           <div className="min-w-0">
             <div className="text-[14px] font-extrabold leading-tight">Kiểm tra<br />khóa sổ cuối kỳ</div>
             <div className="mt-0.5 text-[11px] text-steel-300">Doanh nghiệp sản xuất</div>
@@ -213,7 +169,8 @@ function Noi() {
           )}
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${nen})` }}>
           {man === "tongquan" && (
             kq ? (
               <ManKetQua kq={kq} nhieu={nhieu}
@@ -228,24 +185,22 @@ function Noi() {
                 onKiemTraLai={kiemTra} onFileKhac={() => setMan("kiemtra")} />
             ) : (
               <div className="w-full flex-1 overflow-auto p-6">
-                {/* Hero */}
-                <section className="relative overflow-hidden rounded-2xl border border-steel-200 bg-white p-7 shadow-card">
+                {/* Hero — chữ đặt thẳng trên ảnh nền */}
+                <section className="relative min-h-[196px] px-2 pt-3">
                   <div className="relative z-10 max-w-[600px]">
-                    <h1 className="text-[26px] font-extrabold text-ink">Xin chào! <span className="align-middle">👋</span></h1>
-                    <p className="mt-2 text-[14px] leading-relaxed text-steel-500">
+                    <h1 className="text-[28px] font-extrabold text-ink drop-shadow-sm">Xin chào! <span className="align-middle">👋</span></h1>
+                    <p className="mt-2 max-w-[440px] text-[14px] font-medium leading-relaxed text-steel-700">
                       Cùng kiểm tra khóa sổ để đảm bảo dữ liệu chính xác và đầy đủ cho kỳ {ky}.
                     </p>
                     <Nut bien="chinh" className="mt-5 px-6 py-3 text-[14px]" onClick={() => setMan("kiemtra")}>
                       <Icon d={IC.soKiemTra} className="h-4 w-4" />Bắt đầu kiểm tra khóa sổ
                     </Nut>
                   </div>
-                  <div className="pointer-events-none absolute right-7 top-6 hidden text-right text-[15px] font-semibold italic leading-snug text-navy/50 md:block" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                  <div className="pointer-events-none absolute right-4 top-2 hidden text-right text-[16px] font-semibold italic leading-snug text-navy/70 md:block">
                     Kiểm tra hôm nay,<br />An tâm ngày mai
                   </div>
-                  <HinhMinhHoa className="pointer-events-none absolute -bottom-4 right-6 hidden h-[150px] w-[320px] lg:block" />
-                  <span className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-navy/5" />
                 </section>
-                <div className="mt-5"><TheThongKe soDo={0} soVang={0} dat={0} soChiNhanh={soChiNhanh} /></div>
+                <div className="mt-3"><TheThongKe soDo={0} soVang={0} dat={0} soChiNhanh={soChiNhanh} /></div>
               </div>
             )
           )}
