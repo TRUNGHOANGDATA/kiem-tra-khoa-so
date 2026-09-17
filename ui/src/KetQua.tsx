@@ -6,25 +6,33 @@ import { cx, fso, Icon, IC, khoaKL, Nut } from "./ui";
 const MUC = { chua_san_sang: "do", can_ra_soat: "vang", san_sang: "xanh" } as const;
 const mucDonVi = (d: DonVi) => MUC[khoaKL(d.muc_do_ket_luan)];
 
-/* ------------------------------ pill thống kê ----------------------------- */
-function Pill({ mau, nhan, so, onClick }: { mau: "do" | "vang" | "xanh"; nhan: string; so: number; onClick?: () => void }) {
-  const c = {
-    do: "border-do-vien bg-do-nen text-do-dam",
-    vang: "border-vang-vien bg-vang-nen text-vang-dam",
-    xanh: "border-xanh-vien bg-xanh-nen text-xanh-dam",
-  }[mau];
-  const ic = { do: IC.x, vang: IC.warn, xanh: IC.check }[mau];
+/* --------------------------- 4 thẻ thống kê ------------------------------- */
+export function TheThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
+  { soDo: number; soVang: number; dat: number; soChiNhanh: number; onXemLoi?: () => void }) {
+  const cards = [
+    { ic: IC.x, nhan: "Nghiêm trọng", so: soDo, phu: "cần xử lý ngay", nen: "bg-do-nen", vien: "border-do-vien", ico: "bg-do/15 text-do", chu: "text-do-dam", nhay: true },
+    { ic: IC.warn, nhan: "Cảnh báo", so: soVang, phu: "cần kiểm tra thêm", nen: "bg-vang-nen", vien: "border-vang-vien", ico: "bg-vang/15 text-vang", chu: "text-vang-dam", nhay: true },
+    { ic: IC.check, nhan: "Đạt", so: dat, phu: "đã hoàn thành", nen: "bg-xanh-nen", vien: "border-xanh-vien", ico: "bg-xanh/15 text-xanh", chu: "text-xanh-dam", nhay: false },
+    { ic: IC.toanha, nhan: "Tổng chi nhánh", so: soChiNhanh, phu: "trong kỳ này", nen: "bg-navy/5", vien: "border-navy/15", ico: "bg-navy/12 text-navy", chu: "text-navy", nhay: false },
+  ];
   return (
-    <button type="button" onClick={onClick} disabled={!onClick}
-      className={cx("flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-left transition",
-        c, onClick && "cursor-pointer hover:brightness-95", !onClick && "cursor-default")}
-      title={onClick ? "Xem chi tiết ở tab Lỗi & cảnh báo" : undefined}>
-      <Icon d={ic} className="h-4 w-4" />
-      <div className="leading-none">
-        <div className="text-[11px] font-semibold opacity-80">{nhan}</div>
-        <div className="mt-1 text-xl font-extrabold tabular-nums">{fso(so)}</div>
-      </div>
-    </button>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {cards.map((c) => {
+        const bam = !!onXemLoi && c.nhay && c.so > 0;
+        return (
+          <button key={c.nhan} type="button" disabled={!bam} onClick={bam ? onXemLoi : undefined}
+            className={cx("rounded-2xl border p-4 text-left shadow-soft transition", c.nen, c.vien,
+              bam ? "cursor-pointer hover:shadow-card" : "cursor-default")}>
+            <div className="flex items-center gap-2.5">
+              <span className={cx("grid h-10 w-10 shrink-0 place-items-center rounded-full", c.ico)}><Icon d={c.ic} className="h-5 w-5" /></span>
+              <span className={cx("text-[13px] font-bold", c.chu)}>{c.nhan}</span>
+            </div>
+            <div className={cx("mt-2.5 text-[30px] font-extrabold leading-none tabular-nums", c.chu)}>{fso(c.so)}</div>
+            <div className="mt-1.5 text-[12px] text-steel-500">{c.phu}</div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -230,7 +238,12 @@ export default function ManKetQua(p: KetQuaProps) {
   const lech = daChot && chot.doi_chieu === "LECH";
 
   return (
-    <div className="mx-auto flex w-full max-w-[1240px] flex-1 gap-4 overflow-hidden p-4">
+    <div className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-4 overflow-hidden p-4">
+      {/* 4 thẻ thống kê — full width trên cùng (theo mockup dashboard) */}
+      <TheThongKe soDo={t.so_do} soVang={t.so_vang} dat={dat} soChiNhanh={kq.don_vi.length} onXemLoi={() => setTab("loi")} />
+
+      {/* Hàng: danh sách chi nhánh | khu chính */}
+      <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
       {/* Sidebar */}
       {p.nhieu && (
         <aside className="flex w-[260px] shrink-0 flex-col gap-3 overflow-hidden">
@@ -265,11 +278,6 @@ export default function ManKetQua(p: KetQuaProps) {
               <p className="mt-0.5 truncate text-[12.5px] text-steel-500">
                 {p.nhieu && <>Chi nhánh {t.chi_nhanh_ten || t.chi_nhanh}{t.chi_nhanh_ten && t.chi_nhanh_ten !== t.chi_nhanh ? ` (${t.chi_nhanh})` : ""} · </>}Kỳ {t.ky} · {t.ten} · <span className="tabular-nums">{fso(t.so_dong)}</span> dòng
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Pill mau="do" nhan="Nghiêm trọng" so={t.so_do} onClick={t.so_do > 0 ? () => setTab("loi") : undefined} />
-              <Pill mau="vang" nhan="Cảnh báo" so={t.so_vang} onClick={t.so_vang > 0 ? () => setTab("loi") : undefined} />
-              <Pill mau="xanh" nhan="Đạt" so={dat} />
             </div>
             {/* Hành động chốt */}
             {daChot ? (
@@ -377,6 +385,7 @@ export default function ManKetQua(p: KetQuaProps) {
           <Nut className="ml-auto" onClick={p.onFileKhac}><Icon d={IC.file} className="h-4 w-4" />Kiểm tra file khác</Nut>
         </footer>
       </main>
+      </div>
     </div>
   );
 }
