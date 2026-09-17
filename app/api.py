@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import cau_hinh, cdps, checks, chot_so, report
+from . import cau_hinh, cdps, chan_doan, checks, chot_so, report
 from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
@@ -749,6 +749,7 @@ class JsApi:
             "tomtat": {"ky": t.ky, "ten": t.ten, "so_dong": t.so_dong, "tong_ps": t.tong_ps,
                        "chi_nhanh": self._hien.nhan, "chi_nhanh_ten": self._ten(self._hien.nhan),
                        **ket_luan,
+                       "chan_doan": chan_doan.chan_doan(self._ket_qua),
                        "chot": self._trang_thai_chot(self._hien)},
             "trang_thai": [{"buoc": b.buoc, "trang_thai": b.trang_thai, "tom_tat": b.tom_tat,
                             "ma_check": b.ma_check, "co_chung_cu": b.co_chung_cu}

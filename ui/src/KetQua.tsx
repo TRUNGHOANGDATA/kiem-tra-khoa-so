@@ -316,6 +316,22 @@ export default function ManKetQua(p: KetQuaProps) {
           </section>
         )}
 
+        {/* Chẩn đoán: gộp nhiều cảnh báo cùng gốc thành một câu hành động. */}
+        {(t.chan_doan ?? []).map((c) => (
+          <section key={c.ma} className="rounded-xl border border-navy/25 bg-navy/5 px-4 py-3">
+            <div className="flex items-center gap-2 text-[13.5px] font-bold text-navy">
+              <Icon d={IC.warn} className="h-4 w-4 shrink-0" />
+              Chẩn đoán chung — {c.ma_check.length} cảnh báo cùng một nguyên nhân
+            </div>
+            <p className="mt-1 text-[13px] leading-snug text-ink">{c.thong_diep}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {c.ma_check.map((m) => (
+                <span key={m} className="rounded-md bg-white px-1.5 py-0.5 text-[11px] font-bold text-steel-500 ring-1 ring-steel-200">{m}</span>
+              ))}
+            </div>
+          </section>
+        ))}
+
         {/* Tabs + nội dung */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-steel-200 bg-white shadow-card">
           <div className="flex items-center gap-1 border-b border-steel-200 px-3">

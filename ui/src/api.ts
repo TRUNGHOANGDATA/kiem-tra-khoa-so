@@ -77,8 +77,11 @@ export interface TomTat {
   so_can_ra: number;
   con_viec: number;
   san_sang: boolean;
+  chan_doan?: ChanDoan[];
   chot: Chot;
 }
+/** Nhiều cảnh báo cùng một gốc, gộp thành một câu hành động. */
+export interface ChanDoan { ma: string; muc_do: MucDo; thong_diep: string; ma_check: string[]; }
 
 export interface KetQua {
   tomtat: TomTat;
