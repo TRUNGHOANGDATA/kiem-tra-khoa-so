@@ -49,6 +49,25 @@ def ten_cot(cot) -> list[str]:
     return [TEN_COT.get(c, c) for c in cot]
 
 
+def doi_bool(df: pd.DataFrame) -> pd.DataFrame:
+    """Đổi mọi cột lô-gic sang 'Có'/'Không' — người dùng là KẾ TOÁN, không đọc true/false.
+
+    Gọi ở ĐÚNG RANH GIỚI HIỂN THỊ (giao diện + Excel) chứ không ở từng check: check cứ
+    trả bool cho dễ viết/dễ test, chỗ nào đưa ra mắt người dùng thì dịch.
+    """
+    if df is None or df.empty:
+        return df
+    cot = [c for c in df.columns
+           if df[c].dtype == bool
+           or (df[c].dtype == object and df[c].map(lambda v: isinstance(v, bool)).all())]
+    if not cot:
+        return df
+    df = df.copy()
+    for c in cot:
+        df[c] = df[c].map(lambda v: "Có" if v else "Không")
+    return df
+
+
 @dataclass
 class BoiCanh:
     ky_thang: int

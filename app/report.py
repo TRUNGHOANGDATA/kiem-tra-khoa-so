@@ -8,7 +8,8 @@ from pathlib import Path
 import pandas as pd
 
 from .checks import TEN_NHOM
-from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, DO, VANG, XANH, CheckResult, fmt_so, ten_cot
+from .checks.base import (COT_SO_HIEN_THI, COT_SO_LE, DO, VANG, XANH, CheckResult, doi_bool,
+                          fmt_so, ten_cot)
 from .loader import ThongTinFile
 from .trang_thai import BuocKhoaSo, tinh_ket_luan
 
@@ -35,8 +36,7 @@ def _ghi_bang(writer, ten_sheet, df: pd.DataFrame, fmt, dong_dau=0):
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].dt.strftime("%d/%m/%Y")
-        elif pd.api.types.is_bool_dtype(df[c]):
-            df[c] = df[c].map({True: "Có", False: "Không"})
+    df = doi_bool(df)                          # "Có"/"Không" — xem app/checks/base.py
     df.columns = ten_cot(goc)
     df.to_excel(writer, sheet_name=ten_sheet, index=False, startrow=dong_dau)
     ws = writer.sheets[ten_sheet]

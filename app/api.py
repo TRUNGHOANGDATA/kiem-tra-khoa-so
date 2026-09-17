@@ -12,7 +12,8 @@ from pathlib import Path
 import pandas as pd
 
 from . import cau_hinh, cdps, checks, chot_so, report
-from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, ten_cot
+from .checks.base import (COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult,
+                          doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
@@ -21,12 +22,16 @@ GOC = Path(__file__).resolve().parents[1]
 
 
 def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
-    """Đổi cột ngày sang dd/mm/yyyy — dùng chung cho cả tìm kiếm và hiển thị."""
+    """Chuẩn hoá bảng trước khi cho người dùng xem: ngày dd/mm/yyyy, lô-gic Có/Không.
+
+    Một chỗ duy nhất cho mọi bảng chứng minh — tìm kiếm cũng chạy trên bản đã đổi nên
+    gõ "Có" tìm được đúng dòng.
+    """
     df = df.copy()
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].dt.strftime("%d/%m/%Y")
-    return df
+    return doi_bool(df)
 
 
 def _dinh_dang_so(n: int) -> str:

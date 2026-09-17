@@ -190,6 +190,19 @@ def test_moi_cot_cac_check_sinh_ra_deu_co_nhan_tieng_viet(tmp_path):
     assert thieu == {}, f"cột chưa có trong TEN_COT: {thieu}"
 
 
+def test_khong_con_true_false_trong_bang_chi_tiet(tmp_path):
+    """Người dùng là KẾ TOÁN: bảng chứng minh phải đọc 'Có/Không', không phải true/false."""
+    api = JsApi()
+    api.chay_kiem_tra(_xlsx(tmp_path))
+    xau = {}
+    for ma in api._kq:
+        for dong in api.lay_chi_tiet(ma)["dong"]:
+            for cot, gt in dong.items():
+                if isinstance(gt, bool):
+                    xau.setdefault(ma, set()).add(cot)
+    assert xau == {}, f"còn cột boolean lọt ra giao diện: {xau}"
+
+
 def test_lay_chi_tiet_tu_phuc_hoi_khi_kq_bi_xoa(tmp_path):
     """B1: _kq có thể bị xóa (nạp file khác) trong khi màn hình vẫn hiển thị kết quả
     cũ — lay_chi_tiet phải tự chạy lại kiểm tra từ self._df thay vì báo lỗi mã nội bộ."""
