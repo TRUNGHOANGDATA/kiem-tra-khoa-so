@@ -238,7 +238,7 @@ export default function ManKetQua(p: KetQuaProps) {
   const lech = daChot && chot.doi_chieu === "LECH";
 
   return (
-    <div className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-4 overflow-hidden p-4">
+    <div className="flex w-full flex-1 flex-col gap-4 overflow-hidden p-5">
       {/* 4 thẻ thống kê — full width trên cùng (theo mockup dashboard) */}
       <TheThongKe soDo={t.so_do} soVang={t.so_vang} dat={dat} soChiNhanh={kq.don_vi.length} onXemLoi={() => setTab("loi")} />
 

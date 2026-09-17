@@ -24,6 +24,39 @@ const HUY_HIEU = (
   </svg>
 );
 
+function HinhMinhHoa({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 320 160" className={className} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      {/* lá trang trí */}
+      <path d="M232 40c-14 2-24 12-26 26 14-2 24-12 26-26Z" fill="#1C8A5F" opacity="0.35" />
+      <path d="M250 30c-10 6-14 18-10 30 10-6 14-18 10-30Z" fill="#1C8A5F" opacity="0.25" />
+      {/* trang sổ sau */}
+      <rect x="150" y="44" width="118" height="100" rx="12" fill="#E1E4EA" />
+      {/* trang sổ chính */}
+      <g>
+        <path d="M170 34h74l24 24v78a10 10 0 0 1-10 10h-88a10 10 0 0 1-10-10V44a10 10 0 0 1 10-10Z" fill="#fff" stroke="#C6CDD8" strokeWidth="2" />
+        <path d="M244 34v24h24" fill="#EDEEF1" stroke="#C6CDD8" strokeWidth="2" strokeLinejoin="round" />
+        {/* dòng kẻ sổ */}
+        <g stroke="#C6CDD8" strokeWidth="3" strokeLinecap="round">
+          <line x1="182" y1="72" x2="256" y2="72" />
+          <line x1="182" y1="86" x2="256" y2="86" />
+          <line x1="182" y1="100" x2="238" y2="100" />
+          <line x1="182" y1="114" x2="248" y2="114" />
+        </g>
+        {/* dấu kẻ đồng thau */}
+        <line x1="182" y1="58" x2="214" y2="58" stroke="#B4842B" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      {/* huy hiệu kiểm — vòng tròn xanh + check */}
+      <circle cx="244" cy="126" r="22" fill="#1C8A5F" />
+      <path d="M234 126l7 7 13-15" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      {/* kính lúp */}
+      <circle cx="120" cy="96" r="30" fill="#fff" stroke="#1B4B7A" strokeWidth="5" />
+      <circle cx="120" cy="96" r="30" fill="#1B4B7A" opacity="0.08" />
+      <line x1="142" y1="118" x2="162" y2="138" stroke="#1B4B7A" strokeWidth="8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const NAV: { id: ManHinh; nhan: string; icon: React.ReactNode }[] = [
   { id: "tongquan", nhan: "Tổng quan", icon: IC.home },
   { id: "kiemtra", nhan: "Kiểm tra khóa sổ", icon: IC.soKiemTra },
@@ -194,17 +227,25 @@ function Noi() {
                 onXuat={xuat} onXuatTongHop={xuatTongHop}
                 onKiemTraLai={kiemTra} onFileKhac={() => setMan("kiemtra")} />
             ) : (
-              <div className="mx-auto w-full max-w-[1240px] overflow-auto p-6">
-                <div className="rounded-2xl border border-steel-200 bg-white p-6 shadow-card">
-                  <h1 className="text-[22px] font-extrabold text-ink">Xin chào! 👋</h1>
-                  <p className="mt-1 text-[13.5px] text-steel-500">Cùng kiểm tra khóa sổ để đảm bảo dữ liệu chính xác và đầy đủ cho kỳ {ky}.</p>
-                </div>
+              <div className="w-full flex-1 overflow-auto p-6">
+                {/* Hero */}
+                <section className="relative overflow-hidden rounded-2xl border border-steel-200 bg-white p-7 shadow-card">
+                  <div className="relative z-10 max-w-[600px]">
+                    <h1 className="text-[26px] font-extrabold text-ink">Xin chào! <span className="align-middle">👋</span></h1>
+                    <p className="mt-2 text-[14px] leading-relaxed text-steel-500">
+                      Cùng kiểm tra khóa sổ để đảm bảo dữ liệu chính xác và đầy đủ cho kỳ {ky}.
+                    </p>
+                    <Nut bien="chinh" className="mt-5 px-6 py-3 text-[14px]" onClick={() => setMan("kiemtra")}>
+                      <Icon d={IC.soKiemTra} className="h-4 w-4" />Bắt đầu kiểm tra khóa sổ
+                    </Nut>
+                  </div>
+                  <div className="pointer-events-none absolute right-7 top-6 hidden text-right text-[15px] font-semibold italic leading-snug text-navy/50 md:block" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                    Kiểm tra hôm nay,<br />An tâm ngày mai
+                  </div>
+                  <HinhMinhHoa className="pointer-events-none absolute -bottom-4 right-6 hidden h-[150px] w-[320px] lg:block" />
+                  <span className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-navy/5" />
+                </section>
                 <div className="mt-5"><TheThongKe soDo={0} soVang={0} dat={0} soChiNhanh={soChiNhanh} /></div>
-                <div className="mt-6 flex justify-center">
-                  <Nut bien="chinh" className="px-6 py-3 text-[14px]" onClick={() => setMan("kiemtra")}>
-                    <Icon d={IC.soKiemTra} className="h-4 w-4" />Bắt đầu kiểm tra khóa sổ
-                  </Nut>
-                </div>
               </div>
             )
           )}

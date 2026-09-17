@@ -48,7 +48,7 @@ export default function ManLichSu({ onQuayLai }: { onQuayLai: () => void }) {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-4 overflow-hidden p-4">
+    <div className="flex w-full flex-1 flex-col gap-4 overflow-hidden p-5">
       <div className="flex items-center gap-3">
         <h2 className="text-[18px] font-extrabold text-ink">Lịch sử chốt sổ</h2>
         <Nut bien="phu" className="ml-auto" onClick={onQuayLai}><Icon d={IC.chevL} className="h-4 w-4" />Quay lại</Nut>
