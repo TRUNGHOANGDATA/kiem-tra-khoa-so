@@ -1,0 +1,62 @@
+"""api: nạp CĐPS theo thư mục, trạng thái đã nhập, và bơm lỗ lũy kế vào ctx (C7.6)."""
+from types import SimpleNamespace
+
+import pandas as pd
+
+from app.api import JsApi
+
+COT = ["Account", "AccountName", "DebitBal1", "CreditBal1", "DebitAmount",
+       "CreditAmount", "DebitBal2", "CreditBal2", "IsGroup", "Level"]
+
+
+def _viet(p, rows):
+    pd.DataFrame(rows, columns=COT).to_excel(p, sheet_name="Table1", index=False)
+
+
+def _nguon(tmp_path, rows, ten="A08 082026 CDPS.xlsx"):
+    src = tmp_path / "1. Source"
+    src.mkdir(exist_ok=True)
+    _viet(src / ten, rows)
+    return src
+
+
+def test_nap_cdps_thu_muc_va_trang_thai(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nguon(tmp_path, [
+        ["421", "LN", "2981950998", "0", "0", "1571960518", "1409990480", "0", "True", "0"],
+        ["4212", "LN", "2981950998", "0", "0", "1571960518", "1409990480", "0", "False", "1"],
+    ])
+    api = JsApi()
+    r = api.nap_cdps_thu_muc()
+    assert any(x["chi_nhanh"] == "A08" for x in r["nap"])
+    ts = api.trang_thai_cdps()
+    assert any(x["chi_nhanh"] == "A08" and x["ky"] == "08/2026" for x in ts)
+
+
+def test_nap_cdps_bo_qua_file_khong_dung_quy_uoc(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    src = _nguon(tmp_path, [["911", "x", "0", "0", "0", "0", "0", "0", "False", "0"]],
+                 ten="A08 082026 CDPS.xlsx")
+    _viet(src / "Bang ke chung tu 082026 A00.xlsx", [["911", "x", "0", "0", "0", "0", "0", "0", "False", "0"]])
+    api = JsApi()
+    r = api.nap_cdps_thu_muc()
+    assert [x["chi_nhanh"] for x in r["nap"]] == ["A08"]
+    assert "Bang ke chung tu 082026 A00.xlsx" in r["bo_qua"]
+
+
+def test_lo_luy_ke_dau_bom_dung(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nguon(tmp_path, [["4212", "LN", "2981950998", "0", "0", "1571960518", "1409990480", "0", "False", "1"]])
+    api = JsApi()
+    api.nap_cdps_thu_muc()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._lo_luy_ke_dau(d) == 2981950998.0
+    d2 = SimpleNamespace(nhan="A07", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._lo_luy_ke_dau(d2) is None      # chi nhánh chưa nhập -> None
+
+
+def test_lo_luy_ke_dau_none_khi_chua_co_kho(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._lo_luy_ke_dau(d) is None       # chưa có kho -> None, không tạo kho thừa

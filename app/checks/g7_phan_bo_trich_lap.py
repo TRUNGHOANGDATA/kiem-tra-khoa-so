@@ -93,13 +93,22 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     # (Nợ 421/Có 911); nếu net là LỖ thì không phát sinh 8211 là đúng, không cảnh báo.
     kc_lai = loc_dong(df, no=("911",), co=("421",))["Amount"].sum()   # kết chuyển lãi
     kc_lo = loc_dong(df, no=("421",), co=("911",))["Amount"].sum()    # kết chuyển lỗ
-    co_lai = float(kc_lai) > float(kc_lo)                             # net lãi cả kỳ
+    lai_ky = float(kc_lai) - float(kc_lo)                             # net lãi kỳ (âm = lỗ kỳ)
     no_821, _ = phat_sinh_theo_prefix(df, "821")
+    # Có CĐPS thì trừ lỗ lũy kế đầu kỳ (421x): chỉ đòi 8211 khi còn thu nhập tính thuế.
+    # Chưa nhập CĐPS (None) thì giữ hành vi cũ (đòi khi kỳ có lãi) + nhắc nạp CĐPS.
+    lo_luy_ke = getattr(ctx, "lo_luy_ke_dau", None)
+    if lo_luy_ke is None:
+        con_thue = lai_ky > 0
+        gc = "Chưa có CĐPS: chưa trừ được lỗ lũy kế — nạp CĐPS để loại trừ chính xác"
+    else:
+        con_thue = lai_ky > max(0.0, float(lo_luy_ke))
+        gc = "Đã trừ lỗ lũy kế đầu kỳ (421) từ CĐPS"
     kq.append(_canh_bao("C7.6", "Chưa trích/kết chuyển chi phí thuế TNDN",
-                        co_lai and no_821 == 0,
+                        con_thue and no_821 == 0,
                         "KQKD có lãi (911 → 421) nhưng không thấy phát sinh 8211"
                         " — kiểm tra thuế TNDN tạm tính",
-                        ghi_chu="Chỉ xét khi kỳ có kết chuyển lãi"))
+                        ghi_chu=gc))
 
     # --- C7.7: thống kê dự phòng 229 ---
     kq.append(_thong_ke_ps("C7.7", "Dự phòng tổn thất tài sản (229)", "229", df))

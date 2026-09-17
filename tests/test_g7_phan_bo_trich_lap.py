@@ -6,6 +6,7 @@ DN quên khấu hao/phân bổ/lương — nên các check đó là CHECKLIST (l
 kéo kết luận khóa sổ. Chỉ C7.5/C7.6 là cảnh báo thật vì bằng chứng nằm ngay trong file.
 """
 from app.checks import g7_phan_bo_trich_lap as g7
+from app.checks.base import BoiCanh
 from tests.conftest import tao_df
 
 
@@ -118,6 +119,26 @@ def test_c76_net_lai_van_canh_bao_khi_thieu_8211(ctx):
         {"DebitAccount": "911", "CreditAccount": "4212", "Amount": 100},   # lãi lớn hơn -> net lãi
     ])
     assert _kq(net_lai, ctx)["C7.6"].so_loi == 1
+
+
+# ------------------------------------------------ C7.6 khi ĐÃ nhập CĐPS (lỗ lũy kế)
+_LAI = [{"DebitAccount": "911", "CreditAccount": "4212", "Amount": 1_571_960_518}]
+
+
+def test_c76_cdps_lo_luy_ke_lon_hon_lai_thi_im():
+    # A08: lãi kỳ 1,57 tỷ < lỗ lũy kế đầu kỳ 2,98 tỷ -> sau bù lỗ = 0 thuế -> KHÔNG báo.
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, lo_luy_ke_dau=2_981_950_998)
+    assert _kq(tao_df(_LAI), ctx)["C7.6"].so_loi == 0
+
+
+def test_c76_cdps_lai_lon_hon_lo_luy_ke_van_bao():
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, lo_luy_ke_dau=100)
+    assert _kq(tao_df(_LAI), ctx)["C7.6"].so_loi == 1
+
+
+def test_c76_cdps_khong_co_lo_luy_ke_van_bao():
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, lo_luy_ke_dau=0.0)
+    assert _kq(tao_df(_LAI), ctx)["C7.6"].so_loi == 1
 
 
 def test_du_7_ma(ctx):

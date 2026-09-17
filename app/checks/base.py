@@ -53,6 +53,9 @@ def ten_cot(cot) -> list[str]:
 class BoiCanh:
     ky_thang: int
     ky_nam: int
+    # Lỗ lũy kế đầu kỳ (dư đầu Nợ − Có của 421x) từ CĐPS; None = CHƯA nhập CĐPS.
+    # Dương = có lỗ lũy kế; dùng ở C7.6 để chỉ đòi 8211 khi lãi kỳ > lỗ lũy kế.
+    lo_luy_ke_dau: float | None = None
 
 
 @dataclass

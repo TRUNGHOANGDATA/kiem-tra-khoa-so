@@ -1,7 +1,74 @@
 /** Màn 1 — chọn/quét file bảng kê, xem thẻ file + cảnh báo ngoài kỳ, bấm Kiểm tra. */
-import { useState } from "react";
-import type { ThongTinNap } from "./api";
-import { cx, fso, Icon, IC, Nut } from "./ui";
+import { useCallback, useEffect, useState } from "react";
+import * as A from "./api";
+import { laLoi, type ThongTinNap } from "./api";
+import { cx, fso, Icon, IC, Nut, useToast } from "./ui";
+
+interface TrangThaiCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; thoi_diem_nap?: string }
+
+/** Khu nạp CĐPS: nút nạp theo thư mục + trạng thái đã/chưa nhập theo chi nhánh của kỳ đang nạp. */
+function KhuCdps({ nap }: { nap?: ThongTinNap }) {
+  const toast = useToast();
+  const [ts, setTs] = useState<TrangThaiCdps[]>([]);
+  const [dangNap, setDangNap] = useState(false);
+
+  const tai = useCallback(async () => {
+    const r = await A.goi("trang_thai_cdps");
+    if (Array.isArray(r)) setTs(r as TrangThaiCdps[]);
+  }, []);
+  useEffect(() => { tai(); }, [tai]);
+
+  const napCdps = async () => {
+    setDangNap(true);
+    const r = await A.goi("nap_cdps_thu_muc");
+    setDangNap(false);
+    if (laLoi(r)) { toast(r.loi); return; }
+    const n = (r.nap as unknown[])?.length ?? 0;
+    toast(n ? `Đã nạp CĐPS: ${n} file` : "Không thấy file CĐPS đúng quy ước trong thư mục nguồn");
+    tai();
+  };
+
+  const daNhap = new Set(ts.map((t) => `${t.chi_nhanh}|${t.ky}`));
+  const dv = nap?.don_vi ?? [];
+  const ky = nap?.ky ?? "";
+
+  return (
+    <section className="flex flex-col gap-2.5 rounded-2xl border border-steel-200 bg-white p-4 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-steel-100 text-navy"><Icon d={IC.bar} className="h-5 w-5" /></span>
+          <div>
+            <div className="text-[13px] font-bold text-ink">Cân đối số phát sinh (CĐPS)</div>
+            <div className="text-[12px] text-steel-500">Nạp để C7.6 trừ lỗ lũy kế đầu kỳ. Mỗi chi nhánh 1 file, đặt tên “A08 082026 …”.</div>
+          </div>
+        </div>
+        <Nut bien="phu" onClick={napCdps} disabled={dangNap} title="Nạp mọi file CĐPS trong thư mục nguồn">
+          <Icon d={IC.thu_muc} className="h-4 w-4" />{dangNap ? "Đang nạp…" : "Nạp CĐPS (thư mục)"}
+        </Nut>
+      </div>
+
+      {dv.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {dv.map((d) => {
+            const co = daNhap.has(`${d.ma}|${ky}`);
+            return (
+              <span key={d.ma}
+                className={cx("inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold",
+                  co ? "bg-xanh-nen text-xanh-dam" : "bg-vang-nen text-vang-dam")}>
+                <Icon d={co ? IC.checkNho : IC.warn} className="h-3.5 w-3.5" />
+                {d.ten_hien || d.ma} · {co ? "đã nhập" : "chưa"}
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-[12px] text-steel-500">
+          {ts.length ? `Đã có CĐPS cho ${ts.length} kỳ/chi nhánh trong kho.` : "Chưa nhập CĐPS nào."}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export interface ChonFileProps {
   nap?: ThongTinNap;
@@ -90,6 +157,9 @@ export default function ManChonFile(p: ChonFileProps) {
         {nap?.loi && (
           <div className="rounded-xl border border-do-vien bg-do-nen px-4 py-3 text-[13px] font-medium text-do-dam">{nap.loi}</div>
         )}
+
+        {/* Khu CĐPS */}
+        <KhuCdps nap={nap} />
 
         {/* Nút kiểm tra */}
         <Nut bien="chinh" disabled={!nap || !!nap.loi || dangChay} onClick={p.onKiemTra} className="py-3.5 text-[15px]">
