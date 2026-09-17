@@ -11,9 +11,9 @@ TEN_FIXTURE = ["df_rong", "df_tk_null", "df_description_nan"]
 def test_pipeline_chay_duoc_tren_moi_hinh_dang(ten, ctx, request):
     df = request.getfixturevalue(ten)
     kq = checks.chay_tat_ca(df, ctx)
-    assert len(kq) == 40
+    assert len(kq) == 52
     ds = tt.suy_trang_thai(df, {r.ma: r for r in kq})
-    assert len(ds) == 16
+    assert len(ds) == 18
     kl = tt.tinh_ket_luan(kq, ds)
     assert kl["muc_do_ket_luan"] in (tt.SAN_SANG, tt.CAN_RA_SOAT, tt.CHUA_SAN_SANG)
 
@@ -32,7 +32,7 @@ def test_frame_rong_thi_ca_11_buoc_deu_khong_ap_dung(df_rong, ctx):
     """
     kq = {r.ma: r for r in checks.chay_tat_ca(df_rong, ctx)}
     ds = tt.suy_trang_thai(df_rong, kq)
-    assert [b.trang_thai for b in ds] == [tt.KHONG_AP_DUNG] * 16
+    assert [b.trang_thai for b in ds] == [tt.KHONG_AP_DUNG] * 18
 
 
 def test_tk_toan_null_chi_trip_check_vang(df_tk_null, ctx):

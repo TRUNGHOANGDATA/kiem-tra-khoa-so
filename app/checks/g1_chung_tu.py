@@ -27,8 +27,11 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
 
     keys = ["DocNo", "DebitAccount", "CreditAccount", "Amount", "Description"]
     trung = df.duplicated(subset=keys, keep=False)
-    kq.append(tao_ket_qua(df[trung].sort_values(keys), "C1.3", "Nghi trùng bút toán", NHOM, VANG,
-                          "Trùng số CT + TK Nợ/Có + số tiền + diễn giải"))
+    r13 = tao_ket_qua(df[trung].sort_values(keys), "C1.3", "Nghi trùng bút toán", NHOM, VANG,
+                      "Trùng số CT + TK Nợ/Có + số tiền + diễn giải — bút toán lặp trong cùng"
+                      " chứng từ là bình thường; chỉ để soát, không kéo kết luận")
+    r13.la_thong_ke = True
+    kq.append(r13)
 
     # Chứng từ điều chuyển nội bộ (kho ↔ kho, ngân hàng ↔ ngân hàng) vốn dĩ cùng TK trên
     # sổ cái — phân biệt nằm ở cột chiều/kho, nên loại trừ để không báo động giả.
@@ -39,10 +42,18 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                           f"Định khoản cùng một tài khoản (không tính chứng từ điều chuyển"
                           f" {'/'.join(DOC_DIEU_CHUYEN)})", ghi_chu=GHI_CHU_C14))
 
-    kq.append(tao_ket_qua(df[df["Amount"] <= 0], "C1.5", "Số tiền ≤ 0", NHOM, DO,
-                          "Số tiền bằng 0 hoặc âm"))
+    # Số tiền = 0 là dòng định khoản không có giá trị -> ĐỎ. Số âm KHÔNG tính ở đây:
+    # trong Bravo, Amount < 0 thường là bút toán điều chỉnh/kiểm kê hợp lệ (xem C1.7).
+    kq.append(tao_ket_qua(df[df["Amount"] == 0], "C1.5", "Số tiền = 0", NHOM, DO,
+                          "Số tiền bằng 0 — dòng định khoản không có giá trị"))
 
     thieu = _trong(df["DocNo"]) | df["DocDate"].isna()
     kq.append(tao_ket_qua(df[thieu], "C1.6", "Thiếu số chứng từ / ngày", NHOM, DO,
                           "Thiếu DocNo hoặc DocDate"))
+
+    # Số tiền âm — điều chỉnh/kiểm kê hợp lệ; chỉ THỐNG KÊ để soát, không kéo kết luận.
+    am = tao_ket_qua(df[df["Amount"] < 0], "C1.7", "Số tiền âm (điều chỉnh/kiểm kê)", NHOM, VANG,
+                     "Số tiền âm — thường là bút toán điều chỉnh/kiểm kê; chỉ để soát, không chặn khóa sổ")
+    am.la_thong_ke = True
+    kq.append(am)
     return kq

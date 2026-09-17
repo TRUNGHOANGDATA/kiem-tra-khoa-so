@@ -1,0 +1,112 @@
+"""api: nạp CĐPS theo thư mục, trạng thái đã nhập, và bơm lỗ lũy kế vào ctx (C7.6)."""
+from types import SimpleNamespace
+
+import pandas as pd
+
+from app.api import JsApi
+
+COT = ["Account", "AccountName", "DebitBal1", "CreditBal1", "DebitAmount",
+       "CreditAmount", "DebitBal2", "CreditBal2", "IsGroup", "Level"]
+
+
+def _viet(p, rows):
+    pd.DataFrame(rows, columns=COT).to_excel(p, sheet_name="Table1", index=False)
+
+
+def _nguon(tmp_path, rows, ten="A08 082026 CDPS.xlsx"):
+    src = tmp_path / "1. Source"
+    src.mkdir(exist_ok=True)
+    _viet(src / ten, rows)
+    return src
+
+
+def test_nap_cdps_thu_muc_va_trang_thai(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nguon(tmp_path, [
+        ["421", "LN", "2981950998", "0", "0", "1571960518", "1409990480", "0", "True", "0"],
+        ["4212", "LN", "2981950998", "0", "0", "1571960518", "1409990480", "0", "False", "1"],
+    ])
+    api = JsApi()
+    r = api.nap_cdps_thu_muc()
+    assert any(x["chi_nhanh"] == "A08" for x in r["nap"])
+    ts = api.trang_thai_cdps()
+    assert any(x["chi_nhanh"] == "A08" and x["ky"] == "08/2026" for x in ts)
+
+
+def test_nap_cdps_bo_qua_file_khong_dung_quy_uoc(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    src = _nguon(tmp_path, [["911", "x", "0", "0", "0", "0", "0", "0", "False", "0"]],
+                 ten="A08 082026 CDPS.xlsx")
+    _viet(src / "Bang ke chung tu 082026 A00.xlsx", [["911", "x", "0", "0", "0", "0", "0", "0", "False", "0"]])
+    api = JsApi()
+    r = api.nap_cdps_thu_muc()
+    assert [x["chi_nhanh"] for x in r["nap"]] == ["A08"]
+    assert "Bang ke chung tu 082026 A00.xlsx" in r["bo_qua"]
+
+
+def test_lo_luy_ke_dau_bom_dung(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nguon(tmp_path, [["4212", "LN", "2981950998", "0", "0", "1571960518", "1409990480", "0", "False", "1"]])
+    api = JsApi()
+    api.nap_cdps_thu_muc()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._lo_luy_ke_dau(d) == 2981950998.0
+    d2 = SimpleNamespace(nhan="A07", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._lo_luy_ke_dau(d2) is None      # chi nhánh chưa nhập -> None
+
+
+def test_lo_luy_ke_dau_none_khi_chua_co_kho(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._lo_luy_ke_dau(d) is None       # chưa có kho -> None, không tạo kho thừa
+
+
+def test_thieu_cdps_liet_ke_chi_nhanh_chua_co(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    bk = tmp_path / "bk.xlsx"
+    pd.DataFrame([{"DocNo": "A", "DocDate": "2026-08-01", "DebitAccount": "6214",
+                   "CreditAccount": "1521", "Amount": 100}]).to_excel(bk, sheet_name="Table1", index=False)
+    api._nap_nhieu([str(bk)])
+    cn = api._dv[0].nhan
+    assert [x["chi_nhanh"] for x in api.thieu_cdps()] == [cn]   # chưa có CĐPS -> thiếu
+    kho = api._kho()
+    df = pd.DataFrame([["4212", "LN", 0, 0, 0, 0, 0, 0, False, 1]],
+                      columns=["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+                               "du_cuoi_no", "du_cuoi_co", "is_group", "level"])
+    kho.luu_cdps(cn, 2026, 8, df)
+    kho.dong()
+    assert api.thieu_cdps() == []                                # đã đủ CĐPS -> không thiếu
+
+
+def test_cdps_cua_bom_vao_ctx(tmp_path, monkeypatch):
+    """G9/G10/C7 cần cả bảng CĐPS, không chỉ lỗ lũy kế."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._cdps_cua(d) is None                      # chưa có kho -> None
+    kho = api._kho()
+    df = pd.DataFrame([["1111", "Tiền mặt", 0, 0, 0, 0, 500, 0, False, 1]],
+                      columns=["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+                               "du_cuoi_no", "du_cuoi_co", "is_group", "level"])
+    kho.luu_cdps("A08", 2026, 8, df)
+    kho.dong()
+    got = api._cdps_cua(d)
+    assert got is not None and got["account"].tolist() == ["1111"]
+    assert api._cdps_cua(SimpleNamespace(nhan="A07", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))) is None
+
+
+def test_chi_tiet_cdps(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    kho = api._kho()
+    df = pd.DataFrame([["4212", "LN", 2981950998, 0, 0, 1571960518, 1409990480, 0, False, 1]],
+                      columns=["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+                               "du_cuoi_no", "du_cuoi_co", "is_group", "level"])
+    kho.luu_cdps("A08", 2026, 8, df)
+    kho.dong()
+    r = api.chi_tiet_cdps("A08", 2026, 8)
+    assert len(r["dong"]) == 1 and r["dong"][0]["account"] == "4212"
+    assert r["dong"][0]["du_dau_no"] == 2981950998.0
+    assert api.chi_tiet_cdps("A08", 2026, 9)["dong"] == []       # kỳ chưa có -> rỗng

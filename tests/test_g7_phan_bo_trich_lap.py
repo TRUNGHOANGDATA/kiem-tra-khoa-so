@@ -6,7 +6,8 @@ DN quên khấu hao/phân bổ/lương — nên các check đó là CHECKLIST (l
 kéo kết luận khóa sổ. Chỉ C7.5/C7.6 là cảnh báo thật vì bằng chứng nằm ngay trong file.
 """
 from app.checks import g7_phan_bo_trich_lap as g7
-from tests.conftest import tao_df
+from app.checks.base import BoiCanh
+from tests.conftest import tao_cdps, tao_df
 
 
 def _kq(df, ctx):
@@ -118,6 +119,78 @@ def test_c76_net_lai_van_canh_bao_khi_thieu_8211(ctx):
         {"DebitAccount": "911", "CreditAccount": "4212", "Amount": 100},   # lãi lớn hơn -> net lãi
     ])
     assert _kq(net_lai, ctx)["C7.6"].so_loi == 1
+
+
+# ------------------------------------------------ C7.6 khi ĐÃ nhập CĐPS (lỗ lũy kế)
+_LAI = [{"DebitAccount": "911", "CreditAccount": "4212", "Amount": 1_571_960_518}]
+
+
+def test_c76_cdps_lo_luy_ke_lon_hon_lai_thi_im():
+    # A08: lãi kỳ 1,57 tỷ < lỗ lũy kế đầu kỳ 2,98 tỷ -> sau bù lỗ = 0 thuế -> KHÔNG báo.
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, lo_luy_ke_dau=2_981_950_998)
+    assert _kq(tao_df(_LAI), ctx)["C7.6"].so_loi == 0
+
+
+def test_c76_cdps_lai_lon_hon_lo_luy_ke_van_bao():
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, lo_luy_ke_dau=100)
+    assert _kq(tao_df(_LAI), ctx)["C7.6"].so_loi == 1
+
+
+def test_c76_cdps_khong_co_lo_luy_ke_van_bao():
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, lo_luy_ke_dau=0.0)
+    assert _kq(tao_df(_LAI), ctx)["C7.6"].so_loi == 1
+
+
+# --------------------------- C7.1–C7.3 nâng cấp bằng CĐPS ---------------------
+# Chưa có CĐPS: giữ nguyên checklist (chỉ nhắc). Có CĐPS chứng minh DN CÓ tài sản /
+# nghĩa vụ mà kỳ này không có bút toán -> mới thành cảnh báo thật (kéo kết luận).
+_KHONG_BT = [{"DebitAccount": "6421", "CreditAccount": "1111", "Amount": 100}]
+
+
+def _c(ma, df, cdps=None):
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, cdps=cdps)
+    return _kq(df, ctx)[ma]
+
+
+def test_c71_chua_co_cdps_van_chi_la_checklist():
+    r = _c("C7.1", tao_df(_KHONG_BT))
+    assert r.la_thong_ke is True
+
+
+def test_c71_co_tscd_tren_cdps_ma_khong_khau_hao_thi_canh_bao_that():
+    cdps = tao_cdps([{"account": "2111", "du_cuoi_no": 5_000_000}])
+    r = _c("C7.1", tao_df(_KHONG_BT), cdps)
+    assert r.la_thong_ke is False and r.muc_do == "vang" and r.so_loi == 1
+
+
+def test_c71_co_tscd_nhung_da_khau_hao_thi_im():
+    cdps = tao_cdps([{"account": "2111", "du_cuoi_no": 5_000_000}])
+    df = tao_df([{"DebitAccount": "6427", "CreditAccount": "2141", "Amount": 50}])
+    r = _c("C7.1", df, cdps)
+    assert r.la_thong_ke is True and r.so_loi == 0
+
+
+def test_c71_khong_co_tscd_thi_khong_bao():
+    cdps = tao_cdps([{"account": "1111", "du_cuoi_no": 900}])
+    assert _c("C7.1", tao_df(_KHONG_BT), cdps).la_thong_ke is True
+
+
+def test_c72_co_du_242_ma_khong_phan_bo_thi_canh_bao_that():
+    cdps = tao_cdps([{"account": "2421", "du_cuoi_no": 3_000_000}])
+    r = _c("C7.2", tao_df(_KHONG_BT), cdps)
+    assert r.la_thong_ke is False and r.so_loi == 1
+
+
+def test_c73_co_du_334_ma_khong_trich_luong_thi_canh_bao_that():
+    cdps = tao_cdps([{"account": "3341", "du_cuoi_co": 8_000_000}])
+    r = _c("C7.3", tao_df(_KHONG_BT), cdps)
+    assert r.la_thong_ke is False and r.so_loi == 1
+
+
+def test_c73_da_trich_luong_thi_im():
+    cdps = tao_cdps([{"account": "3341", "du_cuoi_co": 8_000_000}])
+    df = tao_df([{"DebitAccount": "6421", "CreditAccount": "3341", "Amount": 100}])
+    assert _c("C7.3", df, cdps).la_thong_ke is True
 
 
 def test_du_7_ma(ctx):

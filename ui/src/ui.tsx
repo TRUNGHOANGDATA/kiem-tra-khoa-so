@@ -11,6 +11,9 @@ export const IC = {
   warn: <path d="M10.3 4.3 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z M12 9.5v4.2 M12 17.2h.01" />,
   check: <><circle cx="12" cy="12" r="9" /><path d="m8.4 12.3 2.5 2.5 4.7-5.1" /></>,
   checkNho: <path d="m5 13 4 4L19 7" />,
+  // Mù màu: "Đã làm" / "Tự xác nhận" / "Không áp dụng" phải khác NÉT, không chỉ khác màu.
+  oTick: <><rect x="4" y="4" width="16" height="16" rx="2.5" /><path d="m8.4 12 2.4 2.4 4.8-5.2" /></>,
+  khongApDung: <><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></>,
   lock: <><path d="M7 11V8a5 5 0 0 1 10 0v3" /><rect x="5" y="11" width="14" height="9" rx="2" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 12a7.4 7.4 0 0 0-.1-1.3l2-1.6-2-3.4-2.4 1a7.3 7.3 0 0 0-2.2-1.3L14.3 2h-4l-.4 2.4A7.3 7.3 0 0 0 7.7 5.7l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.6l-2 1.6 2 3.4 2.4-1a7.3 7.3 0 0 0 2.2 1.3l.4 2.4h4l.4-2.4a7.3 7.3 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.6a7.4 7.4 0 0 0 .1-1.3Z" /></>,
@@ -26,6 +29,11 @@ export const IC = {
   bar: <><path d="M3 3v18h18" /><path d="M8 17v-6.5M13 17V6.5M18 17v-3.5" /></>,
   chep: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
   thung: <><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6" /><path d="M10 11v6M14 11v6" /></>,
+  home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" /><path d="M9.5 21v-6h5v6" /></>,
+  lich: <><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v3M16 3v3" /></>,
+  soKiemTra: <><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5" /><path d="m8.5 13 2 2 3.5-3.5" /></>,
+  chuong: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
+  toanha: <><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16" /><path d="M14 9h4a2 2 0 0 1 2 2v10" /><path d="M3 21h18" /><path d="M7.5 7h2M7.5 11h2M7.5 15h2" /></>,
 };
 
 export function Icon({ d, className = "h-4 w-4" }: { d: React.ReactNode; className?: string }) {
@@ -95,6 +103,27 @@ export function Modal({ mo, dong, tieuDe, children, rong }: {
         {children}
       </div>
     </div>
+  );
+}
+
+/* ------------------------- ký hiệu mức độ (mù màu) ------------------------ */
+/** Người dùng MÙ MÀU: mức độ phải đọc được bằng KÝ HIỆU, màu chỉ là lớp phụ.
+ *  Mọi chấm tròn chỉ-có-màu trước đây đều thay bằng <Dau/>. */
+export const KY_HIEU = { do: "✕", vang: "▲", xanh: "✓", xam: "–" } as const;
+export const NHAN_MUC = { do: "Lỗi", vang: "Cảnh báo", xanh: "Đạt", xam: "Không áp dụng" } as const;
+export type MucKH = keyof typeof KY_HIEU;
+
+export function Dau({ muc, className }: { muc: MucKH; className?: string }) {
+  const s = {
+    do: "border-do/70 text-do-dam", vang: "border-vang/70 text-vang-dam",
+    xanh: "border-xanh/70 text-xanh-dam", xam: "border-steel-300 text-steel-400",
+  }[muc];
+  return (
+    <span title={NHAN_MUC[muc]} aria-label={NHAN_MUC[muc]}
+      className={cx("grid shrink-0 place-items-center rounded-full border bg-white font-bold leading-none",
+        s, className ?? "h-[17px] w-[17px] text-[10px]")}>
+      {KY_HIEU[muc]}
+    </span>
   );
 }
 

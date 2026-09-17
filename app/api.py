@@ -11,8 +11,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import cau_hinh, checks, chot_so, report
-from .checks.base import COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, ten_cot
+from . import cau_hinh, cdps, checks, chot_so, report
+from .checks.base import (COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult,
+                          doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
@@ -21,12 +22,16 @@ GOC = Path(__file__).resolve().parents[1]
 
 
 def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
-    """Đổi cột ngày sang dd/mm/yyyy — dùng chung cho cả tìm kiếm và hiển thị."""
+    """Chuẩn hoá bảng trước khi cho người dùng xem: ngày dd/mm/yyyy, lô-gic Có/Không.
+
+    Một chỗ duy nhất cho mọi bảng chứng minh — tìm kiếm cũng chạy trên bản đã đổi nên
+    gõ "Có" tìm được đúng dòng.
+    """
     df = df.copy()
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             df[c] = df[c].dt.strftime("%d/%m/%Y")
-    return df
+    return doi_bool(df)
 
 
 def _dinh_dang_so(n: int) -> str:
@@ -217,9 +222,44 @@ class JsApi:
     def _nap_file(self, path: str) -> dict:
         return self._nap_nhieu([path])
 
+    def _lo_luy_ke_dau(self, d: "DonVi") -> float | None:
+        """Dư đầu 421x (Nợ − Có) từ CĐPS của (chi nhánh × kỳ) — lỗ lũy kế đầu kỳ.
+        None = CHƯA nhập CĐPS (không tạo kho thừa chỉ để tra)."""
+        if not Path(self._duong_dan_kho()).exists():
+            return None
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return None
+        try:
+            if not kho.co_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang):
+                return None
+            no, co = kho.du_dau_theo_prefix(d.nhan, d.tt.ky_nam, d.tt.ky_thang, "421")
+            return no - co
+        finally:
+            kho.dong()
+
+    def _cdps_cua(self, d: "DonVi"):
+        """CĐPS của đúng (chi nhánh × kỳ) cho G9/G10/C7; None nếu chưa nạp.
+        Không tạo kho rỗng chỉ để tra (giống _lo_luy_ke_dau)."""
+        if not Path(self._duong_dan_kho()).exists():
+            return None
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001 (kho lỗi không được làm chết luồng kiểm tra)
+            return None
+        try:
+            df = kho.doc_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang)
+            return df if len(df) else None
+        except Exception:  # noqa: BLE001
+            return None
+        finally:
+            kho.dong()
+
     def _chay_mot_don_vi(self, d: DonVi, on_progress=None) -> None:
-        """Chạy 30 check + suy 11 bước cho MỘT chi nhánh, trên frame của riêng nó."""
-        ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam)
+        """Chạy toàn bộ check + suy 18 bước cho MỘT chi nhánh, trên frame của riêng nó."""
+        ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam, lo_luy_ke_dau=self._lo_luy_ke_dau(d),
+                      cdps=self._cdps_cua(d))
         d.ket_qua = checks.chay_tat_ca(d.df, ctx, on_progress=on_progress)
         d.kq = {r.ma: r for r in d.ket_qua}
         d.trang_thai = suy_trang_thai(d.df, d.kq)
@@ -397,6 +437,82 @@ class JsApi:
 
     def _duong_dan_kho(self) -> str:
         return str(Path(self._thu_muc_kho) / "kho_chot_so.sqlite")
+
+    def nap_cdps_thu_muc(self, thu_muc: str = ""):
+        """Nạp mọi file CĐPS trong `thu_muc` (mặc định thư mục nguồn): suy chi nhánh+kỳ
+        từ tên file, lưu vào kho (thay sạch từng kỳ). Bỏ qua file không đúng quy ước."""
+        try:
+            nap, bo_qua = [], []
+            kho = self._kho()
+            try:
+                for p in tim_file_excel(thu_muc or self.thu_muc_source):
+                    ten = Path(p).name
+                    if cdps.suy_branch_ky(p) is None:
+                        bo_qua.append(ten)
+                        continue
+                    try:
+                        df, m = cdps.doc_cdps(p)
+                    except cdps.KhongPhaiCdps:
+                        bo_qua.append(ten)
+                        continue
+                    kho.luu_cdps(m.ma, m.nam, m.thang, df)
+                    nap.append({"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
+                                "ky": f"{m.thang:02d}/{m.nam}", "file": ten})
+            finally:
+                kho.dong()
+            return {"nap": nap, "bo_qua": bo_qua, "trang_thai": self.trang_thai_cdps()}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không nạp được CĐPS: {e}"}
+
+    def thieu_cdps(self):
+        """Chi nhánh đang nạp (bảng kê) mà kỳ tương ứng CHƯA có CĐPS trong kho —
+        dùng để CHẶN CỨNG nút Kiểm tra (bắt buộc có CĐPS mới được kiểm)."""
+        if not self._dv:
+            return []
+        def _mo():
+            return [{"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
+                     "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}"} for d in self._dv]
+        if not Path(self._duong_dan_kho()).exists():
+            return _mo()                       # chưa có kho -> mọi chi nhánh đều thiếu
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return _mo()
+        try:
+            return [{"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
+                     "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}"}
+                    for d in self._dv if not kho.co_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang)]
+        finally:
+            kho.dong()
+
+    def chi_tiet_cdps(self, chi_nhanh, ky_nam, ky_thang):
+        """Chi tiết các tài khoản của một CĐPS (chi nhánh × kỳ) — cho màn xem CĐPS."""
+        if not Path(self._duong_dan_kho()).exists():
+            return {"dong": []}
+        try:
+            kho = self._kho()
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được kho: {e}"}
+        try:
+            df = kho.doc_cdps(chi_nhanh, int(ky_nam), int(ky_thang))
+            return {"dong": df.to_dict("records") if not df.empty else []}
+        finally:
+            kho.dong()
+
+    def trang_thai_cdps(self):
+        """Danh sách (chi nhánh × kỳ) đã nhập CĐPS — cho màn nhập hiện trạng thái."""
+        if not Path(self._duong_dan_kho()).exists():
+            return []
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return []
+        try:
+            return [{"chi_nhanh": r["chi_nhanh"], "chi_nhanh_ten": self._ten(r["chi_nhanh"]),
+                     "ky": f'{int(r["ky_thang"]):02d}/{r["ky_nam"]}', "thoi_diem_nap": r["thoi_diem_nap"]}
+                    for r in kho.trang_thai_cdps()]
+        finally:
+            kho.dong()
 
     def _co_don_vi_da_chot(self) -> bool:
         """True nếu có chi nhánh đang nạp đã được chốt (có snapshot hiệu lực) — dùng
@@ -694,8 +810,12 @@ class JsApi:
             return {"loi": "Chưa có cửa sổ"}
         try:
             import webview
+            bat_dau = ""
+            if directory:
+                p = Path(directory)
+                bat_dau = str(p if p.is_absolute() else (GOC / directory))  # mở đúng thư mục hiện tại
             loai = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
-            chon = self._window.create_file_dialog(loai, directory=directory or "")
+            chon = self._window.create_file_dialog(loai, directory=bat_dau)
             return {"path": chon[0]} if chon else {"huy": True}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không mở được hộp thoại thư mục: {e}"}

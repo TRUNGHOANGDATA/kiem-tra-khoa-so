@@ -30,7 +30,7 @@ def test_chay_kiem_tra_tra_json_hop_le(tmp_path):
     json.dumps(kq)  # không numpy scalar
     assert kq["tomtat"]["ky"] == "08/2026" and kq["tomtat"]["so_dong"] == 3
     assert kq["tomtat"]["san_sang"] is False           # 632 chưa kết chuyển -> C5.2 đỏ
-    assert len(kq["trang_thai"]) == 16 and len(kq["nhom"]) == 8
+    assert len(kq["trang_thai"]) == 18 and len(kq["nhom"]) == 10
     g5 = next(n for n in kq["nhom"] if n["ma"] == "G5")
     assert g5["muc_do"] == "do"
 
@@ -188,6 +188,19 @@ def test_moi_cot_cac_check_sinh_ra_deu_co_nhan_tieng_viet(tmp_path):
             if c == nhan:
                 thieu.setdefault(ma, []).append(c)
     assert thieu == {}, f"cột chưa có trong TEN_COT: {thieu}"
+
+
+def test_khong_con_true_false_trong_bang_chi_tiet(tmp_path):
+    """Người dùng là KẾ TOÁN: bảng chứng minh phải đọc 'Có/Không', không phải true/false."""
+    api = JsApi()
+    api.chay_kiem_tra(_xlsx(tmp_path))
+    xau = {}
+    for ma in api._kq:
+        for dong in api.lay_chi_tiet(ma)["dong"]:
+            for cot, gt in dong.items():
+                if isinstance(gt, bool):
+                    xau.setdefault(ma, set()).add(cot)
+    assert xau == {}, f"còn cột boolean lọt ra giao diện: {xau}"
 
 
 def test_lay_chi_tiet_tu_phuc_hoi_khi_kq_bi_xoa(tmp_path):

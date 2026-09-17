@@ -213,7 +213,41 @@ def suy_trang_thai(df: pd.DataFrame, ket_qua: dict[str, CheckResult]) -> list[Bu
         ds.append(BuocKhoaSo("TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)", DA_LAM, "Mọi TK doanh thu/chi phí đã về 0", "C5.1"))
     else:
         ds.append(BuocKhoaSo("TK đầu 5/6/7/8 đã về 0 (kết chuyển hết)", CAN_RA, f"Còn {c51.so_loi} tài khoản có net ≠ 0", "C5.1"))
+
+    ds.append(_buoc_cdps_can(ket_qua))
+    ds.append(_buoc_cho_xu_ly(ket_qua))
     return ds
+
+
+def _chua_nap_cdps(r: CheckResult | None) -> bool:
+    """G9/G10 tự đánh dấu la_thong_ke khi chưa có CĐPS (xem cdps_tien_ich.khong_co_cdps)."""
+    return r is None or (r.la_thong_ke and "Chưa nạp CĐPS" in (r.ghi_chu or ""))
+
+
+def _buoc_cdps_can(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:
+    """Bước 17 — CĐPS cân & TK 5–9 về 0. Gộp C9.1–C9.4: đây là bằng chứng TRỰC TIẾP
+    rằng sổ đã cân, mạnh hơn C5.1 (vốn chỉ suy từ phát sinh trong kỳ)."""
+    ten = "CĐPS cân & TK 5/6/7/8/9 đã về 0"
+    ma_ds = ["C9.1", "C9.2", "C9.3", "C9.4"]
+    rs = [(ma, ket_qua.get(ma)) for ma in ma_ds]
+    if all(_chua_nap_cdps(r) for _, r in rs):
+        return BuocKhoaSo(ten, KHONG_AP_DUNG, "Chưa nạp CĐPS cho kỳ này", "C9.1", co_chung_cu=False)
+    hong = [(ma, r) for ma, r in rs if r is not None and len(r.chi_tiet)]
+    if not hong:
+        return BuocKhoaSo(ten, DA_LAM, "CĐPS cân, không TK doanh thu/chi phí nào còn số dư", "C9.1")
+    tom = "; ".join(f"{ma}: {len(r.chi_tiet)} dòng" for ma, r in hong)
+    return BuocKhoaSo(ten, CHUA_LAM, f"CĐPS chưa toàn vẹn — {tom}", hong[0][0])
+
+
+def _buoc_cho_xu_ly(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:
+    """Bước 18 — chênh lệch kiểm kê (1381/3381) phải tất toán trước khi khóa sổ."""
+    ten = "Xử lý chênh lệch kiểm kê (1381/3381 về 0)"
+    r = ket_qua.get("C10.6")
+    if _chua_nap_cdps(r):
+        return BuocKhoaSo(ten, KHONG_AP_DUNG, "Chưa nạp CĐPS cho kỳ này", "C10.6", co_chung_cu=False)
+    if len(r.chi_tiet) == 0:
+        return BuocKhoaSo(ten, DA_LAM, "Không còn khoản thừa/thiếu chờ xử lý", "C10.6")
+    return BuocKhoaSo(ten, CAN_RA, f"Còn {len(r.chi_tiet)} tài khoản 1381/3381 chưa tất toán", "C10.6")
 
 
 def tinh_ket_luan(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo]) -> dict:

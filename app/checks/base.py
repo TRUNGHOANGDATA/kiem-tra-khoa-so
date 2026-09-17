@@ -49,10 +49,37 @@ def ten_cot(cot) -> list[str]:
     return [TEN_COT.get(c, c) for c in cot]
 
 
+def doi_bool(df: pd.DataFrame) -> pd.DataFrame:
+    """Đổi mọi cột lô-gic sang 'Có'/'Không' — người dùng là KẾ TOÁN, không đọc true/false.
+
+    Gọi ở ĐÚNG RANH GIỚI HIỂN THỊ (giao diện + Excel) chứ không ở từng check: check cứ
+    trả bool cho dễ viết/dễ test, chỗ nào đưa ra mắt người dùng thì dịch.
+    """
+    if df is None or df.empty:
+        return df
+    cot = [c for c in df.columns
+           if df[c].dtype == bool
+           or (df[c].dtype == object and df[c].map(lambda v: isinstance(v, bool)).all())]
+    if not cot:
+        return df
+    df = df.copy()
+    for c in cot:
+        df[c] = df[c].map(lambda v: "Có" if v else "Không")
+    return df
+
+
 @dataclass
 class BoiCanh:
     ky_thang: int
     ky_nam: int
+    # Lỗ lũy kế đầu kỳ (dư đầu Nợ − Có của 421x) từ CĐPS; None = CHƯA nhập CĐPS.
+    # Dương = có lỗ lũy kế; dùng ở C7.6 để chỉ đòi 8211 khi lãi kỳ > lỗ lũy kế.
+    lo_luy_ke_dau: float | None = None
+    # Bảng cân đối số phát sinh của đúng (chi nhánh × kỳ); None = CHƯA nhập CĐPS.
+    # Cột: account, ten, du_dau_no/co, ps_no/co, du_cuoi_no/co, is_group, level.
+    # G9/G10 và bản nâng cấp C7.1–C7.3 chỉ chạy khi có bảng này — không có thì đứng
+    # ngoài (la_thong_ke) chứ KHÔNG báo "đạt" giả.
+    cdps: pd.DataFrame | None = None
 
 
 @dataclass

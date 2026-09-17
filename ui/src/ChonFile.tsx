@@ -1,7 +1,12 @@
-/** Màn 1 — chọn/quét file bảng kê, xem thẻ file + cảnh báo ngoài kỳ, bấm Kiểm tra. */
-import { useState } from "react";
-import type { ThongTinNap } from "./api";
-import { cx, fso, Icon, IC, Nut } from "./ui";
+/** Màn "Kiểm tra khóa sổ" — trải rộng 2 cột: Bước 1 Cân đối phát sinh (CĐPS, bắt buộc)
+ * | Bước 2 Bảng kê chứng từ + Kiểm tra (chặn cứng nếu còn chi nhánh thiếu CĐPS). */
+import { useCallback, useEffect, useState } from "react";
+import * as A from "./api";
+import { laLoi, type ThongTinNap } from "./api";
+import { cx, fso, Icon, IC, Nut, useToast } from "./ui";
+
+interface TrangThaiCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; thoi_diem_nap?: string }
+interface ThieuCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string }
 
 export interface ChonFileProps {
   nap?: ThongTinNap;
@@ -10,6 +15,21 @@ export interface ChonFileProps {
   onChonNhieu: () => void;
   onQuet: () => void;
   onKiemTra: () => void;
+}
+
+function DauBuoc({ n, tieuDe, phu, xong }: { n: number; tieuDe: string; phu: string; xong?: boolean }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-full text-[14px] font-extrabold",
+        xong ? "bg-xanh text-white" : "bg-navy text-white")}>
+        {xong ? "✓" : n}
+      </span>
+      <div>
+        <div className="text-[15px] font-bold text-ink">{tieuDe}</div>
+        <div className="text-[12.5px] text-steel-500">{phu}</div>
+      </div>
+    </div>
+  );
 }
 
 function CanhBaoNgoaiKy({ nap }: { nap: ThongTinNap }) {
@@ -28,87 +48,167 @@ function CanhBaoNgoaiKy({ nap }: { nap: ThongTinNap }) {
 
 export default function ManChonFile(p: ChonFileProps) {
   const { nap, tienTrinh } = p;
+  const toast = useToast();
   const [keo, setKeo] = useState(false);
+  const [ts, setTs] = useState<TrangThaiCdps[]>([]);
+  const [thieu, setThieu] = useState<ThieuCdps[]>([]);
+  const [dangNapCdps, setDangNapCdps] = useState(false);
   const dangChay = !!tienTrinh;
 
+  const taiTs = useCallback(async () => {
+    const r = await A.goi("trang_thai_cdps");
+    if (Array.isArray(r)) setTs(r as TrangThaiCdps[]);
+  }, []);
+  useEffect(() => { taiTs(); }, [taiTs]);
+
+  useEffect(() => {
+    if (!nap || nap.loi) { setThieu([]); return; }
+    A.goi("thieu_cdps").then((r) => { if (Array.isArray(r)) setThieu(r as ThieuCdps[]); });
+  }, [nap]);
+
+  const napCdps = async () => {
+    const r0 = await A.goi("chon_thu_muc", "");
+    if (laLoi(r0)) { toast(r0.loi); return; }
+    if (!r0 || (r0 as { huy?: boolean }).huy) return;
+    setDangNapCdps(true);
+    const r = await A.goi("nap_cdps_thu_muc", (r0 as { path: string }).path);
+    setDangNapCdps(false);
+    if (laLoi(r)) { toast(r.loi); return; }
+    const nn = (r.nap as { chi_nhanh: string }[]) ?? [];
+    const bq = (r.bo_qua as unknown[])?.length ?? 0;
+    toast(nn.length
+      ? `Đã nạp CĐPS ${nn.length} file: ${nn.map((x) => x.chi_nhanh).join(", ")}`
+      : `Không thấy file CĐPS đúng quy ước (vd “A08 082026 …”) trong thư mục. Bỏ qua ${bq} file.`);
+    taiTs();
+  };
+
+  const coCdps = ts.length > 0;
+  const dv = nap?.don_vi ?? [];
+  const ky = nap?.ky ?? "";
+  const thieuSet = new Set(thieu.map((t) => t.chi_nhanh));
+
   return (
-    <div className="flex flex-1 items-center justify-center overflow-auto p-8">
-      <div className="flex w-full max-w-[560px] flex-col gap-4">
-        {/* Vùng kéo thả */}
-        <section
-          onDragEnter={(e) => { e.preventDefault(); setKeo(true); }}
-          onDragOver={(e) => { e.preventDefault(); setKeo(true); }}
-          onDragLeave={() => setKeo(false)}
-          onDrop={(e) => { e.preventDefault(); setKeo(false); /* kéo-thả path thật do pywebview xử lý riêng; ở đây vẫn cho chọn qua nút */ }}
-          className={cx(
-            "flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed bg-white px-8 py-10 text-center shadow-card transition",
-            keo ? "border-navy bg-navy/5" : "border-steel-300",
-          )}
-        >
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-steel-100 text-navy">
-            <Icon d={IC.tai_len} className="h-7 w-7" />
-          </span>
-          <p className="text-[15px] font-semibold text-ink">Chọn file bảng kê chứng từ (.xlsx)</p>
-          <p className="-mt-1 text-[13px] text-steel-500">nhiều chi nhánh thì chọn nhiều file cùng lúc — hoặc</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Nut bien="phu" onClick={p.onChonFile}><Icon d={IC.file} className="h-4 w-4" />Chọn file…</Nut>
-            <Nut bien="phu" onClick={p.onChonNhieu}><Icon d={IC.file} className="h-4 w-4" />Chọn nhiều file</Nut>
-            <Nut bien="phu" onClick={p.onQuet} title="Nạp mọi bảng kê trong thư mục nguồn"><Icon d={IC.thu_muc} className="h-4 w-4" />Nạp cả thư mục</Nut>
+    <div className="flex w-full flex-1 flex-col gap-4 overflow-auto p-5">
+      <div>
+        <h1 className="text-[20px] font-extrabold text-ink">Kiểm tra khóa sổ</h1>
+        <p className="mt-0.5 text-[13px] text-steel-500">Nạp <b>Cân đối phát sinh</b> (bắt buộc) → nạp <b>Bảng kê chứng từ</b> → chạy kiểm tra.</p>
+      </div>
+
+      <div className="grid flex-1 items-start gap-4 lg:grid-cols-2">
+        {/* ------------------------------ BƯỚC 1 ------------------------------ */}
+        <section className="flex flex-col gap-3 rounded-2xl border border-steel-200 bg-white p-5 shadow-card">
+          <DauBuoc n={1} tieuDe="Cân đối phát sinh (CĐPS)" phu="Bắt buộc — để C7.6 trừ lỗ lũy kế" xong={coCdps} />
+
+          <div className={cx("rounded-xl px-3 py-2.5 text-[12.5px]", coCdps ? "bg-xanh-nen text-xanh-dam" : "bg-vang-nen text-vang-dam")}>
+            {coCdps
+              ? <>Đã có CĐPS cho <b>{ts.length}</b> kỳ/chi nhánh trong kho — có thể sang Bước 2 luôn.</>
+              : <>Chưa có CĐPS nào. Nạp trước khi kiểm tra (mỗi chi nhánh 1 file, tên “A08 082026 …”).</>}
           </div>
+
+          <Nut bien={coCdps ? "phu" : "chinh"} onClick={napCdps} disabled={dangNapCdps} className="justify-center">
+            <Icon d={IC.thu_muc} className="h-4 w-4" />{dangNapCdps ? "Đang nạp…" : coCdps ? "Nạp thêm / nạp lại CĐPS" : "Nạp CĐPS (chọn thư mục)"}
+          </Nut>
+
+          {coCdps && (
+            <div className="max-h-[220px] overflow-auto rounded-xl border border-steel-200">
+              <table className="w-full text-[12.5px]">
+                <thead className="sticky top-0 bg-steel-50 text-[11px] font-bold uppercase tracking-wide text-steel-400">
+                  <tr><th className="px-3 py-2 text-left">Chi nhánh</th><th className="px-3 py-2 text-left">Kỳ</th></tr>
+                </thead>
+                <tbody>
+                  {ts.map((t) => (
+                    <tr key={`${t.chi_nhanh}|${t.ky}`} className="border-t border-steel-100">
+                      <td className="px-3 py-1.5 font-semibold">{t.chi_nhanh_ten || t.chi_nhanh}</td>
+                      <td className="px-3 py-1.5 tabular-nums text-steel-500">{t.ky}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
-        {/* Thẻ file đã nạp */}
-        {nap && !nap.loi && (
-          <section className="flex flex-col gap-3 rounded-2xl border border-steel-200 bg-white p-4 shadow-card">
-            <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-steel-100 text-navy"><Icon d={IC.file} className="h-5 w-5" /></span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-steel-400">File</div>
-                <div className="truncate text-[14px] font-bold text-ink">{nap.ten}</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[["Kỳ", nap.ky], ["Số dòng", fso(nap.so_dong)], ["Tổng phát sinh", fso(nap.tong_ps)]].map(([k, v]) => (
-                <div key={k} className="rounded-xl bg-steel-50 px-3 py-2">
-                  <div className="text-[11px] font-semibold text-steel-400">{k}</div>
-                  <div className="mt-0.5 text-[15px] font-bold tabular-nums text-ink">{v}</div>
-                </div>
-              ))}
-            </div>
-            {(nap.don_vi?.length ?? 0) > 1 && (
-              <div className="flex flex-wrap gap-1.5">
-                {nap.don_vi.map((d) => (
-                  <span key={d.ma} className="rounded-lg bg-steel-100 px-2 py-1 text-[12px] font-semibold text-steel-700">
-                    {d.ten_hien || d.ma} <span className="text-steel-400 tabular-nums">· {fso(d.so_dong)}</span>
-                  </span>
-                ))}
-              </div>
-            )}
-            <CanhBaoNgoaiKy nap={nap} />
-          </section>
-        )}
-        {nap?.loi && (
-          <div className="rounded-xl border border-do-vien bg-do-nen px-4 py-3 text-[13px] font-medium text-do-dam">{nap.loi}</div>
-        )}
+        {/* ------------------------------ BƯỚC 2 ------------------------------ */}
+        <section className={cx("relative flex flex-col gap-3 rounded-2xl border border-steel-200 bg-white p-5 shadow-card",
+          !coCdps && "opacity-60")}>
+          <DauBuoc n={2} tieuDe="Bảng kê chứng từ" phu="Chọn file bảng kê rồi chạy kiểm tra" />
 
-        {/* Nút kiểm tra */}
-        <Nut bien="chinh" disabled={!nap || !!nap.loi || dangChay} onClick={p.onKiemTra} className="py-3.5 text-[15px]">
-          Kiểm tra
-        </Nut>
-
-        {/* Tiến trình */}
-        {tienTrinh && (
-          <div className="rounded-xl border border-steel-200 bg-white p-3 shadow-soft">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[13px] font-medium text-ink">{tienTrinh.ten}</span>
-              <span className="text-[13px] font-bold tabular-nums text-navy">{tienTrinh.pct > 0 ? `${tienTrinh.pct}%` : ""}</span>
+          {!coCdps && (
+            <div className="absolute inset-0 z-20 grid place-items-center rounded-2xl bg-white/40">
+              <span className="rounded-xl bg-muc px-4 py-2 text-[12.5px] font-semibold text-white shadow-pop">Nạp CĐPS ở Bước 1 trước</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-steel-100">
-              <div className={cx("h-full rounded-full bg-gradient-to-r from-navy to-navy-400 transition-all", tienTrinh.pct <= 0 && "w-1/3 animate-pulse")}
-                style={tienTrinh.pct > 0 ? { width: `${tienTrinh.pct}%` } : undefined} />
+          )}
+
+          <div
+            onDragEnter={(e) => { e.preventDefault(); setKeo(true); }}
+            onDragOver={(e) => { e.preventDefault(); setKeo(true); }}
+            onDragLeave={() => setKeo(false)}
+            onDrop={(e) => { e.preventDefault(); setKeo(false); }}
+            className={cx("flex flex-col items-center gap-2.5 rounded-xl border-2 border-dashed px-6 py-7 text-center transition",
+              keo ? "border-navy bg-navy/5" : "border-steel-300 bg-steel-50/40")}
+          >
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-steel-100 text-navy"><Icon d={IC.tai_len} className="h-6 w-6" /></span>
+            <p className="text-[14px] font-semibold text-ink">Chọn file bảng kê chứng từ (.xlsx)</p>
+            <p className="-mt-1 text-[12.5px] text-steel-500">nhiều chi nhánh thì chọn nhiều file cùng lúc</p>
+            <div className="mt-1 flex flex-wrap justify-center gap-2">
+              <Nut bien="phu" onClick={p.onChonFile}><Icon d={IC.file} className="h-4 w-4" />Chọn file…</Nut>
+              <Nut bien="phu" onClick={p.onChonNhieu}><Icon d={IC.file} className="h-4 w-4" />Chọn nhiều file</Nut>
+              <Nut bien="phu" onClick={p.onQuet}><Icon d={IC.thu_muc} className="h-4 w-4" />Nạp cả thư mục</Nut>
             </div>
           </div>
-        )}
+
+          {nap && !nap.loi && (
+            <>
+              <div className="flex items-center gap-3 rounded-xl border border-steel-200 bg-steel-50 px-3 py-2.5">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-navy shadow-soft"><Icon d={IC.file} className="h-4 w-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-bold text-ink">{nap.ten}</div>
+                  <div className="text-[11.5px] text-steel-500">Kỳ {nap.ky} · <span className="tabular-nums">{fso(nap.so_dong)}</span> dòng · PS <span className="tabular-nums">{fso(nap.tong_ps)}</span></div>
+                </div>
+              </div>
+              {dv.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {dv.map((d) => {
+                    const co = !thieuSet.has(d.ma);
+                    return (
+                      <span key={d.ma}
+                        className={cx("inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold",
+                          co ? "bg-xanh-nen text-xanh-dam" : "bg-do-nen text-do-dam")}>
+                        <Icon d={co ? IC.checkNho : IC.x} className="h-3.5 w-3.5" />{d.ten_hien || d.ma} · {co ? "có CĐPS" : "thiếu CĐPS"}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <CanhBaoNgoaiKy nap={nap} />
+            </>
+          )}
+          {nap?.loi && <div className="rounded-xl border border-do-vien bg-do-nen px-4 py-3 text-[13px] font-medium text-do-dam">{nap.loi}</div>}
+
+          {nap && !nap.loi && thieu.length > 0 && (
+            <div className="flex items-start gap-2 rounded-xl border border-do-vien bg-do-nen px-3 py-2.5 text-[12.5px] leading-snug text-do-dam">
+              <Icon d={IC.x} className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Còn <b>{thieu.length}</b> chi nhánh chưa có CĐPS ({thieu.map((t) => t.chi_nhanh_ten || t.chi_nhanh).join(", ")}) — nạp CĐPS ở Bước 1 rồi mới Kiểm tra.</span>
+            </div>
+          )}
+
+          <Nut bien="chinh" disabled={!nap || !!nap.loi || dangChay || thieu.length > 0} onClick={p.onKiemTra} className="justify-center py-3 text-[14px]">
+            <Icon d={IC.soKiemTra} className="h-4 w-4" />Kiểm tra
+          </Nut>
+
+          {tienTrinh && (
+            <div className="rounded-xl border border-steel-200 bg-white p-3 shadow-soft">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[13px] font-medium text-ink">{tienTrinh.ten}</span>
+                <span className="text-[13px] font-bold tabular-nums text-navy">{tienTrinh.pct > 0 ? `${tienTrinh.pct}%` : ""}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-steel-100">
+                <div className={cx("h-full rounded-full bg-gradient-to-r from-navy to-navy-400 transition-all", tienTrinh.pct <= 0 && "w-1/3 animate-pulse")}
+                  style={tienTrinh.pct > 0 ? { width: `${tienTrinh.pct}%` } : undefined} />
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

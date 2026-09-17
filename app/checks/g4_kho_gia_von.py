@@ -98,9 +98,11 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     ly_do_c42 = ("SL " + _sl(df["Quantity9"]) + " × đơn giá " + _so(df["UnitCost"]) +
                  " = " + _so(tien_tinh) + " nhưng Amount ghi " + _so(df["Amount"]) +
                  " — lệch vượt ngưỡng làm tròn 0,1% + 1đ")
-    kq.append(tao_ket_qua(df[co_gia & lech], "C4.2",
-                          "Tiền ≠ Số lượng × Đơn giá (chỉ dòng có đơn giá > 0)", NHOM, VANG,
-                          ly_do_c42[co_gia & lech], ghi_chu=ghi_chu_sl))
+    r42 = tao_ket_qua(df[co_gia & lech], "C4.2",
+                      "Tiền ≠ Số lượng × Đơn giá (chỉ dòng có đơn giá > 0)", NHOM, VANG,
+                      ly_do_c42[co_gia & lech], ghi_chu=ghi_chu_sl)
+    r42.la_thong_ke = True   # lệch có thể do đơn giá bình quân Bravo -> chỉ để soát
+    kq.append(r42)
 
     gv_sai = bat_dau(df["DebitAccount"], "632") & ~bat_dau(df["CreditAccount"], *TK_CO_HOP_LE_GIA_VON)
     kq.append(tao_ket_qua(df[gv_sai], "C4.3", "Giá vốn không đối ứng TK kho", NHOM, VANG,

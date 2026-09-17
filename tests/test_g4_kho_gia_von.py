@@ -80,7 +80,8 @@ def test_c42_lech_tien_sl_x_don_gia(ctx):
         {"CreditAccount": "1551", "Quantity9": 10, "UnitCost": 100.4, "Amount": 1004},
         {"CreditAccount": "1551", "Quantity9": 10, "UnitCost": 100, "Amount": 1500},
     ])
-    assert _kq(df, ctx)["C4.2"].so_loi == 1
+    c42 = _kq(df, ctx)["C4.2"]
+    assert c42.la_thong_ke is True and len(c42.chi_tiet) == 1   # thống kê, vẫn liệt kê dòng lệch
 
 
 def test_c41_c42_ghi_chu_khi_khong_co_du_lieu_sl(ctx):

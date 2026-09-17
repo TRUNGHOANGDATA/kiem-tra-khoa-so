@@ -87,3 +87,48 @@ class KhoChotSo:
 
     def ghi_quy_doi(self, m: dict) -> None:
         _quy_doi.ghi_toan_bo(self.con, m)
+
+    # ---- CĐPS: bảng cân đối số phát sinh theo (chi nhánh × kỳ) ----
+    def luu_cdps(self, chi_nhanh, ky_nam, ky_thang, df, thoi_diem=None) -> None:
+        """Thay TOÀN BỘ CĐPS của (chi nhánh × kỳ) — nạp lại là ghi đè sạch."""
+        thoi_diem = thoi_diem or datetime.now().isoformat(timespec="seconds")
+        with self.con:
+            self.con.execute("DELETE FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+                             (chi_nhanh, ky_nam, ky_thang))
+            self.con.executemany(
+                """INSERT INTO cdps (chi_nhanh, ky_nam, ky_thang, account, ten, du_dau_no,
+                     du_dau_co, ps_no, ps_co, du_cuoi_no, du_cuoi_co, is_group, level, thoi_diem_nap)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                [(chi_nhanh, ky_nam, ky_thang, r.account, r.ten,
+                  float(r.du_dau_no), float(r.du_dau_co), float(r.ps_no), float(r.ps_co),
+                  float(r.du_cuoi_no), float(r.du_cuoi_co), int(bool(r.is_group)), int(r.level), thoi_diem)
+                 for r in df.itertuples(index=False)])
+
+    def doc_cdps(self, chi_nhanh, ky_nam, ky_thang) -> pd.DataFrame:
+        rows = self.con.execute(
+            """SELECT account, ten, du_dau_no, du_dau_co, ps_no, ps_co, du_cuoi_no, du_cuoi_co,
+                      is_group, level
+               FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=? ORDER BY account""",
+            (chi_nhanh, ky_nam, ky_thang)).fetchall()
+        return pd.DataFrame([dict(r) for r in rows])
+
+    def du_dau_theo_prefix(self, chi_nhanh, ky_nam, ky_thang, prefix) -> tuple[float, float]:
+        """Tổng dư đầu Nợ/Có các DÒNG LÁ (is_group=0) có account bắt đầu bằng prefix."""
+        r = self.con.execute(
+            """SELECT COALESCE(SUM(du_dau_no),0), COALESCE(SUM(du_dau_co),0) FROM cdps
+               WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=? AND is_group=0 AND account LIKE ?""",
+            (chi_nhanh, ky_nam, ky_thang, prefix + "%")).fetchone()
+        return float(r[0]), float(r[1])
+
+    def co_cdps(self, chi_nhanh, ky_nam, ky_thang) -> bool:
+        r = self.con.execute(
+            "SELECT 1 FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=? LIMIT 1",
+            (chi_nhanh, ky_nam, ky_thang)).fetchone()
+        return r is not None
+
+    def trang_thai_cdps(self) -> list[dict]:
+        rows = self.con.execute(
+            """SELECT chi_nhanh, ky_nam, ky_thang, MAX(thoi_diem_nap) AS thoi_diem_nap
+               FROM cdps GROUP BY chi_nhanh, ky_nam, ky_thang
+               ORDER BY ky_nam DESC, ky_thang DESC, chi_nhanh""").fetchall()
+        return [dict(r) for r in rows]

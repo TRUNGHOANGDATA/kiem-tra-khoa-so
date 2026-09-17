@@ -68,3 +68,25 @@ def test_fmt_sl_giu_phan_thap_phan():
     assert base.fmt_sl(1234.5) == "1.234,5"
     assert base.fmt_sl(-0.27) == "-0,27"
     assert base.fmt_sl(float("nan")) == ""
+
+
+def test_khong_cau_chu_nao_lap_tu():
+    """Câu hiển thị cho kế toán không được dính lỗi lặp từ ("Có Có 511 với TaxCode…").
+
+    Quét thẳng chuỗi trong mã nguồn vì dữ liệu test không kích hoạt hết mọi check —
+    bản thân lỗi này lọt tới người dùng đúng vì fixture không chạm C3.2.
+    """
+    import ast
+    from pathlib import Path
+
+    goc = Path(__file__).resolve().parents[1] / "app"
+    xau = []
+    for f in goc.rglob("*.py"):
+        cay = ast.parse(f.read_text(encoding="utf-8"))
+        for nut in ast.walk(cay):
+            if isinstance(nut, ast.Constant) and isinstance(nut.value, str):
+                tu = nut.value.split()
+                lap = [a for a, b in zip(tu, tu[1:]) if a == b and any(k.isalpha() for k in a)]
+                if lap:
+                    xau.append(f"{f.name}:{nut.lineno} lặp {lap} — {nut.value[:60]}")
+    assert xau == [], "\n".join(xau)

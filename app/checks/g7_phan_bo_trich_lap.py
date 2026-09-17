@@ -17,6 +17,7 @@ trong file nhưng là nghiệp vụ không trọng yếu, hiếm phát sinh — 
 """
 import pandas as pd
 
+from . import cdps_tien_ich as cd
 from .base import VANG, BoiCanh, CheckResult, bat_dau, co_dong, loc_dong, phat_sinh_theo_prefix
 
 NHOM = "G7"
@@ -31,6 +32,22 @@ def _checklist(ma: str, ten: str, co: bool, khi_co: str, khi_khong: str) -> Chec
     bang = pd.DataFrame([{"co_phat_sinh": bool(co),
                           "ket_luan": khi_co if co else khi_khong}])
     return CheckResult(ma, ten, NHOM, VANG, bang, la_thong_ke=True)
+
+
+def _checklist_hoac_canh_bao(ma: str, ten: str, co_but_toan: bool, bang_chung: float,
+                             khi_co: str, khi_khong: str, ly_do_thieu: str) -> CheckResult:
+    """C7.1–C7.3: nâng từ NHẮC lên CẢNH BÁO THẬT khi CĐPS chứng minh có tài sản/nghĩa vụ.
+
+    - Đã có bút toán trong kỳ -> checklist xác nhận (không kéo kết luận).
+    - Chưa có bút toán NHƯNG số dư CĐPS cho thấy DN thật sự có TSCĐ / khoản trả trước /
+      lương phải trả -> đây là thiếu sót CÓ BẰNG CHỨNG -> cảnh báo vàng thật.
+    - Chưa có bút toán và không có (hoặc chưa nạp) CĐPS -> giữ checklist, không đoán.
+    """
+    if co_but_toan or abs(bang_chung) <= 1.0:
+        return _checklist(ma, ten, co_but_toan, khi_co, khi_khong)
+    return CheckResult(ma, ten, NHOM, VANG,
+                       pd.DataFrame([{"ket_luan": ly_do_thieu, "so_du_cdps": bang_chung}]),
+                       ghi_chu="Bằng chứng lấy từ số dư CĐPS của kỳ này")
 
 
 def _thong_ke_ps(ma: str, ten: str, prefix: str, df: pd.DataFrame) -> CheckResult:
@@ -53,21 +70,32 @@ def _canh_bao(ma: str, ten: str, thieu: bool, ly_do: str, ghi_chu: str = "",
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
 
-    # --- C7.1–C7.3: checklist (không kéo kết luận) ---
+    # --- C7.1–C7.3: checklist, tự nâng lên cảnh báo thật khi CĐPS có bằng chứng ---
     _, co_214 = phat_sinh_theo_prefix(df, "214")
-    kq.append(_checklist("C7.1", "Khấu hao TSCĐ", co_214 > 0,
-                         "Đã có bút toán Có 214 trong kỳ",
-                         "Kỳ này KHÔNG thấy bút toán Có 214 — xác nhận lại nếu DN có TSCĐ đang dùng"))
+    nguyen_gia = cd.du_net(ctx, "211", "213")            # dư Nợ > 0 = DN đang có TSCĐ
+    kq.append(_checklist_hoac_canh_bao(
+        "C7.1", "Khấu hao TSCĐ", co_214 > 0, max(nguyen_gia, 0.0),
+        "Đã có bút toán Có 214 trong kỳ",
+        "Kỳ này KHÔNG thấy bút toán Có 214 — xác nhận lại nếu DN có TSCĐ đang dùng",
+        "CĐPS có nguyên giá TSCĐ (211/213) nhưng kỳ này KHÔNG có bút toán Có 214"
+        " — thiếu khấu hao"))
 
     _, co_242 = phat_sinh_theo_prefix(df, "242")
-    kq.append(_checklist("C7.2", "Phân bổ chi phí trả trước / CCDC", co_242 > 0,
-                         "Đã có bút toán Có 242 trong kỳ",
-                         "Kỳ này KHÔNG thấy bút toán Có 242 — xác nhận lại nếu DN có chi phí trả trước/CCDC đang phân bổ"))
+    tra_truoc = cd.du_net(ctx, "242")                    # dư Nợ > 0 = còn khoản phân bổ
+    kq.append(_checklist_hoac_canh_bao(
+        "C7.2", "Phân bổ chi phí trả trước / CCDC", co_242 > 0, max(tra_truoc, 0.0),
+        "Đã có bút toán Có 242 trong kỳ",
+        "Kỳ này KHÔNG thấy bút toán Có 242 — xác nhận lại nếu DN có chi phí trả trước/CCDC đang phân bổ",
+        "CĐPS còn số dư 242 nhưng kỳ này KHÔNG có bút toán Có 242 — thiếu phân bổ"))
 
     luong = any(co_dong(df, no=TK_CHI_PHI, co=(tk,)) for tk in ("334", "338"))
-    kq.append(_checklist("C7.3", "Trích lương & các khoản theo lương", luong,
-                         "Đã có bút toán đưa 334/338 vào chi phí 622/627/641/642",
-                         "KHÔNG thấy bút toán đưa lương/BHXH (334/338) vào chi phí trong kỳ"))
+    phai_tra_luong = -cd.du_net(ctx, "334")              # dư Có > 0 = còn lương phải trả
+    kq.append(_checklist_hoac_canh_bao(
+        "C7.3", "Trích lương & các khoản theo lương", luong, max(phai_tra_luong, 0.0),
+        "Đã có bút toán đưa 334/338 vào chi phí 622/627/641/642",
+        "KHÔNG thấy bút toán đưa lương/BHXH (334/338) vào chi phí trong kỳ",
+        "CĐPS có số dư lương phải trả (334) nhưng kỳ này KHÔNG có bút toán đưa"
+        " 334/338 vào chi phí — thiếu trích lương"))
 
     # --- C7.4: thống kê trích trước 335 ---
     kq.append(_thong_ke_ps("C7.4", "Trích trước chi phí (335)", "335", df))
@@ -93,13 +121,22 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     # (Nợ 421/Có 911); nếu net là LỖ thì không phát sinh 8211 là đúng, không cảnh báo.
     kc_lai = loc_dong(df, no=("911",), co=("421",))["Amount"].sum()   # kết chuyển lãi
     kc_lo = loc_dong(df, no=("421",), co=("911",))["Amount"].sum()    # kết chuyển lỗ
-    co_lai = float(kc_lai) > float(kc_lo)                             # net lãi cả kỳ
+    lai_ky = float(kc_lai) - float(kc_lo)                             # net lãi kỳ (âm = lỗ kỳ)
     no_821, _ = phat_sinh_theo_prefix(df, "821")
+    # Có CĐPS thì trừ lỗ lũy kế đầu kỳ (421x): chỉ đòi 8211 khi còn thu nhập tính thuế.
+    # Chưa nhập CĐPS (None) thì giữ hành vi cũ (đòi khi kỳ có lãi) + nhắc nạp CĐPS.
+    lo_luy_ke = getattr(ctx, "lo_luy_ke_dau", None)
+    if lo_luy_ke is None:
+        con_thue = lai_ky > 0
+        gc = "Chưa có CĐPS: chưa trừ được lỗ lũy kế — nạp CĐPS để loại trừ chính xác"
+    else:
+        con_thue = lai_ky > max(0.0, float(lo_luy_ke))
+        gc = "Đã trừ lỗ lũy kế đầu kỳ (421) từ CĐPS"
     kq.append(_canh_bao("C7.6", "Chưa trích/kết chuyển chi phí thuế TNDN",
-                        co_lai and no_821 == 0,
+                        con_thue and no_821 == 0,
                         "KQKD có lãi (911 → 421) nhưng không thấy phát sinh 8211"
                         " — kiểm tra thuế TNDN tạm tính",
-                        ghi_chu="Chỉ xét khi kỳ có kết chuyển lãi"))
+                        ghi_chu=gc))
 
     # --- C7.7: thống kê dự phòng 229 ---
     kq.append(_thong_ke_ps("C7.7", "Dự phòng tổn thất tài sản (229)", "229", df))

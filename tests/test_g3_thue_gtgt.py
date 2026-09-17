@@ -13,7 +13,8 @@ def test_c31_co_ma_thue_nhung_thieu_tk_thue(ctx):
         {"DocNo": "B", "DebitAccount": "1331", "CreditAccount": "3311", "TaxCode": "V10"},   # đủ
         {"DocNo": "C", "DebitAccount": "6421", "CreditAccount": "1111", "TaxCode": "V00"},   # không chịu thuế
     ])
-    assert _kq(df, ctx)["C3.1"].so_loi == 1
+    c31 = _kq(df, ctx)["C3.1"]
+    assert c31.la_thong_ke is True and len(c31.chi_tiet) == 1   # thống kê, vẫn liệt kê
 
 
 def test_c32_doanh_thu_thieu_thue_dau_ra(ctx):
@@ -33,7 +34,7 @@ def test_c31_c32_gom_theo_ca_loai_va_so_chung_tu(ctx):
         {"DocCode": "PC", "DocNo": "001", "DebitAccount": "1331", "CreditAccount": "1111", "TaxCode": "V10"},
     ])
     kq = _kq(df, ctx)["C3.1"]
-    assert kq.so_loi == 1                                  # chỉ PN/001 thiếu
+    assert len(kq.chi_tiet) == 1                           # chỉ PN/001 thiếu
     assert kq.chi_tiet["DebitAccount"].tolist() == ["1521"]
 
     dt = tao_df([
