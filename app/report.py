@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from .checks import TEN_NHOM
-from .checks.base import (COT_SO_HIEN_THI, COT_SO_LE, DO, VANG, XANH, CheckResult, doi_bool,
+from .checks.base import (COT_SO_LE, DO, VANG, XANH, CheckResult, cot_so_cua, doi_bool,
                           fmt_so, ten_cot)
 from .loader import ThongTinFile
 from .trang_thai import BuocKhoaSo, tinh_ket_luan
@@ -32,6 +32,7 @@ def ten_sheet_an_toan(ten: str) -> str:
 
 def _ghi_bang(writer, ten_sheet, df: pd.DataFrame, fmt, dong_dau=0):
     goc = list(df.columns)                     # tên gốc: dùng để chọn định dạng số
+    la_so = set(cot_so_cua(df))                # nhận diện theo KIỂU, xem base.cot_so_cua
     df = df.copy()
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
@@ -47,7 +48,7 @@ def _ghi_bang(writer, ten_sheet, df: pd.DataFrame, fmt, dong_dau=0):
             rong = max(10, min(60, int(do_dai.quantile(0.9)) + 2))
         else:
             rong = 12
-        dinh_dang = fmt["so_le"] if c in COT_SO_LE else fmt["so"] if c in COT_SO_HIEN_THI else None
+        dinh_dang = fmt["so_le"] if c in COT_SO_LE else fmt["so"] if c in la_so else None
         ws.set_column(j, j, rong, dinh_dang)
     ws.freeze_panes(dong_dau + 1, 0)
     if len(df):

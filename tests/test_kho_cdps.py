@@ -108,3 +108,20 @@ def test_so_sanh_cdps_bat_tk_them_va_bot(tmp_path):
     d = k.so_sanh_cdps("A08", 2026, 8, moi)
     k.dong()
     assert (d["so_them"], d["so_bot"], d["so_doi"]) == (1, 1, 0)
+
+
+# ------------------------------------------------------- CĐPS của kỳ liền trước
+def test_doc_cdps_ky_truoc_lui_mot_thang(tmp_path):
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A08", 2026, 7, _cdps([{"account": "1111", "du_cuoi_no": 500}]))
+    assert k.doc_cdps_ky_truoc("A08", 2026, 8)["account"].tolist() == ["1111"]
+    assert k.doc_cdps_ky_truoc("A08", 2026, 7).empty        # kỳ 06 chưa nạp -> rỗng
+    assert k.doc_cdps_ky_truoc("A07", 2026, 8).empty        # chi nhánh khác -> rỗng
+    k.dong()
+
+
+def test_doc_cdps_ky_truoc_thang_1_lui_ve_thang_12_nam_truoc(tmp_path):
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A08", 2025, 12, _cdps([{"account": "1111", "du_cuoi_no": 500}]))
+    assert k.doc_cdps_ky_truoc("A08", 2026, 1)["account"].tolist() == ["1111"]
+    k.dong()

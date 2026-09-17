@@ -52,6 +52,19 @@ def ten_cot(cot) -> list[str]:
     return [TEN_COT.get(c, c) for c in cot]
 
 
+def cot_so_cua(df: pd.DataFrame) -> list[str]:
+    """Các cột cần canh phải & chấm phân cách nghìn, nhận diện theo KIỂU DỮ LIỆU.
+
+    Không dùng riêng danh sách tên `COT_SO_HIEN_THI` được: G9/G10/G11 dựng bảng với
+    nhãn tiếng Việt sẵn ("Dư cuối Nợ", "PS Nợ bảng kê") nên không tên nào khớp, và
+    số tiền hiện trần trụi 464282494. Danh sách tên vẫn giữ để ép định dạng cho cột
+    số bị pandas suy ra kiểu object.
+    """
+    return [c for c in df.columns
+            if c in COT_SO_HIEN_THI
+            or (pd.api.types.is_numeric_dtype(df[c]) and not pd.api.types.is_bool_dtype(df[c]))]
+
+
 def doi_bool(df: pd.DataFrame) -> pd.DataFrame:
     """Đổi mọi cột lô-gic sang 'Có'/'Không' — người dùng là KẾ TOÁN, không đọc true/false.
 
@@ -83,6 +96,10 @@ class BoiCanh:
     # G9/G10 và bản nâng cấp C7.1–C7.3 chỉ chạy khi có bảng này — không có thì đứng
     # ngoài (la_thong_ke) chứ KHÔNG báo "đạt" giả.
     cdps: pd.DataFrame | None = None
+    # CĐPS của kỳ LIỀN TRƯỚC, cùng cột với `cdps`; None = chưa nạp kỳ trước.
+    # Dùng để so biến động giữa hai kỳ — không có thì check phải đứng ngoài
+    # (la_thong_ke), KHÔNG được coi "không có kỳ trước" là "không biến động".
+    cdps_truoc: pd.DataFrame | None = None
 
 
 @dataclass

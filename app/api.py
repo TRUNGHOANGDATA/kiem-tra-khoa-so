@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import cau_hinh, cdps, checks, chot_so, report
-from .checks.base import (COT_SO_HIEN_THI, COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult,
+from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
@@ -239,8 +239,8 @@ class JsApi:
         finally:
             kho.dong()
 
-    def _cdps_cua(self, d: "DonVi"):
-        """CĐPS của đúng (chi nhánh × kỳ) cho G9/G10/C7; None nếu chưa nạp.
+    def _cdps_neu_co(self, doc):
+        """Đọc một bảng CĐPS từ kho; None nếu chưa nạp.
         Không tạo kho rỗng chỉ để tra (giống _lo_luy_ke_dau)."""
         if not Path(self._duong_dan_kho()).exists():
             return None
@@ -249,17 +249,25 @@ class JsApi:
         except Exception:  # noqa: BLE001 (kho lỗi không được làm chết luồng kiểm tra)
             return None
         try:
-            df = kho.doc_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang)
+            df = doc(kho)
             return df if len(df) else None
         except Exception:  # noqa: BLE001
             return None
         finally:
             kho.dong()
 
+    def _cdps_cua(self, d: "DonVi"):
+        """CĐPS của đúng (chi nhánh × kỳ) cho G9/G10/C7; None nếu chưa nạp."""
+        return self._cdps_neu_co(lambda kho: kho.doc_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang))
+
+    def _cdps_truoc(self, d: "DonVi"):
+        """CĐPS của kỳ liền trước — để so biến động hai kỳ; None nếu chưa nạp."""
+        return self._cdps_neu_co(lambda kho: kho.doc_cdps_ky_truoc(d.nhan, d.tt.ky_nam, d.tt.ky_thang))
+
     def _chay_mot_don_vi(self, d: DonVi, on_progress=None) -> None:
         """Chạy toàn bộ check + suy 18 bước cho MỘT chi nhánh, trên frame của riêng nó."""
         ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam, lo_luy_ke_dau=self._lo_luy_ke_dau(d),
-                      cdps=self._cdps_cua(d))
+                      cdps=self._cdps_cua(d), cdps_truoc=self._cdps_truoc(d))
         d.ket_qua = checks.chay_tat_ca(d.df, ctx, on_progress=on_progress)
         d.kq = {r.ma: r for r in d.ket_qua}
         d.trang_thai = suy_trang_thai(d.df, d.kq)
@@ -635,7 +643,7 @@ class JsApi:
             tong = int(len(df)); kich_thuoc = max(1, min(int(kich_thuoc), 500))
             a = max(0, (int(trang) - 1) * kich_thuoc); cot = list(df.columns)
             return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
-                    "cot_so": [c for c in cot if c in COT_SO_HIEN_THI],
+                    "cot_so": cot_so_cua(df),
                     "cot_so_le": [c for c in cot if c in COT_SO_LE],
                     "tom_tat": diff["tom_tat"],
                     "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
@@ -731,7 +739,7 @@ class JsApi:
         cot = list(df.columns)
         # Nhãn tiếng Việt và danh sách cột số đi kèm dữ liệu, không nhân bản sang JS.
         return {"tong": tong, "trang": int(trang), "cot": cot, "nhan": ten_cot(cot),
-                "cot_so": [c for c in cot if c in COT_SO_HIEN_THI],
+                "cot_so": cot_so_cua(df),
                 "cot_so_le": [c for c in cot if c in COT_SO_LE],
                 "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
 
