@@ -120,38 +120,39 @@ function Noi() {
   return (
     <div className="flex h-full bg-[#F3F5F8] font-sans text-ink">
       {/* ------------------------------- Sidebar ------------------------------- */}
-      <aside className="flex w-[236px] shrink-0 flex-col bg-gradient-to-b from-muc-cao to-muc-tram text-white">
-        <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+      <aside className="flex w-[240px] shrink-0 flex-col bg-[#12273E] text-white">
+        <div className="flex items-center gap-3 px-5 py-5">
           <img src={logo} alt="Logo" className="h-11 w-11 shrink-0 rounded-xl object-cover shadow-soft ring-1 ring-white/15" />
           <div className="min-w-0">
             <div className="text-[14px] font-extrabold leading-tight">Kiểm tra<br />khóa sổ cuối kỳ</div>
-            <div className="mt-0.5 text-[11px] text-steel-300">Doanh nghiệp sản xuất</div>
+            <div className="mt-0.5 text-[11px] text-white/50">Doanh nghiệp sản xuất</div>
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1 p-3">
+        <nav className="flex flex-col gap-0.5 px-3">
           {NAV.map((m) => {
             const active = man === m.id;
             return (
               <button key={m.id} onClick={() => setMan(m.id)}
-                className={cx("flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-semibold transition",
-                  active ? "bg-white/15 text-white shadow-soft ring-1 ring-white/10" : "text-steel-300 hover:bg-white/8 hover:text-white")}>
+                className={cx("relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13.5px] font-semibold transition",
+                  active ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white")}>
+                {active && <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brass-300" />}
                 <Icon d={m.icon} className="h-[18px] w-[18px]" />{m.nhan}
               </button>
             );
           })}
           <button onClick={() => setModalCaiDat(true)}
-            className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-semibold text-steel-300 transition hover:bg-white/8 hover:text-white">
+            className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13.5px] font-semibold text-white/60 transition hover:bg-white/5 hover:text-white">
             <Icon d={IC.gear} className="h-[18px] w-[18px]" />Cài đặt
           </button>
         </nav>
 
-        <div className="mt-auto p-5">
+        <div className="mt-auto p-4">
           <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-brass/20 text-brass-300"><Icon d={IC.lock} className="h-5 w-5" /></div>
-            <p className="mt-2.5 text-[12.5px] font-semibold leading-snug text-white/90">“Số liệu minh bạch<br />Doanh nghiệp vững mạnh”</p>
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-brass/25 text-brass-300"><Icon d={IC.lock} className="h-5 w-5" /></div>
+            <p className="mt-2.5 text-[12.5px] font-semibold leading-snug text-white/85">“Số liệu minh bạch<br />Doanh nghiệp vững mạnh”</p>
           </div>
-          <div className="mt-3 text-[11px] text-steel-400">Phiên bản 1.0.0</div>
+          <div className="mt-3 px-1 text-[11px] text-white/35">Phiên bản 1.0.0</div>
         </div>
       </aside>
 
@@ -169,8 +170,7 @@ function Noi() {
           )}
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${nen})` }}>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {man === "tongquan" && (
             kq ? (
               <ManKetQua kq={kq} nhieu={nhieu}
@@ -185,10 +185,12 @@ function Noi() {
                 onKiemTraLai={kiemTra} onFileKhac={() => setMan("kiemtra")} />
             ) : (
               <div className="w-full flex-1 overflow-auto p-6">
-                {/* Hero — chữ đặt thẳng trên ảnh nền */}
-                <section className="relative min-h-[196px] px-2 pt-3">
-                  <div className="relative z-10 max-w-[600px]">
-                    <h1 className="text-[28px] font-extrabold text-ink drop-shadow-sm">Xin chào! <span className="align-middle">👋</span></h1>
+                {/* Hero — ảnh nền mờ, fade sang trắng phía chữ để dễ đọc */}
+                <section className="relative min-h-[240px] overflow-hidden rounded-2xl border border-steel-200 bg-white shadow-card">
+                  <div className="absolute inset-0 bg-cover bg-right" style={{ backgroundImage: `url(${nen})` }} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-white/35" />
+                  <div className="relative z-10 max-w-[560px] p-8">
+                    <h1 className="text-[28px] font-extrabold text-ink">Xin chào! <span className="align-middle">👋</span></h1>
                     <p className="mt-2 max-w-[440px] text-[14px] font-medium leading-relaxed text-steel-700">
                       Cùng kiểm tra khóa sổ để đảm bảo dữ liệu chính xác và đầy đủ cho kỳ {ky}.
                     </p>
@@ -196,7 +198,7 @@ function Noi() {
                       <Icon d={IC.soKiemTra} className="h-4 w-4" />Bắt đầu kiểm tra khóa sổ
                     </Nut>
                   </div>
-                  <div className="pointer-events-none absolute right-4 top-2 hidden text-right text-[16px] font-semibold italic leading-snug text-navy/70 md:block">
+                  <div className="pointer-events-none absolute right-6 top-6 z-10 hidden text-right text-[16px] font-semibold italic leading-snug text-navy/70 md:block">
                     Kiểm tra hôm nay,<br />An tâm ngày mai
                   </div>
                 </section>
