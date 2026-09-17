@@ -338,6 +338,25 @@ export default function ManKetQua(p: KetQuaProps) {
 
           {tab === "trangthai" ? (
             <>
+              {/* Dải hòa giải: 16 bước ≠ kết luận. Lỗi chặn (C1.5/C5.x/C3.2…) là kiểm tra
+                  dữ liệu, KHÔNG nằm trong 16 bước — nhắc để không hiểu nhầm "đã xong". */}
+              {dsDo.length > 0 || dsVang.length > 0 ? (
+                <button onClick={() => setTab("loi")}
+                  className={cx("flex items-center gap-2.5 border-b px-5 py-2.5 text-left text-[13px] font-semibold transition",
+                    dsDo.length > 0 ? "border-do-vien bg-do-nen text-do-dam hover:brightness-95" : "border-vang-vien bg-vang-nen text-vang-dam hover:brightness-95")}>
+                  <Icon d={dsDo.length > 0 ? IC.x : IC.warn} className="h-4 w-4 shrink-0" />
+                  <span>Ngoài 16 bước, phần soát dữ liệu còn
+                    {dsDo.length > 0 && <> <b>{dsDo.length} nghiêm trọng</b></>}
+                    {dsDo.length > 0 && dsVang.length > 0 && " ·"}
+                    {dsVang.length > 0 && <> <b>{dsVang.length} cảnh báo</b></>} cần xử lý.</span>
+                  <span className="ml-auto shrink-0 whitespace-nowrap underline">Xem Lỗi &amp; cảnh báo →</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2.5 border-b border-xanh-vien bg-xanh-nen px-5 py-2.5 text-[13px] font-semibold text-xanh-dam">
+                  <Icon d={IC.check} className="h-4 w-4 shrink-0" />
+                  <span>Không còn lỗi hay cảnh báo — sẵn sàng khóa sổ.</span>
+                </div>
+              )}
               <div className="flex items-center gap-4 border-b border-steel-100 px-5 py-2.5 text-[11.5px] font-bold uppercase tracking-wide text-steel-400">
                 <span className="w-6 text-right">#</span><span className="w-7" />
                 <span className="flex-1">Nội dung kiểm tra</span><span className="pr-6">Trạng thái</span>
