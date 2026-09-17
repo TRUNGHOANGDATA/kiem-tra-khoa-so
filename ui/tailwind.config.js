@@ -7,8 +7,8 @@ export default {
       // điểm nhấn đồng thau (tiết chế), trạng thái trầm không chói.
       colors: {
         ink: "#0C1B2A",
-        // Nền ứng dụng: xám thép ấm (ngả giấy) thay vì xám-xanh lạnh "SaaS" cũ.
-        nen: "#ECEBE6",
+        // Nền ứng dụng: giấy sổ cái ấm (ngả vàng nhẹ) — dùng qua class .nen-so-cai (kẻ đồng thau mờ).
+        nen: "#F1EFE9",
         // Đầu trang thép: khối mực xanh-đen như thép nguội tôi đậm.
         muc: { DEFAULT: "#122636", cao: "#1B3A54", tram: "#0A1521" },
         steel: {

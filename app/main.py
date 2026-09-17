@@ -9,6 +9,7 @@ _GOC = Path(__file__).resolve().parent
 # Ưu tiên bản React đã build (webapp/); nếu chưa có thì dùng bản HTML/JS thuần (web/).
 # Bản build được commit sẵn nên máy người dùng chỉ cần Python, không cần Node.
 WEB_DIR = _GOC / "webapp" if (_GOC / "webapp" / "index.html").exists() else _GOC / "web"
+ICON = _GOC / "app.ico"   # huy hiệu khiên thép + lỗ khóa (taskbar/alt-tab); sinh bằng tools/tao_icon.py
 
 
 def main():
@@ -28,11 +29,12 @@ def main():
     # thước khi người dùng bấm thu nhỏ lại, min_size chặn không cho kéo nhỏ quá.
     window = webview.create_window(
         "Kiểm tra khóa sổ cuối kỳ", url=str(WEB_DIR / "index.html"), js_api=api,
-        width=1100, height=750, min_size=(1000, 700), background_color="#F5F7FA",
+        width=1100, height=750, min_size=(1000, 700), background_color="#F1EFE9",
         text_select=True, maximized=True,
     )
     api.gan_window(window)
-    webview.start()
+    # icon=.ico cho cửa sổ/taskbar (pywebview 6.x hỗ trợ ở webview.start); thiếu file thì bỏ qua.
+    webview.start(icon=str(ICON)) if ICON.exists() else webview.start()
 
 
 if __name__ == "__main__":

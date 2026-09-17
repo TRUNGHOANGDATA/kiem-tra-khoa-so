@@ -118,10 +118,20 @@ function Noi() {
   }, [bang, modalChot.mo, modalCaiDat, man]);
 
   return (
-    <div className="flex h-full flex-col bg-nen font-sans text-ink">
+    <div className="flex h-full flex-col nen-so-cai font-sans text-ink">
       {/* Header — khối thép ink + đường kẻ đồng thau (bản sắc "Thép & Sổ cái") */}
       <header className="flex items-center gap-4 border-b-2 border-brass/70 bg-gradient-to-b from-muc-cao to-muc-tram px-6 py-3 text-white shadow-header">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brass-300 to-brass-600 text-[15px] font-extrabold tracking-wide text-muc-tram shadow-soft ring-1 ring-brass-300/40">KS</div>
+        {/* Huy hiệu app: khiên thép khắc dòng sổ + lỗ khóa ("khóa sổ") trên nền đồng thau */}
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brass-300 to-brass-600 text-muc-tram shadow-soft ring-1 ring-brass-300/40">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7}
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 2.8 19.5 5.6V11.5c0 5-3.3 7.8-7.5 9.1-4.2-1.3-7.5-4.1-7.5-9.1V5.6Z" />
+            <line x1="7.2" y1="8.4" x2="16.8" y2="8.4" />
+            <line x1="7.2" y1="16.2" x2="16.8" y2="16.2" />
+            <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" />
+            <path d="M12 12.4 11.2 16h1.6Z" fill="currentColor" stroke="none" />
+          </svg>
+        </div>
         <div>
           <h1 className="text-[17px] font-bold leading-tight">Kiểm tra khóa sổ cuối kỳ</h1>
           <p className="text-[12px] text-steel-300">Doanh nghiệp sản xuất · Thông tư 200</p>
