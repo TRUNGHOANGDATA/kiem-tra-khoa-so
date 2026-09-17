@@ -93,9 +93,26 @@ Chưa nạp CĐPS → giữ hành vi checklist hiện tại (không đoán).
 ### Nhóm F — Bút toán bất thường trong sổ (bảng kê; bắt đầu ở mức THỐNG KÊ)
 | Mã | Rule | Mức |
 |---|---|---|
-| C6.6 | Tỷ trọng bút toán/giá trị ghi ngày cuối kỳ vượt ngưỡng (vd > 40% số dòng của kỳ) | THỐNG KÊ |
-| C6.7 | Giao dịch > k × trung vị theo TK (k=10, hiệu chỉnh) — nâng "Top 50" thành cờ có ngưỡng | THỐNG KÊ |
-| C6.8 | Cặp đối ứng Nợ/Có hiếm (xuất hiện ≤ 2 lần trong kỳ **và** không có ở kỳ đã chốt trước) | THỐNG KÊ |
+| C6.6 | Tỷ trọng bút toán/giá trị ghi ngày cuối kỳ vượt ngưỡng (vd > 40% số dòng của kỳ) | **BỎ** |
+| C6.7 | ~~Giao dịch > k × trung vị theo TK~~ → **Q3 + 30·IQR của chính TK** | THỐNG KÊ ✅ |
+| C6.8 | Cặp đối ứng Nợ/Có hiếm (≤ 2 lần trong kỳ, gộp ở TK cấp 1) | THỐNG KÊ ✅ |
+
+#### Kết quả hiệu chỉnh Đợt 3 trên file 8 chi nhánh 08/2026
+- **C4.7 “xuất 155/156 không về 632” — BỎ.** 421–2.281 dòng/chi nhánh và toàn bộ hợp lệ:
+  xuất NVL cho sản xuất (Nợ 621), điều chuyển kho (152/155/156), thiếu hụt (338), 627, 641.
+  Chiều ngược lại đã có **C4.3** (Nợ 632 phải đối ứng TK kho hợp lệ) — đó mới là chiều có nghĩa.
+- **C6.6 “dồn ngày cuối kỳ” — BỎ.** Sau khi loại kết chuyển, ngày cuối chiếm **4–9% số dòng**
+  (trung bình một ngày trong tháng ≈ 4%) và **8–18,5% giá trị**. Không có sức phân biệt.
+  Ngưỡng 40% của spec gốc không bao giờ chạm. Chỉ có nghĩa khi so với CHÍNH chi nhánh đó ở
+  kỳ trước → chuyển sang **Đợt 4**.
+- **C6.7 đổi thước đo.** “Gấp ≥ 100 lần trung vị” cho ra **cả 50 dòng đều là `1331`** ở A08:
+  thuế GTGT đầu vào có trung vị 19.704đ nên mọi hóa đơn lớn đều “gấp hơn 1.000 lần”. Thay
+  bằng **Q3 + 30·IQR** (ngưỡng tự co giãn theo độ phân tán của chính tài khoản), loại bút
+  toán kết chuyển, tối đa 5 dòng mỗi TK → **23–50 dòng/chi nhánh**, nội dung đọc được.
+- **C6.8 bỏ vế “không có ở kỳ đã chốt trước”** (chưa có kỳ chốt nào để so). Loại thêm cặp mà
+  **cả hai vế đều là TK kết chuyển** (911/421, 154/622…) vì chúng luôn xuất hiện 1–2 lần mỗi
+  kỳ → **24–66 cặp/chi nhánh**, ra đúng loại việc cần nhìn: bù trừ công nợ 2,27 tỷ, hoàn tiền
+  đặt cọc 1,54 tỷ, chuyển công nợ, tách VAT.
 
 ## 4. Thứ tự làm (đề xuất)
 1. **Đợt 1 — G9 + G10 + nâng C7.1/C7.2/C7.3** (dùng CĐPS sẵn có; giá trị cao nhất, rẻ nhất).

@@ -4,7 +4,7 @@ from tests.conftest import tao_df
 
 def test_tat_ca_la_thong_ke(ctx):
     kq = g6.kiem_tra(tao_df([{}]), ctx)
-    assert [r.ma for r in kq] == ["C6.1", "C6.2", "C6.3", "C6.4", "C6.5"]
+    assert [r.ma for r in kq] == ["C6.1", "C6.2", "C6.3", "C6.4", "C6.5", "C6.7", "C6.8"]
     assert all(r.la_thong_ke and r.so_loi == 0 for r in kq)
 
 

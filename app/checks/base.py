@@ -27,6 +27,8 @@ TEN_COT = {
     "UnitCost": "Đơn giá", "WarehouseName": "Kho",
     "don_gia": "Đơn giá suy ra", "don_gia_pho_bien": "Đơn giá phổ biến của mã hàng",
     "so_lan_xuat": "Số lần xuất trong kỳ",
+    "nguong_tk": "Ngưỡng đột biến của TK",
+    "cap_dinh_khoan": "Cặp định khoản", "so_lan": "Số lần", "vi_du_ct": "Ví dụ số CT",
     "chi_nhanh": "Chi nhánh", "ky": "Kỳ", "ket_luan": "Kết luận", "co_phat_sinh": "Có phát sinh",
     "ma_khoan_muc": "Mã khoản mục", "ten_khoan_muc": "Tên khoản mục",
     "so_do": "Nghiêm trọng", "so_vang": "Cảnh báo",
@@ -37,6 +39,7 @@ TEN_COT = {
 COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",
                    "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9",
                    "don_gia", "don_gia_pho_bien", "so_lan_xuat", "tong_ps",
+                   "nguong_tk", "so_lan",
                    "so_do", "so_vang", "so_chua_lam", "so_can_ra")
 # Cột số CÓ PHẦN THẬP PHÂN — làm tròn 0 chữ số ở đây là nói sai sự thật: số lượng
 # 0,059 in ra "0" đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được
