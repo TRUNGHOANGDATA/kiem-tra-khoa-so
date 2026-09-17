@@ -26,9 +26,12 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     ct = _khoa_chung_tu(df)
 
     docs_thieu = set(ct[co_thue]) - set(ct[dong_tk_thue])
-    kq.append(tao_ket_qua(df[co_thue & ct.isin(docs_thieu)], "C3.1",
-                          "Có mã thuế nhưng chứng từ thiếu TK thuế", NHOM, VANG,
-                          "TaxCode chịu thuế nhưng cả chứng từ không có dòng 1331/33311"))
+    r31 = tao_ket_qua(df[co_thue & ct.isin(docs_thieu)], "C3.1",
+                      "Có mã thuế nhưng chứng từ thiếu TK thuế", NHOM, VANG,
+                      "TaxCode chịu thuế nhưng cả chứng từ không có dòng 1331/33311 — Bravo hay"
+                      " gắn TaxCode cả dòng giá vốn/kho; chỉ để soát, không kéo kết luận")
+    r31.la_thong_ke = True
+    kq.append(r31)
 
     dt = bat_dau(df["CreditAccount"], "511") & co_thue
     dong_33311 = bat_dau(df["DebitAccount"], "33311") | bat_dau(df["CreditAccount"], "33311")

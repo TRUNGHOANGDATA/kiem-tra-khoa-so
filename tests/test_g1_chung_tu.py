@@ -37,7 +37,9 @@ def test_c12_ngay_ngoai_ky(ctx):
 def test_c13_nghi_trung(ctx):
     r = {"DocNo": "X", "DebitAccount": "6421", "CreditAccount": "1111", "Amount": 5, "Description": "a"}
     df = tao_df([r, r, {**r, "Amount": 6}])
-    assert _kq(df, ctx)["C1.3"].so_loi == 2
+    c13 = _kq(df, ctx)["C1.3"]
+    assert c13.la_thong_ke is True and c13.so_loi == 0   # nghi trùng -> chỉ thống kê
+    assert len(c13.chi_tiet) == 2                         # vẫn liệt kê 2 dòng trùng
 
 
 def test_c14_no_bang_co(ctx):

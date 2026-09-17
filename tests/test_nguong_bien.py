@@ -15,8 +15,8 @@ def test_c42_dung_tai_nguong_lam_tron_khong_bi_bat(ctx):
     """Ngưỡng = |Amount| × 0,1% + 1đ. Amount 1.000 -> ngưỡng đúng 2đ."""
     tai_nguong = tao_df([{"CreditAccount": "1551", "Quantity9": 1, "UnitCost": 998, "Amount": 1000}])
     tren_nguong = tao_df([{"CreditAccount": "1551", "Quantity9": 1, "UnitCost": 997, "Amount": 1000}])
-    assert _kq(g4, tai_nguong, ctx)["C4.2"].so_loi == 0      # lệch đúng 2 = ngưỡng -> bỏ qua
-    assert _kq(g4, tren_nguong, ctx)["C4.2"].so_loi == 1     # lệch 3 > ngưỡng -> bắt
+    assert len(_kq(g4, tai_nguong, ctx)["C4.2"].chi_tiet) == 0   # lệch đúng 2 = ngưỡng -> bỏ qua
+    assert len(_kq(g4, tren_nguong, ctx)["C4.2"].chi_tiet) == 1  # lệch 3 > ngưỡng -> liệt kê
 
 
 def test_c42_nguong_ty_le_theo_so_tien_lon(ctx):
@@ -25,8 +25,8 @@ def test_c42_nguong_ty_le_theo_so_tien_lon(ctx):
                           "Amount": 1_000_000}])
     tren_nguong = tao_df([{"CreditAccount": "1551", "Quantity9": 1, "UnitCost": 998_998,
                            "Amount": 1_000_000}])
-    assert _kq(g4, tai_nguong, ctx)["C4.2"].so_loi == 0      # lệch đúng 1.001
-    assert _kq(g4, tren_nguong, ctx)["C4.2"].so_loi == 1     # lệch 1.002
+    assert len(_kq(g4, tai_nguong, ctx)["C4.2"].chi_tiet) == 0   # lệch đúng 1.001
+    assert len(_kq(g4, tren_nguong, ctx)["C4.2"].chi_tiet) == 1  # lệch 1.002
 
 
 def test_c24_dung_tai_nguong_lech_ty_gia_khong_bi_bat(ctx):

@@ -27,8 +27,11 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
 
     keys = ["DocNo", "DebitAccount", "CreditAccount", "Amount", "Description"]
     trung = df.duplicated(subset=keys, keep=False)
-    kq.append(tao_ket_qua(df[trung].sort_values(keys), "C1.3", "Nghi trùng bút toán", NHOM, VANG,
-                          "Trùng số CT + TK Nợ/Có + số tiền + diễn giải"))
+    r13 = tao_ket_qua(df[trung].sort_values(keys), "C1.3", "Nghi trùng bút toán", NHOM, VANG,
+                      "Trùng số CT + TK Nợ/Có + số tiền + diễn giải — bút toán lặp trong cùng"
+                      " chứng từ là bình thường; chỉ để soát, không kéo kết luận")
+    r13.la_thong_ke = True
+    kq.append(r13)
 
     # Chứng từ điều chuyển nội bộ (kho ↔ kho, ngân hàng ↔ ngân hàng) vốn dĩ cùng TK trên
     # sổ cái — phân biệt nằm ở cột chiều/kho, nên loại trừ để không báo động giả.
