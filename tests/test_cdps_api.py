@@ -60,3 +60,21 @@ def test_lo_luy_ke_dau_none_khi_chua_co_kho(tmp_path, monkeypatch):
     api = JsApi()
     d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
     assert api._lo_luy_ke_dau(d) is None       # chưa có kho -> None, không tạo kho thừa
+
+
+def test_thieu_cdps_liet_ke_chi_nhanh_chua_co(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    bk = tmp_path / "bk.xlsx"
+    pd.DataFrame([{"DocNo": "A", "DocDate": "2026-08-01", "DebitAccount": "6214",
+                   "CreditAccount": "1521", "Amount": 100}]).to_excel(bk, sheet_name="Table1", index=False)
+    api._nap_nhieu([str(bk)])
+    cn = api._dv[0].nhan
+    assert [x["chi_nhanh"] for x in api.thieu_cdps()] == [cn]   # chưa có CĐPS -> thiếu
+    kho = api._kho()
+    df = pd.DataFrame([["4212", "LN", 0, 0, 0, 0, 0, 0, False, 1]],
+                      columns=["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+                               "du_cuoi_no", "du_cuoi_co", "is_group", "level"])
+    kho.luu_cdps(cn, 2026, 8, df)
+    kho.dong()
+    assert api.thieu_cdps() == []                                # đã đủ CĐPS -> không thiếu

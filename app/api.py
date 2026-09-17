@@ -441,6 +441,27 @@ class JsApi:
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không nạp được CĐPS: {e}"}
 
+    def thieu_cdps(self):
+        """Chi nhánh đang nạp (bảng kê) mà kỳ tương ứng CHƯA có CĐPS trong kho —
+        dùng để CHẶN CỨNG nút Kiểm tra (bắt buộc có CĐPS mới được kiểm)."""
+        if not self._dv:
+            return []
+        def _mo():
+            return [{"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
+                     "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}"} for d in self._dv]
+        if not Path(self._duong_dan_kho()).exists():
+            return _mo()                       # chưa có kho -> mọi chi nhánh đều thiếu
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return _mo()
+        try:
+            return [{"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
+                     "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}"}
+                    for d in self._dv if not kho.co_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang)]
+        finally:
+            kho.dong()
+
     def trang_thai_cdps(self):
         """Danh sách (chi nhánh × kỳ) đã nhập CĐPS — cho màn nhập hiện trạng thái."""
         if not Path(self._duong_dan_kho()).exists():
