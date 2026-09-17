@@ -5,6 +5,7 @@ Ba câu hỏi mà kế toán hỏi khi cầm CĐPS lên, xếp theo SỨC MẠNH
     C11.1  Tài khoản nào biến động mạnh trong kỳ?           THỐNG KÊ (chỉ để soi)
     C11.2  Biên lợi nhuận gộp có vô lý không?                VÀNG (bằng chứng thật)
     C11.3  Phát sinh kỳ này lệch hẳn kỳ trước ở đâu?         THỐNG KÊ (chỉ để soi)
+    C11.4  Dư đầu kỳ này có khớp dư cuối kỳ trước không?     ĐỎ (đẳng thức kế toán)
 
 C11.1 KHÔNG cần nạp CĐPS kỳ trước: cột dư ĐẦU kỳ của chính CĐPS này chính là dư
 cuối của kỳ trước. C11.3 thì cần thật, vì so PHÁT SINH chứ không so số dư.
@@ -17,7 +18,7 @@ from __future__ import annotations
 import pandas as pd
 
 from . import cdps_tien_ich as cd
-from .base import VANG, BoiCanh, CheckResult, fmt_so
+from .base import DO, VANG, BoiCanh, CheckResult, fmt_so
 
 NHOM = "G11"
 
@@ -54,7 +55,10 @@ TEN = {
     "C11.1": "Số dư biến động mạnh trong kỳ",
     "C11.2": "Biên lợi nhuận gộp bất thường",
     "C11.3": "Phát sinh lệch mạnh so với kỳ trước",
+    "C11.4": "Dư đầu kỳ này ≠ dư cuối kỳ trước",
 }
+# C11.4 — sai số làm tròn, cùng mốc với C9.5.
+NGUONG_NOI_KY = 1_000.0
 
 
 def _c111(la: pd.DataFrame) -> CheckResult:
@@ -155,16 +159,51 @@ def _c113(la: pd.DataFrame, la_truoc: pd.DataFrame) -> CheckResult:
                      f"{NGUONG_TY_LE_PS:.0%} và ≥ {fmt_so(NGUONG_TUYET_DOI_PS)}đ")
 
 
-def _khong_co_ky_truoc() -> CheckResult:
-    return _thong_ke("C11.3", pd.DataFrame(),
-                     "Chưa nạp CĐPS kỳ trước — không so sánh được")
+def _c114(la: pd.DataFrame, la_truoc: pd.DataFrame) -> CheckResult:
+    """Dư đầu kỳ này PHẢI bằng dư cuối kỳ trước — đẳng thức, không phải nghi ngờ.
+
+    Mỗi kỳ CĐPS là một lát cắt riêng, nhưng hai lát cắt liền nhau dính với nhau đúng
+    ở chỗ này. Lệch nghĩa là sổ kỳ trước ĐÃ BỊ SỬA sau khi chốt — nên để ĐỎ.
+
+    So ở CẤP 1 như C9.5: doanh nghiệp hay tách/gộp tiểu khoản giữa hai kỳ (kỳ trước
+    để 6277, kỳ này tách 62771/62772), so theo đúng mã sẽ báo nhầm.
+    """
+    cot = ["Tài khoản", "Dư cuối kỳ trước", "Dư đầu kỳ này", "Chênh lệch", "ly_do"]
+    cuoi_truoc = _gop_cap_1_du(la_truoc, "du_cuoi")
+    dau_nay = _gop_cap_1_du(la, "du_dau")
+    g = cuoi_truoc.to_frame("truoc").join(dau_nay.to_frame("nay"), how="outer").fillna(0.0)
+    dong = []
+    for tk, r in g.iterrows():
+        d = float(r["nay"]) - float(r["truoc"])
+        if abs(d) <= NGUONG_NOI_KY:
+            continue
+        dong.append({"Tài khoản": tk, "Dư cuối kỳ trước": float(r["truoc"]),
+                     "Dư đầu kỳ này": float(r["nay"]), "Chênh lệch": d,
+                     "ly_do": f"TK {tk}: dư cuối kỳ trước {fmt_so(r['truoc'])}"
+                              f" nhưng dư đầu kỳ này {fmt_so(r['nay'])}"
+                              f" — lệch {fmt_so(abs(d))}"})
+    return CheckResult("C11.4", TEN["C11.4"], NHOM, DO, pd.DataFrame(dong, columns=cot),
+                       ghi_chu="Dư đầu kỳ này phải bằng dư cuối kỳ trước; lệch = sổ kỳ"
+                               " trước đã bị sửa sau khi chốt. So ở TK cấp 1")
+
+
+def _gop_cap_1_du(la: pd.DataFrame, cot: str) -> pd.Series:
+    ma = la["account"].fillna("").astype(str).str.strip().str[:CAP_SO_SANH]
+    return cd.net(la, f"{cot}_no", f"{cot}_co").groupby(ma).sum()
+
+
+def _khong_co_ky_truoc(ma: str) -> CheckResult:
+    return _thong_ke(ma, pd.DataFrame(), "Chưa nạp CĐPS kỳ trước — không so sánh được")
 
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     if not cd.co_cdps(ctx):
-        return [cd.khong_co_cdps(ma, t, NHOM, VANG) for ma, t in TEN.items()]
+        return [cd.khong_co_cdps(ma, t, NHOM, DO if ma == "C11.4" else VANG)
+                for ma, t in TEN.items()]
     la = cd.dong_la(ctx.cdps)
     truoc = getattr(ctx, "cdps_truoc", None)
     co_truoc = isinstance(truoc, pd.DataFrame) and not truoc.empty
+    la_truoc = cd.dong_la(truoc) if co_truoc else None
     return [_c111(la), _c112(la),
-            _c113(la, cd.dong_la(truoc)) if co_truoc else _khong_co_ky_truoc()]
+            _c113(la, la_truoc) if co_truoc else _khong_co_ky_truoc("C11.3"),
+            _c114(la, la_truoc) if co_truoc else _khong_co_ky_truoc("C11.4")]

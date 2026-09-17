@@ -16,7 +16,7 @@ def _kq(cdps=None, cdps_truoc=None, df=None):
 
 
 def test_du_3_ma_theo_thu_tu():
-    assert list(_kq()) == ["C11.1", "C11.2", "C11.3"]
+    assert list(_kq()) == ["C11.1", "C11.2", "C11.3", "C11.4"]
 
 
 def test_chua_nap_cdps_thi_ca_nhom_dung_ngoai():
@@ -137,3 +137,38 @@ def test_c113_gop_theo_cap_1_nhu_c95():
     truoc = tao_cdps([{"account": "6277", "ps_no": 1_000_000_000}])
     nay = tao_cdps([{"account": "62781", "ps_no": 1_000_000_000}])
     assert _kq(nay, cdps_truoc=truoc)["C11.3"].chi_tiet.empty
+
+
+# ------------------------- C11.4 dư đầu kỳ này = dư cuối kỳ trước
+def test_c114_chua_co_ky_truoc_thi_dung_ngoai():
+    r = _kq(tao_cdps([_du("1311", 100, 100)]))["C11.4"]
+    assert r.la_thong_ke is True and "kỳ trước" in r.ghi_chu
+
+
+def test_c114_noi_khop_thi_khong_bao():
+    truoc = tao_cdps([_du("1311", 0, 5_000_000_000), _du("3311", 0, -5_000_000_000)])
+    nay = tao_cdps([_du("1311", 5_000_000_000, 0), _du("3311", -5_000_000_000, 0)])
+    assert _kq(nay, cdps_truoc=truoc)["C11.4"].so_loi == 0
+
+
+def test_c114_du_dau_khac_du_cuoi_ky_truoc_la_do():
+    """Sổ kỳ trước đã bị sửa SAU khi chốt — đẳng thức kế toán, không phải nghi ngờ."""
+    truoc = tao_cdps([_du("1311", 0, 5_000_000_000)])
+    nay = tao_cdps([_du("1311", 4_000_000_000, 0)])
+    c = _kq(nay, cdps_truoc=truoc)["C11.4"]
+    assert c.muc_do == "do" and c.la_thong_ke is False and c.so_loi == 1
+    assert c.chi_tiet["Tài khoản"].tolist() == ["131"]
+    assert "1.000.000.000" in " ".join(c.chi_tiet["ly_do"])
+
+
+def test_c114_bo_qua_chenh_lech_lam_tron():
+    truoc = tao_cdps([_du("1311", 0, 5_000_000_000)])
+    nay = tao_cdps([_du("1311", 5_000_000_900, 0)])       # lệch 900đ
+    assert _kq(nay, cdps_truoc=truoc)["C11.4"].so_loi == 0
+
+
+def test_c114_tach_tieu_khoan_giua_hai_ky_van_khop():
+    """Kỳ trước để ở 6277, kỳ này tách ra 62771/62772 — cùng cấp 1 thì không phải lệch."""
+    truoc = tao_cdps([_du("6277", 0, 1_000_000_000)])
+    nay = tao_cdps([_du("62771", 600_000_000, 0), _du("62772", 400_000_000, 0)])
+    assert _kq(nay, cdps_truoc=truoc)["C11.4"].so_loi == 0

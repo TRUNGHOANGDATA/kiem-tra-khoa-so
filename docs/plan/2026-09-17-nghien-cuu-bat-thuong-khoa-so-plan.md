@@ -84,11 +84,32 @@ Chưa nạp CĐPS → giữ hành vi checklist hiện tại (không đoán).
 |---|---|---|
 | C9.5 | Từng TK lá: Σ Amount Nợ / Có từ bảng kê ≠ PS Nợ / Có trên CĐPS (ngưỡng 1đ) | ĐỎ (một trong hai nguồn thiếu chứng từ) |
 
-### Nhóm E — Biến động kỳ (cần ≥ 2 kỳ CĐPS trong kho)
-| Mã | Rule | Mức |
-|---|---|---|
-| C11.1 | Dư cuối / PS từng TK lệch > X% **và** > Y đ so với kỳ trước (X=30%, Y theo % tổng tài sản; hiệu chỉnh trên dữ liệu) | THỐNG KÊ → VÀNG sau hiệu chỉnh |
-| C11.2 | Biên lợi nhuận gộp (511 − 632)/511 đổi > Z điểm % so với kỳ trước | VÀNG |
+### Nhóm E — Biến động kỳ  ✅ ĐÃ LÀM (Đợt 4)
+| Mã | Rule | Mức | Cần kỳ trước? |
+|---|---|---|---|
+| C11.1 | Dư cuối lệch ≥ 30% **và** ≥ 50tr so với **dư đầu của chính CĐPS đó**; TK loại 1–4; nhánh riêng cho dư đầu = 0 (dư cuối ≥ 200tr) | THỐNG KÊ | **Không** |
+| C11.2 | Biên gộp = (PS Có 511 − PS Nợ 521) − PS Nợ 632, cảnh báo khi âm / không có giá vốn / > 40% | VÀNG (hạ THỐNG KÊ nếu chưa kết chuyển hết TK 5–9) | **Không** |
+| C11.3 | Phát sinh TK cấp 1 lệch ≥ 100% **và** ≥ 500tr so với kỳ trước | THỐNG KÊ | Có |
+| C11.4 | **Dư đầu kỳ này ≠ dư cuối kỳ trước** (TK cấp 1, ngưỡng 1.000đ) | **ĐỎ** | Có |
+
+#### Mỗi kỳ CĐPS là một lát cắt — trừ đúng một mối nối
+Người dùng hỏi (2026-09-17): *"cân đối số phát sinh mỗi kỳ là 1 lát cắt, không có liên hệ gì
+nhau"*. Đúng về mặt phát sinh — nhưng **có đúng một ràng buộc cứng giữa hai kỳ liền nhau**:
+
+> **dư đầu kỳ N = dư cuối kỳ N−1**
+
+Đây là đẳng thức kế toán, không phải suy đoán. Lệch nghĩa là **sổ kỳ trước đã bị sửa sau khi
+chốt** — nên **C11.4 để ĐỎ**, khác hẳn C11.3 (so phát sinh, chỉ là thống kê).
+
+Hệ quả kéo theo: **C11.1 không cần nạp CĐPS kỳ trước.** Cột dư ĐẦU kỳ của chính CĐPS đang xem
+chính là dư cuối kỳ trước. Đã kiểm chứng trên 8 chi nhánh: Σ dư đầu Nợ = Σ dư đầu Có, lệch 0đ.
+
+**Vì sao C11.3/C11.4 so ở TK CẤP 1** chứ không theo đúng mã: doanh nghiệp hay tách/gộp tiểu
+khoản giữa hai kỳ (kỳ trước để `6277`, kỳ này tách `62771`/`62772`), và cây tài khoản của phần
+mềm kế toán **không theo tiền tố mã** — xem bài học C9.5 ở Đợt 2.
+
+**Giới hạn đã biết của C11.4:** không bắt được việc chuyển đổi nội bộ giữa hai tiểu khoản cùng
+một TK cấp 1 ở kỳ trước (tổng cấp 1 không đổi). Chấp nhận, đổi lấy việc không có dương tính giả.
 
 ### Nhóm F — Bút toán bất thường trong sổ (bảng kê; bắt đầu ở mức THỐNG KÊ)
 | Mã | Rule | Mức |

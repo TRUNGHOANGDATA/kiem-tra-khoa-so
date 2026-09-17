@@ -96,7 +96,9 @@ export function Modal({ mo, dong, tieuDe, children, rong }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 p-6" onMouseDown={dong}>
       <div
-        className={cx("w-full rounded-2xl bg-white p-5 shadow-pop", rong ? "max-w-[70vw]" : "max-w-[440px]")}
+        // 70vw không đủ cho bảng chứng minh rộng: C9.5 có 6 cột tiền nên cần 770px
+        // mà chỉ được 669px -> vẫn phải kéo ngang. Bảng rộng thì cho gần hết màn.
+        className={cx("w-full rounded-2xl bg-white p-5 shadow-pop", rong ? "max-w-[94vw]" : "max-w-[440px]")}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <h3 className="mb-1 text-[16px] font-extrabold text-ink">{tieuDe}</h3>
