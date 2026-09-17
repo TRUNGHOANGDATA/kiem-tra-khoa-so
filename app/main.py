@@ -3,16 +3,19 @@ from pathlib import Path
 
 import webview
 
+from . import duong_dan
 from .api import JsApi
 
-_GOC = Path(__file__).resolve().parent
-# Ưu tiên bản React đã build (webapp/); nếu chưa có thì dùng bản HTML/JS thuần (web/).
-# Bản build được commit sẵn nên máy người dùng chỉ cần Python, không cần Node.
-WEB_DIR = _GOC / "webapp" if (_GOC / "webapp" / "index.html").exists() else _GOC / "web"
-ICON = _GOC / "app.ico"   # huy hiệu khiên thép + lỗ khóa (taskbar/alt-tab); sinh bằng tools/tao_icon.py
+# webapp/ và app.ico là TÀI NGUYÊN (chỉ đọc) — bản đóng gói lấy từ bundle, chạy mã
+# nguồn lấy trong app/. Bản React build được commit sẵn nên chỉ cần Python, không Node.
+_TN = duong_dan.thu_muc_tai_nguyen()
+_APP = _TN / "app" if (_TN / "app" / "main.py").exists() else _TN
+WEB_DIR = _APP / "webapp" if (_APP / "webapp" / "index.html").exists() else _APP / "web"
+ICON = _APP / "app.ico"
 
 
 def main():
+    duong_dan.bay_seed_neu_can()   # lần đầu (bản đóng gói): bày sẵn kho + cấu hình
     api = JsApi()
     # text_select=True là BẮT BUỘC, không phải tuỳ chọn thẩm mỹ.
     # pywebview mặc định text_select=False và khi đó tiêm thẳng vào <head> lúc chạy:

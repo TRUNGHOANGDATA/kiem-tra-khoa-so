@@ -11,14 +11,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import cau_hinh, cdps, chan_doan, checks, chot_so, report
+from . import cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report
 from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
 from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
-GOC = Path(__file__).resolve().parents[1]
+# Gốc DỮ LIỆU (cấu hình/kho/báo cáo). Bản đóng gói trỏ sang thư mục người dùng;
+# chạy mã nguồn trỏ vào repo. Test vẫn patch được `app.api.GOC` như cũ.
+GOC = duong_dan.thu_muc_du_lieu()
 
 
 def _dinh_dang_ngay(df: pd.DataFrame) -> pd.DataFrame:
