@@ -752,8 +752,12 @@ class JsApi:
             return {"loi": "Chưa có cửa sổ"}
         try:
             import webview
+            bat_dau = ""
+            if directory:
+                p = Path(directory)
+                bat_dau = str(p if p.is_absolute() else (GOC / directory))  # mở đúng thư mục hiện tại
             loai = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
-            chon = self._window.create_file_dialog(loai, directory=directory or "")
+            chon = self._window.create_file_dialog(loai, directory=bat_dau)
             return {"path": chon[0]} if chon else {"huy": True}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không mở được hộp thoại thư mục: {e}"}
