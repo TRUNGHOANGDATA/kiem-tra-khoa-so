@@ -39,6 +39,11 @@ def _dinh_dang_so(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
+def _khoa_ky(ma: str, nam: int, thang: int) -> str:
+    """Khóa nhận dạng một (chi nhánh × kỳ) để tick chọn ghi đè từng dòng."""
+    return f"{ma}|{thang:02d}/{nam}"
+
+
 @dataclass
 class DonVi:
     """Một đơn vị kế toán (một chi nhánh) cùng toàn bộ kết quả kiểm tra của riêng nó.
@@ -475,7 +480,8 @@ class JsApi:
             try:
                 for df, m, ten in hop_le:
                     mo_ta = {"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
-                             "ky": f"{m.thang:02d}/{m.nam}", "file": ten}
+                             "ky": f"{m.thang:02d}/{m.nam}", "file": ten,
+                             "khoa": _khoa_ky(m.ma, m.nam, m.thang)}
                     if kho.doc_cdps(m.ma, m.nam, m.thang).empty:
                         moi.append(mo_ta)
                         continue
@@ -491,11 +497,14 @@ class JsApi:
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không đọc được CĐPS: {e}"}
 
-    def nap_cdps_thu_muc(self, thu_muc: str = "", ghi_de: bool = False):
-        """Nạp CĐPS trong `thu_muc` vào kho. Kỳ ĐÃ CÓ chỉ bị đè khi `ghi_de=True`.
+    def nap_cdps_thu_muc(self, thu_muc: str = "", ghi_de=False):
+        """Nạp CĐPS trong `thu_muc` vào kho. Kỳ CHƯA CÓ luôn nạp; kỳ ĐÃ CÓ chỉ bị đè
+        khi được chọn.
 
-        Mặc định KHÔNG đè: xem `xem_truoc_cdps` để người dùng chọn trước.
+        `ghi_de`: False = không đè kỳ nào · True = đè hết · danh sách khóa
+        ("MA|MM/YYYY", lấy từ `xem_truoc_cdps`) = chỉ đè đúng những kỳ được tick.
         """
+        cho_de = None if ghi_de in (True, False, None) else set(ghi_de)
         try:
             hop_le, bo_qua = self._doc_thu_muc_cdps(thu_muc)
             nap, thay_doi, bo_qua_trung = [], [], []
@@ -503,9 +512,11 @@ class JsApi:
             try:
                 for df, m, ten in hop_le:
                     mo_ta = {"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
-                             "ky": f"{m.thang:02d}/{m.nam}", "file": ten}
+                             "ky": f"{m.thang:02d}/{m.nam}", "file": ten,
+                             "khoa": _khoa_ky(m.ma, m.nam, m.thang)}
                     da_co = not kho.doc_cdps(m.ma, m.nam, m.thang).empty
-                    if da_co and not ghi_de:
+                    duoc_de = ghi_de is True if cho_de is None else (mo_ta["khoa"] in cho_de)
+                    if da_co and not duoc_de:
                         bo_qua_trung.append(mo_ta)
                         continue
                     # Soi TRƯỚC khi ghi đè: nạp lại là thay sạch, không so trước thì

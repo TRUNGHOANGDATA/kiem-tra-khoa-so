@@ -10,7 +10,7 @@ interface ThieuCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string }
 /** CĐPS nạp lại KHÁC bản đang lưu — nạp lại là ghi đè sạch nên phải báo trước. */
 /** Kỳ đã có trong kho — phải hỏi trước khi đè, vì nạp lại là thay sạch cả kỳ. */
 interface TrungCdps {
-  chi_nhanh: string; chi_nhanh_ten?: string; ky: string; file: string;
+  chi_nhanh: string; chi_nhanh_ten?: string; ky: string; file: string; khoa: string;
   khac: boolean; so_doi: number; so_them: number; so_bot: number;
 }
 interface ThayDoiCdps {
@@ -66,6 +66,7 @@ export default function ManChonFile(p: ChonFileProps) {
   const [dangNapCdps, setDangNapCdps] = useState(false);
   const [doi, setDoi] = useState<ThayDoiCdps[]>([]);
   const [hoi, setHoi] = useState<{ path: string; moi: TrungCdps[]; trung: TrungCdps[] } | null>(null);
+  const [tick, setTick] = useState<Set<string>>(new Set());   // khóa các kỳ được chọn đè
   const dangChay = !!tienTrinh;
 
   const taiTs = useCallback(async () => {
@@ -97,10 +98,12 @@ export default function ManChonFile(p: ChonFileProps) {
       return;
     }
     if (!trung.length) { chayNap(path, false); return; }
+    // Mặc định tick sẵn những kỳ THỰC SỰ KHÁC — đè kỳ giống hệt thì vô nghĩa.
+    setTick(new Set(trung.filter((t) => t.khac).map((t) => t.khoa)));
     setHoi({ path, moi, trung });
   };
 
-  const chayNap = async (path: string, ghiDe: boolean) => {
+  const chayNap = async (path: string, ghiDe: boolean | string[]) => {
     setHoi(null);
     setDangNapCdps(true);
     const r = await A.goi("nap_cdps_thu_muc", path, ghiDe);
@@ -269,23 +272,31 @@ export default function ManChonFile(p: ChonFileProps) {
       </div>
       {/* Xác nhận trước khi ĐÈ: nạp lại thay sạch cả kỳ, mất số liệu cũ. */}
       <Modal mo={!!hoi} dong={() => setHoi(null)} tieuDe="Có kỳ đã nạp trước đó" rong>
-        {hoi && (
+        {hoi && (() => {
+          const doiTick = (khoa: string) => setTick((cu) => {
+            const s = new Set(cu); s.has(khoa) ? s.delete(khoa) : s.add(khoa); return s;
+          });
+          const tatCa = hoi.trung.every((t) => tick.has(t.khoa));
+          const toggleTatCa = () => setTick(tatCa ? new Set() : new Set(hoi.trung.map((t) => t.khoa)));
+          return (
           <div className="space-y-3 text-[13px]">
             <p className="text-steel-600">
-              Nạp lại sẽ <b>thay sạch</b> số liệu của kỳ đó trong kho. Chọn cách xử lý:
+              Nạp lại sẽ <b>thay sạch</b> số liệu của kỳ đó trong kho.
+              Tick những kỳ muốn ghi đè (mặc định đã chọn sẵn các kỳ có thay đổi).
             </p>
             {hoi.moi.length > 0 && (
-              <div className="rounded-xl border border-steel-200 bg-steel-50 px-3 py-2">
-                <b>{hoi.moi.length}</b> kỳ/chi nhánh <b>chưa có</b> trong kho — sẽ nạp mới:{" "}
-                <span className="text-steel-500">
-                  {hoi.moi.map((m) => `${m.chi_nhanh_ten || m.chi_nhanh} ${m.ky}`).join(" · ")}
-                </span>
+              <div className="rounded-xl border border-xanh-vien bg-xanh-nen px-3 py-2 text-xanh-dam">
+                <b>{hoi.moi.length}</b> kỳ/chi nhánh <b>chưa có</b> trong kho — luôn nạp mới:{" "}
+                {hoi.moi.map((m) => `${m.chi_nhanh_ten || m.chi_nhanh} ${m.ky}`).join(" · ")}
               </div>
             )}
             <div className="max-h-[38vh] overflow-auto rounded-xl border border-steel-200">
               <table className="w-full text-[12.5px]">
                 <thead className="sticky top-0 bg-steel-50 text-[11px] font-bold uppercase tracking-wide text-steel-400">
                   <tr>
+                    <th className="w-9 px-3 py-2 text-center">
+                      <input type="checkbox" className="accent-navy" checked={tatCa} onChange={toggleTatCa} />
+                    </th>
                     <th className="px-3 py-2 text-left">Chi nhánh</th>
                     <th className="px-3 py-2 text-left">Kỳ</th>
                     <th className="px-3 py-2 text-left">So với bản trong kho</th>
@@ -293,7 +304,12 @@ export default function ManChonFile(p: ChonFileProps) {
                 </thead>
                 <tbody>
                   {hoi.trung.map((t) => (
-                    <tr key={t.chi_nhanh + t.ky} className="border-t border-steel-100">
+                    <tr key={t.khoa} className={cx("border-t border-steel-100 cursor-pointer hover:bg-steel-50", tick.has(t.khoa) && "bg-vang-nen/40")}
+                      onClick={() => doiTick(t.khoa)}>
+                      <td className="px-3 py-1.5 text-center">
+                        <input type="checkbox" className="accent-navy" checked={tick.has(t.khoa)}
+                          onChange={() => doiTick(t.khoa)} onClick={(e) => e.stopPropagation()} />
+                      </td>
                       <td className="px-3 py-1.5 font-semibold">{t.chi_nhanh_ten || t.chi_nhanh}</td>
                       <td className="px-3 py-1.5 tabular-nums">{t.ky}</td>
                       <td className="px-3 py-1.5">
@@ -310,20 +326,25 @@ export default function ManChonFile(p: ChonFileProps) {
                 </tbody>
               </table>
             </div>
-            <div className="flex flex-wrap justify-end gap-2 pt-1">
-              <Nut bien="phu" onClick={() => setHoi(null)}>Hủy</Nut>
-              {/* Không có kỳ nào mới thì nút này trùng nghĩa với Hủy — ẩn đi. */}
-              {hoi.moi.length > 0 && (
-                <Nut bien="phu" onClick={() => chayNap(hoi.path, false)}>
-                  Chỉ nạp {hoi.moi.length} kỳ mới, giữ nguyên kỳ đã có
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-[12px] text-steel-500">
+                Đã chọn <b className="text-ink">{tick.size}</b>/{hoi.trung.length} kỳ để ghi đè
+                {hoi.moi.length > 0 && ` · ${hoi.moi.length} kỳ mới`}
+              </span>
+              <div className="ml-auto flex gap-2">
+                <Nut bien="phu" onClick={() => setHoi(null)}>Hủy</Nut>
+                <Nut bien="chinh" disabled={tick.size === 0 && hoi.moi.length === 0}
+                  onClick={() => chayNap(hoi.path, [...tick])}>
+                  {tick.size > 0 && <Icon d={IC.warn} className="h-4 w-4" />}
+                  {tick.size > 0
+                    ? `Nạp ${hoi.moi.length + tick.size} kỳ (ghi đè ${tick.size})`
+                    : hoi.moi.length > 0 ? `Chỉ nạp ${hoi.moi.length} kỳ mới` : "Không nạp gì"}
                 </Nut>
-              )}
-              <Nut bien="chinh" onClick={() => chayNap(hoi.path, true)}>
-                <Icon d={IC.warn} className="h-4 w-4" />Ghi đè {hoi.trung.length} kỳ đã có
-              </Nut>
+              </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </Modal>
     </div>
 

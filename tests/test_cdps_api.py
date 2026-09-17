@@ -271,3 +271,32 @@ def test_ghi_de_khi_duoc_chon(tmp_path, monkeypatch):
     kho = api._kho()
     assert float(kho.doc_cdps("A08", 2026, 8)["ps_no"].iloc[0]) == 150.0
     kho.dong()
+
+
+def test_xem_truoc_moi_dong_co_khoa_nhan_dang(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = _nap_lan_dau(tmp_path)
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "150", "100", "0", "0", "False", "0"]])
+    t = JsApi().xem_truoc_cdps()["trung"][0]
+    assert t["khoa"] == "A08|08/2026"
+
+
+def test_ghi_de_chi_nhung_ky_duoc_tick(tmp_path, monkeypatch):
+    """Người dùng tick 1-2 dòng, không phải toàn bộ."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    # nạp sẵn A08 và A07 kỳ 08
+    for ma in ("A07", "A08"):
+        _nguon(tmp_path, [["911", "x", "0", "0", "100", "100", "0", "0", "False", "0"]],
+               ten=f"{ma} 082026 CDPS.xlsx")
+    JsApi().nap_cdps_thu_muc(ghi_de=True)
+    for ma in ("A07", "A08"):
+        _nguon(tmp_path, [["911", "x", "0", "0", "150", "100", "0", "0", "False", "0"]],
+               ten=f"{ma} 082026 CDPS.xlsx")
+    api = JsApi()
+    r = api.nap_cdps_thu_muc(ghi_de=["A08|08/2026"])       # chỉ tick A08
+    assert [x["chi_nhanh"] for x in r["nap"]] == ["A08"]
+    assert [x["chi_nhanh"] for x in r["bo_qua_trung"]] == ["A07"]
+    kho = api._kho()
+    assert float(kho.doc_cdps("A08", 2026, 8)["ps_no"].iloc[0]) == 150.0   # đè
+    assert float(kho.doc_cdps("A07", 2026, 8)["ps_no"].iloc[0]) == 100.0   # giữ
+    kho.dong()
