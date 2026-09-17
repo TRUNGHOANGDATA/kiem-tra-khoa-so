@@ -19,12 +19,19 @@ function KhuCdps({ nap }: { nap?: ThongTinNap }) {
   useEffect(() => { tai(); }, [tai]);
 
   const napCdps = async () => {
+    const r0 = await A.goi("chon_thu_muc", "");          // mở hộp thoại chọn thư mục chứa CĐPS
+    if (laLoi(r0)) { toast(r0.loi); return; }
+    if (!r0 || (r0 as { huy?: boolean }).huy) return;    // người dùng bấm Hủy
+    const thuMuc = (r0 as { path: string }).path;
     setDangNap(true);
-    const r = await A.goi("nap_cdps_thu_muc");
+    const r = await A.goi("nap_cdps_thu_muc", thuMuc);
     setDangNap(false);
     if (laLoi(r)) { toast(r.loi); return; }
-    const n = (r.nap as unknown[])?.length ?? 0;
-    toast(n ? `Đã nạp CĐPS: ${n} file` : "Không thấy file CĐPS đúng quy ước trong thư mục nguồn");
+    const nn = (r.nap as { chi_nhanh: string }[]) ?? [];
+    const bq = (r.bo_qua as unknown[])?.length ?? 0;
+    toast(nn.length
+      ? `Đã nạp CĐPS ${nn.length} file: ${nn.map((x) => x.chi_nhanh).join(", ")}`
+      : `Không thấy file CĐPS đúng quy ước (vd “A08 082026 …”) trong thư mục. Bỏ qua ${bq} file.`);
     tai();
   };
 

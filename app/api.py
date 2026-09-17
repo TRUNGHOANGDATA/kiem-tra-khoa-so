@@ -415,14 +415,14 @@ class JsApi:
     def _duong_dan_kho(self) -> str:
         return str(Path(self._thu_muc_kho) / "kho_chot_so.sqlite")
 
-    def nap_cdps_thu_muc(self):
-        """Nạp mọi file CĐPS trong thư mục nguồn: suy chi nhánh+kỳ từ tên file, lưu vào
-        kho (thay sạch từng kỳ). Bỏ qua file không đúng quy ước / không phải CĐPS."""
+    def nap_cdps_thu_muc(self, thu_muc: str = ""):
+        """Nạp mọi file CĐPS trong `thu_muc` (mặc định thư mục nguồn): suy chi nhánh+kỳ
+        từ tên file, lưu vào kho (thay sạch từng kỳ). Bỏ qua file không đúng quy ước."""
         try:
             nap, bo_qua = [], []
             kho = self._kho()
             try:
-                for p in tim_file_excel(self.thu_muc_source):
+                for p in tim_file_excel(thu_muc or self.thu_muc_source):
                     ten = Path(p).name
                     if cdps.suy_branch_ky(p) is None:
                         bo_qua.append(ten)
