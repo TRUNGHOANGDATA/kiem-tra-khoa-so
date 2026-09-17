@@ -48,5 +48,9 @@ def mo_kho(path: str) -> sqlite3.Connection:
         if pb > schema.PHIEN_BAN_SCHEMA:
             con.close()
             raise PhienBanMoiHon(f"Kho phiên bản {pb} > tool {schema.PHIEN_BAN_SCHEMA}. Hãy cập nhật tool.")
-        # (migrate khi có phiên bản > 1 trong tương lai: chèn các bước ALTER ở đây)
+        if pb < schema.PHIEN_BAN_SCHEMA:
+            # Bảng mới (nếu có) đã được DDL `IF NOT EXISTS` ở trên tạo sẵn; chỉ cần
+            # nâng số phiên bản. (Migrate cần ALTER dữ liệu thì chèn thêm ở đây.)
+            con.execute("UPDATE schema_version SET phien_ban = ?", (schema.PHIEN_BAN_SCHEMA,))
+            con.commit()
     return con

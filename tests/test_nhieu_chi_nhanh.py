@@ -107,6 +107,20 @@ def _api_hai_chi_nhanh(tmp_path) -> JsApi:
     return api
 
 
+def test_quy_doi_ten_hien_khong_dung_ma_goc(tmp_path):
+    """Quy đổi chỉ đổi tên HIỂN THỊ (ten_hien / chi_nhanh_ten); mã gốc vẫn nguyên
+    làm danh tính — đây là điều giữ cho chốt sổ/đối chiếu kỳ cũ không vỡ."""
+    api = _api_hai_chi_nhanh(tmp_path)
+    api._quy_doi = {"A01": "Nhà máy Hải Phòng"}   # gán đè (thắng cấu hình)
+    kq = api.chay_kiem_tra()
+    dv = kq["don_vi"]
+    assert [u["ma"] for u in dv] == ["A01", "B02"]                 # mã gốc: KHÔNG đổi
+    assert dv[0]["ten_hien"] == "Nhà máy Hải Phòng"
+    assert dv[1]["ten_hien"] == "B02"                              # chưa quy đổi -> về mã
+    assert kq["tomtat"]["chi_nhanh"] == "A01"                      # danh tính giữ nguyên
+    assert kq["tomtat"]["chi_nhanh_ten"] == "Nhà máy Hải Phòng"
+
+
 def test_moi_chi_nhanh_co_ket_qua_rieng(tmp_path):
     api = _api_hai_chi_nhanh(tmp_path)
     kq = api.chay_kiem_tra()

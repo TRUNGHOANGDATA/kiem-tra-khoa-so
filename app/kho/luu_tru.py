@@ -6,6 +6,7 @@ from datetime import datetime
 
 import pandas as pd
 
+from . import quy_doi as _quy_doi
 from .ket_noi import mo_kho
 
 
@@ -79,3 +80,10 @@ class KhoChotSo:
 
     def dem_ky_hieu_luc(self) -> int:
         return int(self.con.execute("SELECT COUNT(*) FROM snapshot WHERE con_hieu_luc=1").fetchone()[0])
+
+    # ---- quy đổi mã chi nhánh -> tên hiển thị (bảng phụ, không thuộc dữ liệu chốt) ----
+    def doc_quy_doi(self) -> dict:
+        return _quy_doi.doc(self.con)
+
+    def ghi_quy_doi(self, m: dict) -> None:
+        _quy_doi.ghi_toan_bo(self.con, m)

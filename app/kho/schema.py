@@ -1,7 +1,12 @@
 """Định nghĩa bảng kho chốt sổ + phiên bản schema (để migrate nhẹ)."""
-PHIEN_BAN_SCHEMA = 1
+PHIEN_BAN_SCHEMA = 2
 
 DDL = [
+    """CREATE TABLE IF NOT EXISTS quy_doi_chi_nhanh (
+        ma TEXT PRIMARY KEY,
+        ten TEXT NOT NULL,
+        cap_nhat TEXT NOT NULL DEFAULT ''
+    )""",
     """CREATE TABLE IF NOT EXISTS snapshot (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ky_nam INTEGER NOT NULL, ky_thang INTEGER NOT NULL, chi_nhanh TEXT NOT NULL,

@@ -17,7 +17,7 @@ trong file nhưng là nghiệp vụ không trọng yếu, hiếm phát sinh — 
 """
 import pandas as pd
 
-from .base import VANG, BoiCanh, CheckResult, bat_dau, co_dong, phat_sinh_theo_prefix
+from .base import VANG, BoiCanh, CheckResult, bat_dau, co_dong, loc_dong, phat_sinh_theo_prefix
 
 NHOM = "G7"
 TK_CHI_PHI = ("622", "627", "641", "642")
@@ -88,7 +88,12 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                         la_thong_ke=True))
 
     # --- C7.6: chi phí thuế TNDN (cảnh báo thật) ---
-    co_lai = co_dong(df, no=("911",), co=("421",))
+    # "Có lãi" phải xét theo NET cả kỳ, không phải "tồn tại một dòng kết chuyển lãi":
+    # kỳ khóa theo tháng có thể vừa có tháng lãi (Nợ 911/Có 421) vừa có tháng lỗ
+    # (Nợ 421/Có 911); nếu net là LỖ thì không phát sinh 8211 là đúng, không cảnh báo.
+    kc_lai = loc_dong(df, no=("911",), co=("421",))["Amount"].sum()   # kết chuyển lãi
+    kc_lo = loc_dong(df, no=("421",), co=("911",))["Amount"].sum()    # kết chuyển lỗ
+    co_lai = float(kc_lai) > float(kc_lo)                             # net lãi cả kỳ
     no_821, _ = phat_sinh_theo_prefix(df, "821")
     kq.append(_canh_bao("C7.6", "Chưa trích/kết chuyển chi phí thuế TNDN",
                         co_lai and no_821 == 0,
