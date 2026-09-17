@@ -25,6 +25,7 @@ export const IC = {
   tai_len: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5" /><path d="M12 3v12" /></>,
   bar: <><path d="M3 3v18h18" /><path d="M8 17v-6.5M13 17V6.5M18 17v-3.5" /></>,
   chep: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
+  thung: <><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6" /><path d="M10 11v6M14 11v6" /></>,
 };
 
 export function Icon({ d, className = "h-4 w-4" }: { d: React.ReactNode; className?: string }) {

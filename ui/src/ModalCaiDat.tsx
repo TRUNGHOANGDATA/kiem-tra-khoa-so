@@ -41,6 +41,11 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
     setMaMoi("");
   };
 
+  const xoaMa = (m: string) => {
+    setMa((xs) => xs.filter((x) => x !== m));       // bỏ khỏi danh sách -> Lưu là xóa hẳn trong kho
+    setTen((t) => { const { [m]: _bo, ...con } = t; return con; });
+  };
+
   const luu = async () => {
     // Chỉ gửi cặp có tên; backend tự lọc lần nữa và giữ nguyên mã gốc làm danh tính.
     const quy_doi: Record<string, string> = {};
@@ -73,8 +78,8 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
         <section className="space-y-2.5 border-t border-steel-200 pt-4">
           <h4 className="text-[12px] font-bold uppercase tracking-wide text-steel-400">Quy đổi chi nhánh</h4>
           <p className="-mt-1 text-[12.5px] text-steel-500">
-            Đặt tên dễ nhớ cho từng mã (A01 = “Nhà máy Hải Phòng”). Tên hiển thị khắp nơi và trong file Excel;
-            <b> mã gốc vẫn là danh tính khi chốt sổ</b> nên đổi tên không ảnh hưởng đối chiếu kỳ cũ.
+            Đặt tên dễ nhớ cho từng mã (A01 = “Nhà máy Hải Phòng”); bấm 🗑 để xóa một mã. Lưu vào kho SQLite.
+            Tên hiển thị khắp nơi và trong file Excel; <b>mã gốc vẫn là danh tính khi chốt sổ</b> nên đổi tên/xóa tên không ảnh hưởng đối chiếu kỳ cũ.
           </p>
 
           {ma.length === 0 && (
@@ -93,6 +98,10 @@ export default function ModalCaiDat({ mo, dong }: { mo: boolean; dong: () => voi
                   placeholder="Tên hiển thị…"
                   onChange={(e) => setTen((t) => ({ ...t, [m]: e.target.value }))}
                   className="w-full rounded-xl border border-steel-200 px-3 py-2 text-[13px] outline-none focus:border-navy-400 focus:ring-2 focus:ring-navy/15" />
+                <button type="button" onClick={() => xoaMa(m)} title="Xóa mã này"
+                  className="shrink-0 rounded-lg p-2 text-steel-400 transition hover:bg-rose-50 hover:text-rose-500">
+                  <Icon d={IC.thung} className="h-4 w-4" />
+                </button>
               </div>
             ))}
           </div>

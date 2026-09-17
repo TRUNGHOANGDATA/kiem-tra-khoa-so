@@ -73,6 +73,14 @@ def doc_quy_doi(goc: str) -> dict:
     return _lam_sach_map(tho.get(KHOA_MAP, {}) if isinstance(tho, dict) else {})
 
 
+def xoa_quy_doi(goc: str) -> None:
+    """Dọn bản đồ quy đổi khỏi JSON (sau khi đã di trú sang kho SQLite). Giữ thư mục."""
+    hien = _doc_tho(goc)
+    moi = dict(hien) if isinstance(hien, dict) else {}
+    moi[KHOA_MAP] = {}
+    _ghi_tho(goc, moi)
+
+
 def ghi_cau_hinh(goc: str, cfg: dict) -> None:
     """Ghi ĐÈ TỪNG KHÓA: chỉ khóa nào có trong `cfg` mới bị thay, còn lại giữ nguyên
     giá trị đang có trên đĩa. Nhờ vậy lưu thư mục không xóa bảng quy đổi và ngược lại."""

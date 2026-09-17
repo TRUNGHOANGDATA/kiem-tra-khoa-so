@@ -61,6 +61,7 @@ class JsApi:
         self._duong_dan: list[str] = []
         self._ovr_thu_muc: dict[str, str] = {}   # thư mục gán đè (test/phiên tạm) — thắng cấu hình
         self._ovr_quy_doi: dict | None = None    # bảng quy đổi gán đè (test) — thắng cấu hình
+        self._cache_quy_doi: dict | None = None  # nhớ map đọc từ kho (xóa khi lưu)
 
     def _tm(self, khoa: str) -> str:
         if khoa in self._ovr_thu_muc:
@@ -69,11 +70,39 @@ class JsApi:
 
     @property
     def _quy_doi(self) -> dict:
-        """Mã chi nhánh -> tên hiển thị; đọc lại cấu hình mỗi lần dùng (đổi tên là thấy ngay)."""
-        return self._ovr_quy_doi if self._ovr_quy_doi is not None else cau_hinh.doc_quy_doi(str(GOC))
+        """Mã chi nhánh -> tên hiển thị. Đọc từ kho SQLite (nhớ tạm trên instance,
+        xóa nhớ khi lưu). Kho lỗi/không mở được -> map rỗng: tên chỉ để hiển thị,
+        `_ten` về đúng mã gốc, không làm chết luồng."""
+        if self._ovr_quy_doi is not None:
+            return self._ovr_quy_doi
+        if self._cache_quy_doi is None:
+            self._cache_quy_doi = self._doc_quy_doi_kho()
+        return self._cache_quy_doi
 
     @_quy_doi.setter
     def _quy_doi(self, m: dict): self._ovr_quy_doi = m
+
+    def _doc_quy_doi_kho(self) -> dict:
+        """Đọc bản đồ quy đổi từ kho; di trú 1 lần từ cau-hinh.json (bản cũ) sang kho.
+        KHÔNG tạo file kho rỗng chỉ để đọc map rỗng (người chưa từng đặt tên)."""
+        cu = cau_hinh.doc_quy_doi(str(GOC))
+        if not cu and not Path(self._duong_dan_kho()).exists():
+            return {}
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001 (kho lỗi không được làm chết màn hình)
+            return cu
+        try:
+            m = kho.doc_quy_doi()
+            if not m and cu:                 # di trú JSON -> kho, rồi dọn JSON
+                kho.ghi_quy_doi(cu)
+                cau_hinh.xoa_quy_doi(str(GOC))
+                m = cu
+            return m
+        except Exception:  # noqa: BLE001
+            return cu
+        finally:
+            kho.dong()
 
     def _ten(self, ma: str) -> str:
         """Tên hiển thị của một mã chi nhánh — về đúng mã khi chưa quy đổi."""
@@ -634,7 +663,7 @@ class JsApi:
         để màn Cài đặt điền sẵn hàng, người dùng chỉ việc gõ tên)."""
         tho = cau_hinh._doc_tho(str(GOC))
         giai = cau_hinh.doc_cau_hinh(str(GOC))
-        quy_doi = cau_hinh.doc_quy_doi(str(GOC))
+        quy_doi = self._quy_doi                 # đọc từ kho (đã di trú nếu cần)
         goi_y = list(dict.fromkeys([d.nhan for d in self._dv] + list(quy_doi)))
         return {"tho": {k: str(tho.get(k, cau_hinh.MAC_DINH[k])) for k in cau_hinh.KHOA},
                 "giai": giai, "quy_doi": quy_doi, "ma_goi_y": goi_y}
@@ -646,9 +675,16 @@ class JsApi:
             for k in cau_hinh.KHOA:
                 if k in c:
                     payload[k] = str(c.get(k, "")).strip() or cau_hinh.MAC_DINH[k]
+            if payload:
+                cau_hinh.ghi_cau_hinh(str(GOC), payload)   # thư mục vẫn ở JSON
             if cau_hinh.KHOA_MAP in c:
-                payload[cau_hinh.KHOA_MAP] = cau_hinh._lam_sach_map(c.get(cau_hinh.KHOA_MAP))
-            cau_hinh.ghi_cau_hinh(str(GOC), payload)
+                m = cau_hinh._lam_sach_map(c.get(cau_hinh.KHOA_MAP))
+                kho = self._kho()
+                try:
+                    kho.ghi_quy_doi(m)                     # bản đồ quy đổi ở kho SQLite
+                finally:
+                    kho.dong()
+                self._cache_quy_doi = None                 # buộc đọc lại lần sau
             return {"ok": True}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không lưu được cấu hình: {e}"}
