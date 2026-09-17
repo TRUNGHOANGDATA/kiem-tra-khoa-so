@@ -38,7 +38,8 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     docs_dt_thieu = set(ct[dt]) - set(ct[dong_33311])
     kq.append(tao_ket_qua(df[dt & ct.isin(docs_dt_thieu)], "C3.2",
                           "Doanh thu thiếu thuế đầu ra", NHOM, VANG,
-                          "Có Có 511 với TaxCode chịu thuế nhưng chứng từ không có 33311"))
+                          "Ghi Có 511 với mã thuế chịu thuế nhưng cả chứng từ"
+                          " không có dòng 33311 (thuế GTGT đầu ra)"))
 
     vao = df[bat_dau(df["DebitAccount"], "1331")].groupby(tax[bat_dau(df["DebitAccount"], "1331")])["Amount"].sum()
     ra = df[bat_dau(df["CreditAccount"], "33311")].groupby(tax[bat_dau(df["CreditAccount"], "33311")])["Amount"].sum()

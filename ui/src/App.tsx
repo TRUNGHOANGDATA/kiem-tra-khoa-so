@@ -160,7 +160,10 @@ function Noi() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
         <header className="flex items-center gap-4 border-b border-steel-200 bg-white px-6 py-3">
-          <div className="inline-flex items-center gap-2 rounded-xl border border-steel-200 bg-steel-50 px-3.5 py-2 text-[13px] font-semibold text-ink">
+          {/* NHÃN, không phải nút: kỳ đọc tự động từ dữ liệu trong file, muốn đổi kỳ thì
+              nạp file khác. Viền + nền kiểu chip khiến người dùng tưởng bấm chọn được. */}
+          <div title="Kỳ đọc tự động từ dữ liệu trong file — muốn xem kỳ khác thì nạp file khác"
+            className="inline-flex cursor-default select-none items-center gap-2 text-[13px] font-semibold text-ink">
             <Icon d={IC.lich} className="h-4 w-4 text-navy" />Kỳ {ky}
           </div>
           {soChiNhanh > 0 && (
