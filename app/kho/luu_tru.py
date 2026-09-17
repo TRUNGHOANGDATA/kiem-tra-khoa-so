@@ -116,8 +116,11 @@ class KhoChotSo:
         cu = self.doc_cdps(chi_nhanh, ky_nam, ky_thang)
         if cu.empty:
             return None
+        # CỘNG theo mã tài khoản chứ không set_index thẳng: CĐPS thật có mã LẶP
+        # (A01 có 6222 và 8118 mỗi mã 2 dòng), set_index xong `.loc` trả về Series
+        # và float() nổ — hỏng luôn cả nút "Nạp lại CĐPS".
         khoa = lambda d: (d.assign(_a=d["account"].fillna("").astype(str).str.strip())
-                          .set_index("_a")[list(self.COT_SO_CDPS)].astype(float))
+                          .groupby("_a")[list(self.COT_SO_CDPS)].sum().astype(float))
         a, b = khoa(cu), khoa(df_moi)
         them = sorted(set(b.index) - set(a.index))
         bot = sorted(set(a.index) - set(b.index))

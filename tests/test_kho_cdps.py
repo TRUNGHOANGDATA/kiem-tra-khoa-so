@@ -125,3 +125,27 @@ def test_doc_cdps_ky_truoc_thang_1_lui_ve_thang_12_nam_truoc(tmp_path):
     k.luu_cdps("A08", 2025, 12, _cdps([{"account": "1111", "du_cuoi_no": 500}]))
     assert k.doc_cdps_ky_truoc("A08", 2026, 1)["account"].tolist() == ["1111"]
     k.dong()
+
+
+def test_so_sanh_cdps_chiu_duoc_ma_tk_lap(tmp_path):
+    """CĐPS thật có mã lặp (A01: 6222 và 8118 mỗi mã 2 dòng) — `.loc` trả Series
+    làm cả nút "Nạp lại CĐPS" chết với 'float() argument ... not Series'."""
+    cu = _cdps([{"account": "6222", "ps_no": 100}, {"account": "6222", "ps_no": 50},
+                {"account": "1111", "ps_no": 10}])
+    moi = _cdps([{"account": "6222", "ps_no": 100}, {"account": "6222", "ps_no": 50},
+                 {"account": "1111", "ps_no": 70}])
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A01", 2026, 8, cu)
+    d = k.so_sanh_cdps("A01", 2026, 8, moi)
+    k.dong()
+    assert d["so_doi"] == 1 and d["dong"][0]["account"] == "1111"
+
+
+def test_so_sanh_cdps_ma_lap_doi_so_thi_van_bat(tmp_path):
+    cu = _cdps([{"account": "8118", "ps_no": 100}, {"account": "8118", "ps_no": 50}])
+    moi = _cdps([{"account": "8118", "ps_no": 100}, {"account": "8118", "ps_no": 900}])
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A01", 2026, 8, cu)
+    d = k.so_sanh_cdps("A01", 2026, 8, moi)
+    k.dong()
+    assert d["so_doi"] == 1 and d["dong"][0]["account"] == "8118"
