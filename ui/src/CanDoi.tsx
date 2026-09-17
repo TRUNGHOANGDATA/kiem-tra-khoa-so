@@ -21,6 +21,9 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
   const [fCn, setFCn] = useState("all");
   const [tim, setTim] = useState("");
   const [anNhom, setAnNhom] = useState(false);
+  // Chọn xong chi nhánh thì tự thu danh sách: 6 cột số của CĐPS cần gần hết
+  // bề ngang, để cả hai thì lần nào cũng phải kéo ngang mới đọc được.
+  const [thuGon, setThuGon] = useState(false);
 
   useEffect(() => {
     A.goi("trang_thai_cdps").then((r) => { if (Array.isArray(r)) setTs(r as TrangThai[]); });
@@ -31,7 +34,7 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
   const loc = ts.filter((t) => (fKy === "all" || t.ky === fKy) && (fCn === "all" || t.chi_nhanh === fCn));
 
   const xemChiTiet = useCallback(async (t: TrangThai) => {
-    setChon(t); setDong([]);
+    setChon(t); setDong([]); setThuGon(true);
     const [thang, nam] = t.ky.split("/");
     const r = await A.goi("chi_tiet_cdps", t.chi_nhanh, Number(nam), Number(thang));
     if (laLoi(r)) { toast(r.loi); return; }
@@ -69,20 +72,22 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
 
       <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
         {/* Danh sách (chi nhánh × kỳ) */}
-        <aside className="flex w-[260px] shrink-0 flex-col gap-2 overflow-y-auto pr-1">
+        {!thuGon && (
+        <aside className="flex w-[196px] shrink-0 flex-col gap-2 overflow-y-auto pr-1">
           {loc.length === 0 && <div className="rounded-xl bg-steel-50 px-3 py-4 text-center text-[12.5px] text-steel-400">Chưa nhập CĐPS nào.</div>}
           {loc.map((t) => (
             <button key={`${t.chi_nhanh}|${t.ky}`} onClick={() => xemChiTiet(t)}
               className={cx("rounded-xl border bg-white p-2.5 text-left shadow-soft transition",
                 chon && chon.chi_nhanh === t.chi_nhanh && chon.ky === t.ky ? "border-navy ring-1 ring-navy/30" : "border-steel-200 hover:border-steel-300")}>
               <div className="flex items-center gap-2">
-                <span className="text-[14px] font-bold text-ink">{t.chi_nhanh_ten || t.chi_nhanh}</span>
-                <span className="ml-auto rounded-md bg-steel-100 px-2 py-0.5 text-[12px] font-bold text-steel-600 tabular-nums">{t.ky}</span>
+                <span className="min-w-0 truncate text-[13px] font-bold text-ink">{t.chi_nhanh_ten || t.chi_nhanh}</span>
+                <span className="ml-auto shrink-0 rounded-md bg-steel-100 px-1.5 py-0.5 text-[11px] font-bold text-steel-600 tabular-nums">{t.ky}</span>
               </div>
-              {t.thoi_diem_nap && <div className="mt-1 text-[11.5px] text-steel-400">Nạp: {t.thoi_diem_nap}</div>}
+              {t.thoi_diem_nap && <div className="mt-1 truncate text-[11px] text-steel-400">Nạp: {t.thoi_diem_nap.slice(0, 10).split("-").reverse().join("/")}</div>}
             </button>
           ))}
         </aside>
+        )}
 
         {/* Chi tiết tài khoản */}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-steel-200 bg-white shadow-card">
@@ -91,6 +96,10 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2 border-b border-steel-200 px-4 py-2.5">
+                <button onClick={() => setThuGon((v) => !v)} title={thuGon ? "Hiện danh sách chi nhánh" : "Ẩn danh sách để bảng rộng hơn"}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-steel-200 px-2 py-1 text-[12px] font-semibold text-steel-600 hover:border-steel-300">
+                  <Icon d={thuGon ? IC.chevR : IC.chevL} className="h-3.5 w-3.5" />{thuGon ? "Hiện danh sách" : "Ẩn danh sách"}
+                </button>
                 <span className="text-[13.5px] font-bold text-ink">{chon.chi_nhanh_ten || chon.chi_nhanh} · kỳ {chon.ky}</span>
                 <div className="ml-auto flex items-center gap-2">
                   <div className="flex items-center gap-1.5 rounded-lg border border-steel-200 px-2 py-1">
@@ -105,18 +114,18 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-auto">
-                <table className="w-full border-collapse text-[12.5px]">
+                <table className="w-full border-collapse text-[11.5px]">
                   <thead className="sticky top-0 z-10 bg-steel-50 text-steel-400">
                     <tr className="text-left text-[11px] font-bold uppercase tracking-wide">
-                      <th rowSpan={2} className="border-b border-steel-200 px-3 py-2">TK</th>
-                      <th rowSpan={2} className="border-b border-steel-200 px-3 py-2">Tên tài khoản</th>
-                      <th colSpan={2} className="border-b border-l border-steel-200 px-3 py-1.5 text-center">Dư đầu</th>
-                      <th colSpan={2} className="border-b border-l border-steel-200 px-3 py-1.5 text-center">Phát sinh</th>
-                      <th colSpan={2} className="border-b border-l border-steel-200 px-3 py-1.5 text-center">Dư cuối</th>
+                      <th rowSpan={2} className="w-[54px] border-b border-steel-200 px-2 py-2">TK</th>
+                      <th rowSpan={2} className="w-full border-b border-steel-200 px-2 py-2 text-left">Tên tài khoản</th>
+                      <th colSpan={2} className="border-b border-l border-steel-200 px-2 py-1.5 text-center">Dư đầu</th>
+                      <th colSpan={2} className="border-b border-l border-steel-200 px-2 py-1.5 text-center">Phát sinh</th>
+                      <th colSpan={2} className="border-b border-l border-steel-200 px-2 py-1.5 text-center">Dư cuối</th>
                     </tr>
                     <tr className="text-right text-[10.5px]">
                       {["Nợ", "Có", "Nợ", "Có", "Nợ", "Có"].map((h, i) => (
-                        <th key={i} className={cx("border-b border-steel-200 px-3 py-1", i % 2 === 0 && "border-l")}>{h}</th>
+                        <th key={i} className={cx("border-b border-steel-200 px-2 py-1", i % 2 === 0 && "border-l")}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -126,14 +135,14 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
                       const nhom = d.is_group === 1 || d.is_group === true;
                       return (
                         <tr key={`${d.account}-${i}`} className={cx("border-b border-steel-100", nhom && "bg-steel-50 font-semibold")}>
-                          <td className="px-3 py-1.5 font-bold tabular-nums text-steel-700">{d.account}</td>
-                          <td className="px-3 py-1.5" style={{ paddingLeft: `${12 + Math.max(0, d.level) * 14}px` }}>{d.ten}</td>
-                          <td className="border-l border-steel-100 px-3 py-1.5 text-right tabular-nums">{n0(d.du_dau_no)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{n0(d.du_dau_co)}</td>
-                          <td className="border-l border-steel-100 px-3 py-1.5 text-right tabular-nums">{n0(d.ps_no)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{n0(d.ps_co)}</td>
-                          <td className="border-l border-steel-100 px-3 py-1.5 text-right tabular-nums">{n0(d.du_cuoi_no)}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">{n0(d.du_cuoi_co)}</td>
+                          <td className="px-2 py-1.5 font-bold tabular-nums text-steel-700">{d.account}</td>
+                          <td className="break-words px-2 py-1.5 leading-snug" style={{ paddingLeft: `${8 + Math.max(0, d.level) * 10}px` }}>{d.ten}</td>
+                          <td className="whitespace-nowrap border-l border-steel-100 px-2 py-1.5 text-right tabular-nums">{n0(d.du_dau_no)}</td>
+                          <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{n0(d.du_dau_co)}</td>
+                          <td className="whitespace-nowrap border-l border-steel-100 px-2 py-1.5 text-right tabular-nums">{n0(d.ps_no)}</td>
+                          <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{n0(d.ps_co)}</td>
+                          <td className="whitespace-nowrap border-l border-steel-100 px-2 py-1.5 text-right tabular-nums">{n0(d.du_cuoi_no)}</td>
+                          <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{n0(d.du_cuoi_co)}</td>
                         </tr>
                       );
                     })}

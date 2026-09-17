@@ -58,7 +58,8 @@ export default function BangChiTiet({ nap }: { nap: (trang: number, kt: number, 
               <thead className="sticky top-0 z-10 bg-steel-50">
                 <tr>
                   {d.cot.map((c, i) => (
-                    <th key={c} className={cx("border-b border-steel-200 px-3 py-2 font-semibold text-steel-500", soSet.has(c) ? "text-right" : "text-left")}>
+                    <th key={c} className={cx("whitespace-nowrap border-b border-steel-200 px-3 py-2 font-semibold text-steel-500",
+                      soSet.has(c) ? "text-right" : "text-left")}>
                       {d.nhan[i] ?? c}
                     </th>
                   ))}
@@ -74,7 +75,15 @@ export default function BangChiTiet({ nap }: { nap: (trang: number, kt: number, 
                       const v = row[c];
                       const so = soSet.has(c);
                       const hien = v == null || v === "" ? "" : so && typeof v === "number" ? fso(v) : String(v);
-                      return <td key={c} className={cx("whitespace-nowrap border-b border-steel-100 px-3 py-1.5", so ? "text-right tabular-nums" : "text-left")}>{hien}</td>;
+                      // Cột CHỮ phải xuống dòng: "Diễn giải" dài cả dòng làm bảng tràn
+                      // ngang, người dùng phải kéo mới đọc được. Cột SỐ thì không bao
+                      // giờ ngắt — số tiền bị bẻ đôi là đọc sai.
+                      return (
+                        <td key={c} className={cx("border-b border-steel-100 px-3 py-1.5",
+                          so ? "whitespace-nowrap text-right tabular-nums" : "whitespace-normal break-words text-left")}>
+                          {hien}
+                        </td>
+                      );
                     })}
                   </tr>
                 ))}

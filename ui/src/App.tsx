@@ -159,19 +159,22 @@ function Noi() {
       {/* ------------------------------ Nội dung ------------------------------ */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="flex items-center gap-4 border-b border-steel-200 bg-white px-6 py-3">
-          {/* NHÃN, không phải nút: kỳ đọc tự động từ dữ liệu trong file, muốn đổi kỳ thì
-              nạp file khác. Viền + nền kiểu chip khiến người dùng tưởng bấm chọn được. */}
-          <div title="Kỳ đọc tự động từ dữ liệu trong file — muốn xem kỳ khác thì nạp file khác"
-            className="inline-flex cursor-default select-none items-center gap-2 text-[13px] font-semibold text-ink">
-            <Icon d={IC.lich} className="h-4 w-4 text-navy" />Kỳ {ky}
-          </div>
-          {soChiNhanh > 0 && (
-            <div className="inline-flex items-center gap-2 text-[13px] font-medium text-steel-500">
-              <Icon d={IC.toanha} className="h-4 w-4 text-steel-400" />{soChiNhanh} chi nhánh được kiểm tra
+        {/* Thanh trên chỉ mô tả FILE ĐANG KIỂM TRA, nên chỉ hiện ở hai màn dùng file đó.
+            Màn CĐPS và Lịch sử có bộ lọc kỳ riêng — để nhãn "Kỳ 08/2026" đứng chết trên
+            đầu khiến người dùng tưởng nó là ô chọn kỳ mà bấm không được. */}
+        {(man === "tongquan" || man === "kiemtra") && (
+          <header className="flex items-center gap-4 border-b border-steel-200 bg-white px-6 py-3">
+            <div title="Kỳ đọc tự động từ dữ liệu trong file đang kiểm tra — muốn xem kỳ khác thì nạp file khác"
+              className="inline-flex cursor-default select-none items-center gap-2 text-[13px] font-semibold text-ink">
+              <Icon d={IC.lich} className="h-4 w-4 text-navy" />Kỳ {ky} <span className="font-normal text-steel-400">(theo file đang kiểm tra)</span>
             </div>
-          )}
-        </header>
+            {soChiNhanh > 0 && (
+              <div className="inline-flex items-center gap-2 text-[13px] font-medium text-steel-500">
+                <Icon d={IC.toanha} className="h-4 w-4 text-steel-400" />{soChiNhanh} chi nhánh được kiểm tra
+              </div>
+            )}
+          </header>
+        )}
 
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Ảnh nền phủ toàn vùng nội dung + lớp phủ trắng mỏng cho dễ đọc */}
