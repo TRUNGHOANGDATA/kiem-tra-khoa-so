@@ -80,6 +80,23 @@ def test_thieu_cdps_liet_ke_chi_nhanh_chua_co(tmp_path, monkeypatch):
     assert api.thieu_cdps() == []                                # đã đủ CĐPS -> không thiếu
 
 
+def test_cdps_cua_bom_vao_ctx(tmp_path, monkeypatch):
+    """G9/G10/C7 cần cả bảng CĐPS, không chỉ lỗ lũy kế."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = JsApi()
+    d = SimpleNamespace(nhan="A08", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))
+    assert api._cdps_cua(d) is None                      # chưa có kho -> None
+    kho = api._kho()
+    df = pd.DataFrame([["1111", "Tiền mặt", 0, 0, 0, 0, 500, 0, False, 1]],
+                      columns=["account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+                               "du_cuoi_no", "du_cuoi_co", "is_group", "level"])
+    kho.luu_cdps("A08", 2026, 8, df)
+    kho.dong()
+    got = api._cdps_cua(d)
+    assert got is not None and got["account"].tolist() == ["1111"]
+    assert api._cdps_cua(SimpleNamespace(nhan="A07", tt=SimpleNamespace(ky_nam=2026, ky_thang=8))) is None
+
+
 def test_chi_tiet_cdps(tmp_path, monkeypatch):
     monkeypatch.setattr("app.api.GOC", tmp_path)
     api = JsApi()

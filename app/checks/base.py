@@ -56,6 +56,11 @@ class BoiCanh:
     # Lỗ lũy kế đầu kỳ (dư đầu Nợ − Có của 421x) từ CĐPS; None = CHƯA nhập CĐPS.
     # Dương = có lỗ lũy kế; dùng ở C7.6 để chỉ đòi 8211 khi lãi kỳ > lỗ lũy kế.
     lo_luy_ke_dau: float | None = None
+    # Bảng cân đối số phát sinh của đúng (chi nhánh × kỳ); None = CHƯA nhập CĐPS.
+    # Cột: account, ten, du_dau_no/co, ps_no/co, du_cuoi_no/co, is_group, level.
+    # G9/G10 và bản nâng cấp C7.1–C7.3 chỉ chạy khi có bảng này — không có thì đứng
+    # ngoài (la_thong_ke) chứ KHÔNG báo "đạt" giả.
+    cdps: pd.DataFrame | None = None
 
 
 @dataclass

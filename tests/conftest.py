@@ -37,6 +37,21 @@ def tao_df(rows: list[dict]) -> pd.DataFrame:
     return df
 
 
+COT_CDPS = ("account", "ten", "du_dau_no", "du_dau_co", "ps_no", "ps_co",
+            "du_cuoi_no", "du_cuoi_co", "is_group", "level")
+
+
+def tao_cdps(rows: list[dict]) -> pd.DataFrame:
+    """CĐPS giả: mỗi dict chỉ cần ghi cột khác mặc định (mặc định là dòng LÁ, số 0)."""
+    mac_dinh = {"account": "1111", "ten": "", "du_dau_no": 0.0, "du_dau_co": 0.0,
+                "ps_no": 0.0, "ps_co": 0.0, "du_cuoi_no": 0.0, "du_cuoi_co": 0.0,
+                "is_group": False, "level": 1}
+    df = pd.DataFrame([{**mac_dinh, **r} for r in rows], columns=list(COT_CDPS))
+    for c in COT_CDPS[2:8]:
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0).astype(float)
+    return df
+
+
 @pytest.fixture
 def ctx() -> BoiCanh:
     return BoiCanh(ky_thang=8, ky_nam=2026)

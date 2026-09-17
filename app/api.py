@@ -234,9 +234,27 @@ class JsApi:
         finally:
             kho.dong()
 
+    def _cdps_cua(self, d: "DonVi"):
+        """CĐPS của đúng (chi nhánh × kỳ) cho G9/G10/C7; None nếu chưa nạp.
+        Không tạo kho rỗng chỉ để tra (giống _lo_luy_ke_dau)."""
+        if not Path(self._duong_dan_kho()).exists():
+            return None
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001 (kho lỗi không được làm chết luồng kiểm tra)
+            return None
+        try:
+            df = kho.doc_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang)
+            return df if len(df) else None
+        except Exception:  # noqa: BLE001
+            return None
+        finally:
+            kho.dong()
+
     def _chay_mot_don_vi(self, d: DonVi, on_progress=None) -> None:
-        """Chạy 30 check + suy 11 bước cho MỘT chi nhánh, trên frame của riêng nó."""
-        ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam, lo_luy_ke_dau=self._lo_luy_ke_dau(d))
+        """Chạy toàn bộ check + suy 18 bước cho MỘT chi nhánh, trên frame của riêng nó."""
+        ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam, lo_luy_ke_dau=self._lo_luy_ke_dau(d),
+                      cdps=self._cdps_cua(d))
         d.ket_qua = checks.chay_tat_ca(d.df, ctx, on_progress=on_progress)
         d.kq = {r.ma: r for r in d.ket_qua}
         d.trang_thai = suy_trang_thai(d.df, d.kq)
