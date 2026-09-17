@@ -18,7 +18,7 @@ hiddenimports = [
 ]
 
 a = Analysis(
-    [str(GOC / "app" / "main.py")],
+    [str(GOC / "tools" / "launch.py")],   # launcher import GÓI app (không chạy main.py truc tiep)
     pathex=[str(GOC)],
     binaries=[],
     datas=datas,
