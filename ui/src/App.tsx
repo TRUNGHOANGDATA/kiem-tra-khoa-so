@@ -171,9 +171,9 @@ function Noi() {
         </header>
 
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          {/* Ảnh nền phủ toàn vùng nội dung + lớp phủ trắng mờ cho dễ đọc */}
-          <div className="pointer-events-none absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${nen})` }} />
-          <div className="pointer-events-none absolute inset-0 bg-white/45" />
+          {/* Ảnh nền phủ toàn vùng nội dung + lớp phủ trắng mỏng cho dễ đọc */}
+          <div className="pointer-events-none absolute inset-0 bg-cover bg-bottom" style={{ backgroundImage: `url(${nen})` }} />
+          <div className="pointer-events-none absolute inset-0 bg-white/25" />
           <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
           {man === "tongquan" && (
             kq ? (
