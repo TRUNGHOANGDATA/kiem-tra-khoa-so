@@ -30,11 +30,14 @@ def test_pipeline_file_that_chay_nhanh_va_hop_ly(tmp_path):
     # C4.1: 10 dòng cuối nó còn báo trên sổ này đều mang số tiền ÂM (bút toán
     # điều chỉnh "TĐ từ phiếu TP số: TP2608-…"), tức là ĐÃ có giá trị. Vị từ
     # Amount == 0 phải đưa về 0 dòng và bước tính giá xuất kho về "đã làm".
-    # Các dòng âm không mất khỏi báo cáo: C1.5 "Số tiền ≤ 0" vẫn liệt kê đủ.
+    # C1.5 nay chỉ ĐỎ khi Amount == 0 (dòng không giá trị); các dòng ÂM (điều chỉnh/
+    # kiểm kê) chuyển sang C1.7 THỐNG KÊ, không kéo kết luận.
     c41 = next(c for n in kq["nhom"] for c in n["checks"] if c["ma"] == "C4.1")
     c15 = next(c for n in kq["nhom"] for c in n["checks"] if c["ma"] == "C1.5")
+    c17 = next(c for n in kq["nhom"] for c in n["checks"] if c["ma"] == "C1.7")
     assert c41["so_loi"] == 0 and c41["ghi_chu"] == ""
-    assert c15["so_loi"] == 243
+    assert c15["so_loi"] == 1              # đúng 1 dòng Amount = 0 trên sổ này
+    assert c17["la_thong_ke"] is True and c17["so_loi"] == 0   # số âm chỉ để soát
     assert tt["Tính giá xuất kho (mọi dòng xuất có giá trị)"]["trang_thai"] == "da_lam"
     assert kq["tomtat"]["con_viec"] == 2 and kq["tomtat"]["so_chua_lam"] == 0
     # chi tiết theo trang không đổ toàn bộ
