@@ -104,6 +104,40 @@ class KhoChotSo:
                   float(r.du_cuoi_no), float(r.du_cuoi_co), int(bool(r.is_group)), int(r.level), thoi_diem)
                  for r in df.itertuples(index=False)])
 
+    # Cột số của CĐPS dùng để phát hiện thay đổi (tên/level đổi không phải "sổ đổi").
+    COT_SO_CDPS = ("du_dau_no", "du_dau_co", "ps_no", "ps_co", "du_cuoi_no", "du_cuoi_co")
+
+    def so_sanh_cdps(self, chi_nhanh, ky_nam, ky_thang, df_moi) -> dict | None:
+        """CĐPS sắp nạp khác gì bản đang lưu? None = chưa có bản cũ hoặc y hệt.
+
+        Nạp lại là GHI ĐÈ SẠCH, nên phải soi trước khi ghi: kế toán cần biết số liệu
+        kỳ đã xem hôm qua có bị đổi hay không, đổi ở tài khoản nào.
+        """
+        cu = self.doc_cdps(chi_nhanh, ky_nam, ky_thang)
+        if cu.empty:
+            return None
+        khoa = lambda d: (d.assign(_a=d["account"].fillna("").astype(str).str.strip())
+                          .set_index("_a")[list(self.COT_SO_CDPS)].astype(float))
+        a, b = khoa(cu), khoa(df_moi)
+        them = sorted(set(b.index) - set(a.index))
+        bot = sorted(set(a.index) - set(b.index))
+        dong = []
+        for tk in sorted(set(a.index) & set(b.index)):
+            lech = {c: (float(a.loc[tk, c]), float(b.loc[tk, c])) for c in self.COT_SO_CDPS
+                    if abs(float(a.loc[tk, c]) - float(b.loc[tk, c])) > 0.5}
+            if lech:
+                dong.append({"account": tk, "kieu": "đổi",
+                             **{f"{c}_cu": v[0] for c, v in lech.items()},
+                             **{f"{c}_moi": v[1] for c, v in lech.items()},
+                             "cot": ", ".join(lech)})
+        dong += [{"account": tk, "kieu": "thêm", "cot": ""} for tk in them]
+        dong += [{"account": tk, "kieu": "mất", "cot": ""} for tk in bot]
+        if not dong:
+            return None
+        return {"chi_nhanh": chi_nhanh, "ky_nam": ky_nam, "ky_thang": ky_thang,
+                "so_doi": len(dong) - len(them) - len(bot),
+                "so_them": len(them), "so_bot": len(bot), "dong": dong}
+
     def doc_cdps(self, chi_nhanh, ky_nam, ky_thang) -> pd.DataFrame:
         rows = self.con.execute(
             """SELECT account, ten, du_dau_no, du_dau_co, ps_no, ps_co, du_cuoi_no, du_cuoi_co,

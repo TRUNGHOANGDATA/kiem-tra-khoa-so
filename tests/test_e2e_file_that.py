@@ -25,7 +25,7 @@ def test_pipeline_file_that_chay_nhanh_va_hop_ly(tmp_path):
     assert "loi" not in kq, kq.get("loi")
     thoi_gian = time.time() - t
     assert kq["tomtat"]["ky"] == "08/2026" and kq["tomtat"]["so_dong"] == 79450
-    assert len(kq["trang_thai"]) == 18
+    assert len(kq["trang_thai"]) == 19
     # G4/G5 phải phản ánh dữ liệu thật: có phát sinh 621/632 nên không "không áp dụng"
     tt = {b["buoc"]: b for b in kq["trang_thai"]}
     assert tt["Tập hợp CP NVL trực tiếp 621 → 154"]["trang_thai"] != "khong_ap_dung"

@@ -110,3 +110,18 @@ def test_chi_tiet_cdps(tmp_path, monkeypatch):
     assert len(r["dong"]) == 1 and r["dong"][0]["account"] == "4212"
     assert r["dong"][0]["du_dau_no"] == 2981950998.0
     assert api.chi_tiet_cdps("A08", 2026, 9)["dong"] == []       # kỳ chưa có -> rỗng
+
+
+def test_nap_lai_cdps_khac_thi_bao_thay_doi(tmp_path, monkeypatch):
+    """Nạp lại là GHI ĐÈ SẠCH — phải báo đổi ở đâu, không được im lặng thay số."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "100", "100", "0", "0", "False", "0"]])
+    api = JsApi()
+    assert api.nap_cdps_thu_muc()["thay_doi"] == []          # lần đầu: không có gì để so
+
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "150", "100", "0", "0", "False", "0"],
+                      ["642", "CP QLDN", "0", "0", "7", "0", "0", "0", "False", "0"]])
+    td = JsApi().nap_cdps_thu_muc()["thay_doi"]
+    assert len(td) == 1 and td[0]["chi_nhanh"] == "A08"
+    assert (td[0]["so_doi"], td[0]["so_them"], td[0]["so_bot"]) == (1, 1, 0)
+    assert {d["account"] for d in td[0]["dong"]} == {"911", "642"}

@@ -13,8 +13,8 @@ def _kq(cdps, df=None):
     return {r.ma: r for r in g9.kiem_tra(df if df is not None else tao_df([{}]), ctx)}
 
 
-def test_du_4_ma_theo_thu_tu():
-    assert [r.ma for r in g9.kiem_tra(tao_df([{}]), BoiCanh(8, 2026))] == ["C9.1", "C9.2", "C9.3", "C9.4"]
+def test_du_5_ma_theo_thu_tu():
+    assert [r.ma for r in g9.kiem_tra(tao_df([{}]), BoiCanh(8, 2026))] == ["C9.1", "C9.2", "C9.3", "C9.4", "C9.5"]
 
 
 def test_chua_nap_cdps_thi_dung_ngoai_khong_bao_dat():

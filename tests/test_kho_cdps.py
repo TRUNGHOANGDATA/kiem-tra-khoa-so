@@ -66,3 +66,45 @@ def test_trang_thai_cdps(tmp_path):
     ds = kho.trang_thai_cdps()
     assert {(r["chi_nhanh"], r["ky_nam"], r["ky_thang"]) for r in ds} == {("A08", 2026, 8), ("A07", 2026, 8)}
     kho.dong()
+
+
+# ------------------------------------------------------------------ drift CĐPS
+def _cdps(rows):
+    mac = {"account": "1111", "ten": "", "du_dau_no": 0.0, "du_dau_co": 0.0, "ps_no": 0.0,
+           "ps_co": 0.0, "du_cuoi_no": 0.0, "du_cuoi_co": 0.0, "is_group": 0, "level": 1}
+    return pd.DataFrame([{**mac, **r} for r in rows], columns=COLS)
+
+
+def test_so_sanh_cdps_lan_dau_thi_khong_co_gi_de_so(tmp_path):
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    assert k.so_sanh_cdps("A08", 2026, 8, _cdps([{"account": "1111", "ps_no": 100}])) is None
+    k.dong()
+
+
+def test_so_sanh_cdps_y_het_thi_khong_bao(tmp_path):
+    df = _cdps([{"account": "1111", "ps_no": 100}, {"account": "5111", "ps_co": 100}])
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A08", 2026, 8, df)
+    assert k.so_sanh_cdps("A08", 2026, 8, df) is None
+    k.dong()
+
+
+def test_so_sanh_cdps_bat_tk_doi_so(tmp_path):
+    cu = _cdps([{"account": "1111", "ps_no": 100}, {"account": "5111", "ps_co": 100}])
+    moi = _cdps([{"account": "1111", "ps_no": 150}, {"account": "5111", "ps_co": 100}])
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A08", 2026, 8, cu)
+    d = k.so_sanh_cdps("A08", 2026, 8, moi)
+    k.dong()
+    assert d["so_doi"] == 1 and d["so_them"] == 0 and d["so_bot"] == 0
+    assert d["dong"][0]["account"] == "1111" and d["dong"][0]["ps_no_cu"] == 100
+
+
+def test_so_sanh_cdps_bat_tk_them_va_bot(tmp_path):
+    cu = _cdps([{"account": "1111", "ps_no": 100}, {"account": "5111", "ps_co": 100}])
+    moi = _cdps([{"account": "1111", "ps_no": 100}, {"account": "6421", "ps_no": 7}])
+    k = KhoChotSo(str(tmp_path / "k.sqlite"))
+    k.luu_cdps("A08", 2026, 8, cu)
+    d = k.so_sanh_cdps("A08", 2026, 8, moi)
+    k.dong()
+    assert (d["so_them"], d["so_bot"], d["so_doi"]) == (1, 1, 0)
