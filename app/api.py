@@ -446,38 +446,81 @@ class JsApi:
     def _duong_dan_kho(self) -> str:
         return str(Path(self._thu_muc_kho) / "kho_chot_so.sqlite")
 
-    def nap_cdps_thu_muc(self, thu_muc: str = ""):
-        """Nạp mọi file CĐPS trong `thu_muc` (mặc định thư mục nguồn): suy chi nhánh+kỳ
-        từ tên file, lưu vào kho (thay sạch từng kỳ). Bỏ qua file không đúng quy ước."""
+    def _doc_thu_muc_cdps(self, thu_muc: str):
+        """Đọc mọi file CĐPS hợp lệ trong thư mục -> [(df, meta, tên file)] + danh sách bỏ qua."""
+        hop_le, bo_qua = [], []
+        for p in tim_file_excel(thu_muc or self.thu_muc_source):
+            ten = Path(p).name
+            if cdps.suy_branch_ky(p) is None:
+                bo_qua.append(ten)
+                continue
+            try:
+                df, m = cdps.doc_cdps(p)
+            except cdps.KhongPhaiCdps:
+                bo_qua.append(ten)
+                continue
+            hop_le.append((df, m, ten))
+        return hop_le, bo_qua
+
+    def xem_truoc_cdps(self, thu_muc: str = ""):
+        """CHỈ ĐỌC: thư mục này sẽ nạp mới những gì, và đè lên kỳ nào đã có.
+
+        Ghi đè là mất số liệu cũ (luu_cdps thay sạch cả kỳ), nên người dùng phải
+        thấy trước danh sách kỳ trùng rồi mới quyết — không ghi đè im lặng.
+        """
         try:
-            nap, bo_qua, thay_doi = [], [], []
+            hop_le, bo_qua = self._doc_thu_muc_cdps(thu_muc)
+            moi, trung = [], []
             kho = self._kho()
             try:
-                for p in tim_file_excel(thu_muc or self.thu_muc_source):
-                    ten = Path(p).name
-                    if cdps.suy_branch_ky(p) is None:
-                        bo_qua.append(ten)
+                for df, m, ten in hop_le:
+                    mo_ta = {"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
+                             "ky": f"{m.thang:02d}/{m.nam}", "file": ten}
+                    if kho.doc_cdps(m.ma, m.nam, m.thang).empty:
+                        moi.append(mo_ta)
                         continue
-                    try:
-                        df, m = cdps.doc_cdps(p)
-                    except cdps.KhongPhaiCdps:
-                        bo_qua.append(ten)
+                    doi = kho.so_sanh_cdps(m.ma, m.nam, m.thang, df)
+                    trung.append({**mo_ta, "khac": doi is not None,
+                                  "so_doi": (doi or {}).get("so_doi", 0),
+                                  "so_them": (doi or {}).get("so_them", 0),
+                                  "so_bot": (doi or {}).get("so_bot", 0),
+                                  "dong": (doi or {}).get("dong", [])[:20]})
+            finally:
+                kho.dong()
+            return {"moi": moi, "trung": trung, "bo_qua": bo_qua}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không đọc được CĐPS: {e}"}
+
+    def nap_cdps_thu_muc(self, thu_muc: str = "", ghi_de: bool = False):
+        """Nạp CĐPS trong `thu_muc` vào kho. Kỳ ĐÃ CÓ chỉ bị đè khi `ghi_de=True`.
+
+        Mặc định KHÔNG đè: xem `xem_truoc_cdps` để người dùng chọn trước.
+        """
+        try:
+            hop_le, bo_qua = self._doc_thu_muc_cdps(thu_muc)
+            nap, thay_doi, bo_qua_trung = [], [], []
+            kho = self._kho()
+            try:
+                for df, m, ten in hop_le:
+                    mo_ta = {"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
+                             "ky": f"{m.thang:02d}/{m.nam}", "file": ten}
+                    da_co = not kho.doc_cdps(m.ma, m.nam, m.thang).empty
+                    if da_co and not ghi_de:
+                        bo_qua_trung.append(mo_ta)
                         continue
                     # Soi TRƯỚC khi ghi đè: nạp lại là thay sạch, không so trước thì
                     # số liệu kế toán đã xem hôm qua đổi lặng lẽ.
-                    doi = kho.so_sanh_cdps(m.ma, m.nam, m.thang, df)
+                    doi = kho.so_sanh_cdps(m.ma, m.nam, m.thang, df) if da_co else None
                     kho.luu_cdps(m.ma, m.nam, m.thang, df)
-                    nap.append({"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
-                                "ky": f"{m.thang:02d}/{m.nam}", "file": ten})
+                    nap.append(mo_ta)
                     if doi:
-                        doi["chi_nhanh_ten"] = self._ten(m.ma)
-                        doi["ky"] = f"{m.thang:02d}/{m.nam}"
+                        doi.update(chi_nhanh_ten=mo_ta["chi_nhanh_ten"], ky=mo_ta["ky"])
                         doi["dong"] = doi["dong"][:20]     # đủ để nhìn, không ngập UI
                         thay_doi.append(doi)
             finally:
                 kho.dong()
-            return {"nap": nap, "bo_qua": bo_qua, "thay_doi": thay_doi,
-                    "trang_thai": self.trang_thai_cdps()}
+            return {"nap": nap, "bo_qua": bo_qua, "bo_qua_trung": bo_qua_trung,
+                    "thay_doi": thay_doi, "trang_thai": self.trang_thai_cdps()}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không nạp được CĐPS: {e}"}
 

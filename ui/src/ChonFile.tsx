@@ -3,11 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import * as A from "./api";
 import { laLoi, type ThongTinNap } from "./api";
-import { cx, fso, Icon, IC, Nut, useToast } from "./ui";
+import { cx, fso, Icon, IC, Modal, Nut, useToast } from "./ui";
 
 interface TrangThaiCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; thoi_diem_nap?: string }
 interface ThieuCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string }
 /** CĐPS nạp lại KHÁC bản đang lưu — nạp lại là ghi đè sạch nên phải báo trước. */
+/** Kỳ đã có trong kho — phải hỏi trước khi đè, vì nạp lại là thay sạch cả kỳ. */
+interface TrungCdps {
+  chi_nhanh: string; chi_nhanh_ten?: string; ky: string; file: string;
+  khac: boolean; so_doi: number; so_them: number; so_bot: number;
+}
 interface ThayDoiCdps {
   chi_nhanh: string; chi_nhanh_ten?: string; ky: string;
   so_doi: number; so_them: number; so_bot: number;
@@ -60,6 +65,7 @@ export default function ManChonFile(p: ChonFileProps) {
   const [thieu, setThieu] = useState<ThieuCdps[]>([]);
   const [dangNapCdps, setDangNapCdps] = useState(false);
   const [doi, setDoi] = useState<ThayDoiCdps[]>([]);
+  const [hoi, setHoi] = useState<{ path: string; moi: TrungCdps[]; trung: TrungCdps[] } | null>(null);
   const dangChay = !!tienTrinh;
 
   const taiTs = useCallback(async () => {
@@ -73,20 +79,39 @@ export default function ManChonFile(p: ChonFileProps) {
     A.goi("thieu_cdps").then((r) => { if (Array.isArray(r)) setThieu(r as ThieuCdps[]); });
   }, [nap]);
 
+  // Chọn thư mục -> XEM TRƯỚC (chỉ đọc). Có kỳ trùng thì hỏi, không thì nạp luôn.
   const napCdps = async () => {
     const r0 = await A.goi("chon_thu_muc", "");
     if (laLoi(r0)) { toast(r0.loi); return; }
     if (!r0 || (r0 as { huy?: boolean }).huy) return;
+    const path = (r0 as { path: string }).path;
     setDangNapCdps(true);
-    const r = await A.goi("nap_cdps_thu_muc", (r0 as { path: string }).path);
+    const xt = await A.goi("xem_truoc_cdps", path);
+    setDangNapCdps(false);
+    if (laLoi(xt)) { toast(xt.loi); return; }
+    const moi = (xt.moi as TrungCdps[]) ?? [];
+    const trung = (xt.trung as TrungCdps[]) ?? [];
+    const bq = (xt.bo_qua as unknown[])?.length ?? 0;
+    if (!moi.length && !trung.length) {
+      toast(`Không thấy file CĐPS đúng quy ước (vd “A08 082026 …”) trong thư mục. Bỏ qua ${bq} file.`);
+      return;
+    }
+    if (!trung.length) { chayNap(path, false); return; }
+    setHoi({ path, moi, trung });
+  };
+
+  const chayNap = async (path: string, ghiDe: boolean) => {
+    setHoi(null);
+    setDangNapCdps(true);
+    const r = await A.goi("nap_cdps_thu_muc", path, ghiDe);
     setDangNapCdps(false);
     if (laLoi(r)) { toast(r.loi); return; }
     setDoi((r.thay_doi as ThayDoiCdps[]) ?? []);
     const nn = (r.nap as { chi_nhanh: string }[]) ?? [];
-    const bq = (r.bo_qua as unknown[])?.length ?? 0;
+    const bqt = ((r.bo_qua_trung as unknown[]) ?? []).length;
     toast(nn.length
-      ? `Đã nạp CĐPS ${nn.length} file: ${nn.map((x) => x.chi_nhanh).join(", ")}`
-      : `Không thấy file CĐPS đúng quy ước (vd “A08 082026 …”) trong thư mục. Bỏ qua ${bq} file.`);
+      ? `Đã nạp CĐPS ${nn.length} kỳ/chi nhánh${bqt ? ` · giữ nguyên ${bqt} kỳ đã có` : ""}`
+      : `Không nạp kỳ nào — ${bqt} kỳ đã có trong kho được giữ nguyên.`);
     taiTs();
   };
 
@@ -242,6 +267,65 @@ export default function ManChonFile(p: ChonFileProps) {
           )}
         </section>
       </div>
+      {/* Xác nhận trước khi ĐÈ: nạp lại thay sạch cả kỳ, mất số liệu cũ. */}
+      <Modal mo={!!hoi} dong={() => setHoi(null)} tieuDe="Có kỳ đã nạp trước đó" rong>
+        {hoi && (
+          <div className="space-y-3 text-[13px]">
+            <p className="text-steel-600">
+              Nạp lại sẽ <b>thay sạch</b> số liệu của kỳ đó trong kho. Chọn cách xử lý:
+            </p>
+            {hoi.moi.length > 0 && (
+              <div className="rounded-xl border border-steel-200 bg-steel-50 px-3 py-2">
+                <b>{hoi.moi.length}</b> kỳ/chi nhánh <b>chưa có</b> trong kho — sẽ nạp mới:{" "}
+                <span className="text-steel-500">
+                  {hoi.moi.map((m) => `${m.chi_nhanh_ten || m.chi_nhanh} ${m.ky}`).join(" · ")}
+                </span>
+              </div>
+            )}
+            <div className="max-h-[38vh] overflow-auto rounded-xl border border-steel-200">
+              <table className="w-full text-[12.5px]">
+                <thead className="sticky top-0 bg-steel-50 text-[11px] font-bold uppercase tracking-wide text-steel-400">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Chi nhánh</th>
+                    <th className="px-3 py-2 text-left">Kỳ</th>
+                    <th className="px-3 py-2 text-left">So với bản trong kho</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hoi.trung.map((t) => (
+                    <tr key={t.chi_nhanh + t.ky} className="border-t border-steel-100">
+                      <td className="px-3 py-1.5 font-semibold">{t.chi_nhanh_ten || t.chi_nhanh}</td>
+                      <td className="px-3 py-1.5 tabular-nums">{t.ky}</td>
+                      <td className="px-3 py-1.5">
+                        {t.khac
+                          ? <span className="font-semibold text-vang-dam">
+                              ▲ Khác: {t.so_doi} TK đổi số
+                              {t.so_them > 0 && ` · thêm ${t.so_them}`}
+                              {t.so_bot > 0 && ` · mất ${t.so_bot}`}
+                            </span>
+                          : <span className="text-steel-500">✓ Giống hệt bản đang lưu</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+              <Nut bien="phu" onClick={() => setHoi(null)}>Hủy</Nut>
+              {/* Không có kỳ nào mới thì nút này trùng nghĩa với Hủy — ẩn đi. */}
+              {hoi.moi.length > 0 && (
+                <Nut bien="phu" onClick={() => chayNap(hoi.path, false)}>
+                  Chỉ nạp {hoi.moi.length} kỳ mới, giữ nguyên kỳ đã có
+                </Nut>
+              )}
+              <Nut bien="chinh" onClick={() => chayNap(hoi.path, true)}>
+                <Icon d={IC.warn} className="h-4 w-4" />Ghi đè {hoi.trung.length} kỳ đã có
+              </Nut>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
+
   );
 }

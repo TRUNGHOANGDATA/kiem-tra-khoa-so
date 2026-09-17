@@ -121,7 +121,7 @@ def test_nap_lai_cdps_khac_thi_bao_thay_doi(tmp_path, monkeypatch):
 
     _nguon(tmp_path, [["911", "XDKQ", "0", "0", "150", "100", "0", "0", "False", "0"],
                       ["642", "CP QLDN", "0", "0", "7", "0", "0", "0", "False", "0"]])
-    td = JsApi().nap_cdps_thu_muc()["thay_doi"]
+    td = JsApi().nap_cdps_thu_muc(ghi_de=True)["thay_doi"]
     assert len(td) == 1 and td[0]["chi_nhanh"] == "A08"
     assert (td[0]["so_doi"], td[0]["so_them"], td[0]["so_bot"]) == (1, 1, 0)
     assert {d["account"] for d in td[0]["dong"]} == {"911", "642"}
@@ -211,3 +211,63 @@ def test_cot_so_nhan_dien_theo_kieu_du_lieu(tmp_path, monkeypatch):
                 if isinstance(gt, (int, float)) and not isinstance(gt, bool) and cot not in so:
                     thieu.setdefault(ma, set()).add(cot)
     assert thieu == {}, f"cột số không được định dạng: {thieu}"
+
+
+# ------------------- xem trước & xác nhận ghi đè (không ghi đè im lặng)
+def _nap_lan_dau(tmp_path):
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "100", "100", "0", "0", "False", "0"]])
+    api = JsApi()
+    api.nap_cdps_thu_muc(ghi_de=True)
+    return api
+
+
+def test_xem_truoc_khong_ghi_gi_vao_kho(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "100", "100", "0", "0", "False", "0"]])
+    api = JsApi()
+    xt = api.xem_truoc_cdps()
+    assert [x["chi_nhanh"] for x in xt["moi"]] == ["A08"] and xt["trung"] == []
+    assert api.trang_thai_cdps() == []          # xem trước là CHỈ ĐỌC
+
+
+def test_xem_truoc_neu_da_co_thi_bao_trung_kem_khac_biet(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    api = _nap_lan_dau(tmp_path)
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "150", "100", "0", "0", "False", "0"]])
+    xt = JsApi().xem_truoc_cdps()
+    assert xt["moi"] == [] and len(xt["trung"]) == 1
+    t = xt["trung"][0]
+    assert t["chi_nhanh"] == "A08" and t["ky"] == "08/2026" and t["khac"] is True
+    assert t["so_doi"] == 1
+
+
+def test_xem_truoc_phan_biet_trung_nhung_y_het(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nap_lan_dau(tmp_path)
+    t = JsApi().xem_truoc_cdps()["trung"][0]
+    assert t["khac"] is False and t["so_doi"] == 0
+
+
+def test_mac_dinh_KHONG_ghi_de_ky_da_co(tmp_path, monkeypatch):
+    """Ghi đè là mất số liệu cũ — phải do người dùng chọn, không mặc định."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nap_lan_dau(tmp_path)
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "150", "100", "0", "0", "False", "0"]])
+    api = JsApi()
+    r = api.nap_cdps_thu_muc()
+    assert r["nap"] == [] and [x["chi_nhanh"] for x in r["bo_qua_trung"]] == ["A08"]
+    kho = api._kho()
+    assert float(kho.doc_cdps("A08", 2026, 8)["ps_no"].iloc[0]) == 100.0   # giữ bản cũ
+    kho.dong()
+
+
+def test_ghi_de_khi_duoc_chon(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    _nap_lan_dau(tmp_path)
+    _nguon(tmp_path, [["911", "XDKQ", "0", "0", "150", "100", "0", "0", "False", "0"]])
+    api = JsApi()
+    r = api.nap_cdps_thu_muc(ghi_de=True)
+    assert [x["chi_nhanh"] for x in r["nap"]] == ["A08"] and len(r["thay_doi"]) == 1
+    kho = api._kho()
+    assert float(kho.doc_cdps("A08", 2026, 8)["ps_no"].iloc[0]) == 150.0
+    kho.dong()
