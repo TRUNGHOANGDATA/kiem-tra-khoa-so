@@ -76,9 +76,16 @@ class JsApi:
         self._cache_quy_doi: dict | None = None  # nhớ map đọc từ kho (xóa khi lưu)
 
     def _tm(self, khoa: str) -> str:
-        if khoa in self._ovr_thu_muc:
-            return self._ovr_thu_muc[khoa]
-        return cau_hinh.doc_cau_hinh(str(GOC))[khoa]
+        d = self._ovr_thu_muc.get(khoa) or cau_hinh.doc_cau_hinh(str(GOC))[khoa]
+        # TỰ TẠO khi chưa có — thư mục rỗng (vd "2. Report") hay bị bỏ rơi lúc đóng
+        # gói, và người dùng có thể xóa; không có thì mở/ghi sẽ lỗi "Location is not
+        # available". Mọi nơi dùng thư mục (kho/nguồn/xuất, mở thư mục, sao lưu) đều
+        # đi qua đây nên vá một chỗ là đủ.
+        try:
+            Path(d).mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return d
 
     @property
     def _quy_doi(self) -> dict:

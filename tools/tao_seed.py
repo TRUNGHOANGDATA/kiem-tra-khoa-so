@@ -59,6 +59,11 @@ def dung(seed: Path) -> None:
     for p in THU_MUC_CDPS.glob("*.xlsx"):
         shutil.copy2(p, dich_cdps / p.name)
 
+    # Thư mục rỗng bị PyInstaller/Inno bỏ rơi -> đặt một file ghi chú để "2. Report"
+    # ship được ngay (app cũng tự tạo khi cần, đây chỉ để có sẵn từ lúc cài).
+    (seed / MAC_DINH["thu_muc_xuat"] / "ĐỌC TRƯỚC.txt").write_text(
+        "Báo cáo Excel khi bấm Xuất sẽ nằm ở đây.\n", encoding="utf-8")
+
     (seed / MAC_DINH["thu_muc_nguon"] / "ĐỌC TRƯỚC.txt").write_text(
         "Thả file Bảng kê chứng từ (xuất từ Bravo) vào thư mục này rồi bấm Kiểm tra.\n"
         "Kho đã có sẵn Cân đối phát sinh của các kỳ — không cần nạp lại.\n",

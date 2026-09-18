@@ -37,3 +37,17 @@ def test_luu_gia_tri_trong_dung_mac_dinh(tmp_path, monkeypatch):
     assert k["ok"] is True
     assert api.thu_muc_report == str(tmp_path / "2. Report")
     assert api._thu_muc_kho == str(tmp_path / "3. Chot so")
+
+
+def test_thu_muc_tu_tao_khi_chua_co(tmp_path, monkeypatch):
+    """Chưa có folder thì app phải TỰ TẠO, không để lỗi "Location is not available".
+
+    Thư mục rỗng (vd 2. Report) hay bị bỏ rơi khi đóng gói; app không được dựa vào
+    seed mà phải tự dựng khi cần.
+    """
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    from app.api import JsApi
+    api = JsApi()
+    for thu_muc in (api.thu_muc_source, api.thu_muc_report, api._thu_muc_kho):
+        from pathlib import Path
+        assert Path(thu_muc).is_dir(), f"chưa tự tạo: {thu_muc}"
