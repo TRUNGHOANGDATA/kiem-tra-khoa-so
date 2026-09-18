@@ -41,6 +41,17 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
     setDong((r.dong as DongCdps[]) ?? []);
   }, [toast]);
 
+  // Đổi bộ lọc mà chi tiết đang xem không còn nằm trong danh sách lọc -> bám theo lọc
+  // (tránh cảnh "Lọc 08/2026" mà bảng vẫn hiện kỳ 07/2026). Chọn dòng đầu khớp, hoặc
+  // xoá chi tiết nếu lọc rỗng.
+  useEffect(() => {
+    if (!ts.length) return;
+    const conKhop = chon && loc.some((t) => t.chi_nhanh === chon.chi_nhanh && t.ky === chon.ky);
+    if (conKhop) return;
+    if (loc.length) xemChiTiet(loc[0]);
+    else { setChon(null); setDong([]); }
+  }, [fKy, fCn, ts]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const dongLoc = dong.filter((d) => {
     if (anNhom && (d.is_group === 1 || d.is_group === true)) return false;
     const q = tim.trim().toLowerCase();

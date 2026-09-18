@@ -152,7 +152,7 @@ function Noi() {
             <div className="grid h-9 w-9 place-items-center rounded-lg bg-brass/25 text-brass-300"><Icon d={IC.lock} className="h-5 w-5" /></div>
             <p className="mt-2.5 text-[12.5px] font-semibold leading-snug text-white/85">“Số liệu minh bạch<br />Doanh nghiệp vững mạnh”</p>
           </div>
-          <div className="mt-3 px-1 text-[11px] text-white/35">Phiên bản 1.0.0</div>
+          <div className="mt-3 px-1 text-[11px] text-white/35">Phiên bản 1.0.1</div>
         </div>
       </aside>
 
