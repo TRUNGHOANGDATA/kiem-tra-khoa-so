@@ -333,13 +333,29 @@ class JsApi:
             return {"loi": "Thư mục '1. Source' chưa có file bảng kê nào"}
         return self.nap_nhieu_file(ds)
 
+    def _thu_muc_dialog(self, path: str) -> str:
+        """Thư mục ban đầu AN TOÀN cho hộp thoại chọn file/thư mục.
+
+        Hộp thoại native mở với `directory` KHÔNG tồn tại thì Windows bật dialog
+        "Location is not available" — dialog đó nằm trong tiến trình webview, Python
+        không bắt được. Nên tự tạo nếu tạo được; tạo không được thì trả "" để OS tự
+        chọn thư mục mặc định, TUYỆT ĐỐI không đẩy đường dẫn hỏng vào hộp thoại.
+        """
+        if not path:
+            return ""
+        try:
+            Path(path).mkdir(parents=True, exist_ok=True)
+            return path
+        except OSError:
+            return ""
+
     def chon_file(self, nhieu: bool = False):
         if self._window is None:
             return {"loi": "Chưa có cửa sổ"}
         try:
             import webview
             loai = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
-            chon = self._window.create_file_dialog(loai, directory=self.thu_muc_source,
+            chon = self._window.create_file_dialog(loai, directory=self._thu_muc_dialog(self.thu_muc_source),
                                                    allow_multiple=bool(nhieu),
                                                    file_types=("Excel (*.xlsx;*.xls;*.xlsm)",))
             if not chon:
@@ -360,7 +376,7 @@ class JsApi:
         try:
             import webview
             loai = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
-            chon = self._window.create_file_dialog(loai, directory=self._thu_muc_kho,
+            chon = self._window.create_file_dialog(loai, directory=self._thu_muc_dialog(self._thu_muc_kho),
                                                    file_types=("SQLite (*.sqlite;*.db)",))
             return {"path": chon[0]} if chon else {"huy": True}
         except Exception as e:  # noqa: BLE001
@@ -896,7 +912,7 @@ class JsApi:
                 p = Path(directory)
                 bat_dau = str(p if p.is_absolute() else (GOC / directory))  # mở đúng thư mục hiện tại
             loai = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
-            chon = self._window.create_file_dialog(loai, directory=bat_dau)
+            chon = self._window.create_file_dialog(loai, directory=self._thu_muc_dialog(bat_dau))
             return {"path": chon[0]} if chon else {"huy": True}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không mở được hộp thoại thư mục: {e}"}

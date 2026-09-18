@@ -3,10 +3,10 @@
 ;   python -m tools.tao_seed
 ;   pyinstaller tools/app.spec --noconfirm --clean --distpath build/dist --workpath build/work
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" tools/installer.iss
-; Kết quả: build/Output/KiemTraKhoaSo-Setup-1.0.0.exe
+; Kết quả: build/Output/KiemTraKhoaSo-Setup-1.0.1.exe
 
 #define TenApp "Kiểm tra khóa sổ cuối kỳ"
-#define PhienBan "1.0.0"
+#define PhienBan "1.0.1"
 #define TenExe "KiemTraKhoaSo.exe"
 
 [Setup]

@@ -51,3 +51,18 @@ def test_thu_muc_tu_tao_khi_chua_co(tmp_path, monkeypatch):
     for thu_muc in (api.thu_muc_source, api.thu_muc_report, api._thu_muc_kho):
         from pathlib import Path
         assert Path(thu_muc).is_dir(), f"chưa tự tạo: {thu_muc}"
+
+
+def test_thu_muc_mo_hop_thoai_luon_ton_tai(tmp_path, monkeypatch):
+    """Hộp thoại chọn file mở với thư mục ban đầu KHÔNG tồn tại -> Windows hiện
+    dialog native 'Location is not available' mà Python không bắt được. Helper phải
+    tự tạo thư mục và không bao giờ trả về đường dẫn không tồn tại."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    from app.api import JsApi
+    from pathlib import Path
+    api = JsApi()
+    d = api._thu_muc_dialog(str(tmp_path / "3. Chot so"))
+    assert Path(d).is_dir()
+    # đường dẫn rác không tạo được -> trả "" để OS tự chọn, KHÔNG đẩy path hỏng vào dialog
+    assert api._thu_muc_dialog(r"Z:\khong_ton_taibc\def") == ""
+    assert api._thu_muc_dialog("") == ""
