@@ -216,8 +216,12 @@ export default function ManKetQua(p: KetQuaProps) {
     [kq.nhom],
   );
   const dat = Math.max(0, tongCheck - t.so_do - t.so_vang);
+  // Sắp theo MÃ chi nhánh tăng dần, không theo mức độ nặng→nhẹ: kế toán tìm chi nhánh
+  // của mình theo mã (A01, A02, …), và thứ tự đổi mỗi lần chạy lại vì mức độ đổi thì
+  // vị trí quen tay cũng đổi theo — khó dò hơn là được ưu tiên. Mức độ vẫn đọc được
+  // ngay trên từng thẻ bằng chấm màu + nhãn.
   const dsSap = useMemo(
-    () => [...kq.don_vi].sort((a, b) => ({ do: 0, vang: 1, xanh: 2 })[mucDonVi(a)] - ({ do: 0, vang: 1, xanh: 2 })[mucDonVi(b)]),
+    () => [...kq.don_vi].sort((a, b) => String(a.ma).localeCompare(String(b.ma), "vi", { numeric: true })),
     [kq.don_vi],
   );
   const dsLoi = useMemo(

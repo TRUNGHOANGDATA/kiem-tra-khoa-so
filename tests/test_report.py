@@ -156,3 +156,29 @@ def test_tong_hop_co_sheet_chi_tiet_tung_check_kem_chi_nhanh(tmp_path, ctx):
     assert ws.cell(1, 1).value == "Chi nhánh"
     cn = {ws.cell(r, 1).value for r in range(2, ws.max_row + 1)}
     assert cn == {"Hà Nội", "Long An"}
+
+
+def test_xuat_mot_check_tu_bang_dang_xem(tmp_path, ctx):
+    """Nút xuất ngay trên bảng chứng minh: ra đúng một check, có tiêu đề và mức độ."""
+    import pandas as pd
+    df = pd.DataFrame([{"DocNo": "0028599", "Amount": 10_007_870.0, "ly_do": "thiếu 33311"}])
+    p = report.xuat_mot_check("C3.2", "Doanh thu thiếu thuế đầu ra", "A02", "08/2026",
+                              df, str(tmp_path), muc_do="vang", ghi_chu="ghi chú",
+                              loc="Đại minh")
+    wb = openpyxl.load_workbook(p)
+    assert wb.sheetnames == ["C3.2"]
+    ws = wb["C3.2"]
+    assert ws["A1"].value == "C3.2 · Doanh thu thiếu thuế đầu ra"
+    assert "A02" in ws["A2"].value and "08/2026" in ws["A2"].value
+    assert ws["A3"].value == "▲ Cảnh báo"           # ký hiệu cho người mù màu
+    assert "Đại minh" in ws["A4"].value             # nói rõ đang lọc gì
+    assert [c.value for c in ws[5]][0] == "Số CT"          # nhãn tiếng Việt
+
+
+def test_xuat_mot_check_ten_file_mang_ma_va_chi_nhanh(tmp_path, ctx):
+    """Xuất liên tiếp nhiều check/chi nhánh không được đè lên nhau."""
+    import pandas as pd
+    df = pd.DataFrame([{"DocNo": "1"}])
+    a = report.xuat_mot_check("C3.2", "x", "A01", "08/2026", df, str(tmp_path))
+    b = report.xuat_mot_check("C4.6", "y", "A01", "08/2026", df, str(tmp_path))
+    assert a != b and "C3.2" in a and "C4.6" in b and "A01" in a

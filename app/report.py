@@ -230,6 +230,31 @@ def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
     return str(path)
 
 
+def xuat_mot_check(ma: str, ten: str, chi_nhanh_ten: str, ky: str, df: pd.DataFrame,
+                   thu_muc_out: str, *, muc_do: str = VANG, ghi_chu: str = "",
+                   loc: str = "") -> str:
+    """Xuất bảng chứng minh của MỘT check ra Excel — ngay từ bảng đang xem trên màn.
+
+    Báo cáo đầy đủ đã có mọi check, nhưng khi kế toán đang soi đúng một cảnh báo thì
+    thứ họ cần gửi đi là đúng bảng đó. Tên file mang mã check + chi nhánh để không đè
+    nhau khi xuất nhiều cái liên tiếp.
+    """
+    Path(thu_muc_out).mkdir(parents=True, exist_ok=True)
+    path = (Path(thu_muc_out) /
+            f"{ten_sheet_an_toan(ma)} - {ten_sheet_an_toan(chi_nhanh_ten)}"
+            f" - {ky.replace('/', '-')} - {datetime.now():%Y%m%d_%H%M}.xlsx")
+    with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
+        fmt = _dinh_dang(writer.book)
+        ws = _ghi_bang(writer, ten_sheet_an_toan(ma), df, fmt, dong_dau=4)
+        ws.write(0, 0, f"{ma} · {ten}", fmt["tieu_de"])
+        ws.write(1, 0, f"Chi nhánh {chi_nhanh_ten} · kỳ {ky} · {fmt_so(len(df))} dòng"
+                       f" · xuất lúc {datetime.now():%d/%m/%Y %H:%M}")
+        ws.write(2, 0, TEN_MUC_DO.get(muc_do, ""), fmt.get(muc_do, fmt["tieu_de"]))
+        if ghi_chu or loc:
+            ws.write(3, 0, " · ".join(x for x in (ghi_chu, f'Đang lọc: "{loc}"' if loc else "") if x))
+    return str(path)
+
+
 def xuat_thay_doi(payload: dict, thu_muc_out: str) -> str:
     """Xuất "Thay đổi từ khi chốt" ra Excel — bằng chứng kiểm soát để lưu/gửi đi.
 

@@ -237,7 +237,15 @@ function Noi() {
             nap={(trang, kt, tim) =>
               bang.nguon === "diff"
                 ? A.goi("lay_diff_chot", trang, kt, tim)
-                : A.goi("lay_chi_tiet", bang.ma!, trang, kt, tim)} />
+                : A.goi("lay_chi_tiet", bang.ma!, trang, kt, tim)}
+            // Chỉ bảng chứng minh của một check mới xuất được riêng; bảng "diff chốt"
+            // đã có nút xuất riêng ở màn Thay đổi từ khi chốt.
+            onXuat={bang.nguon === "chi_tiet" && bang.ma
+              ? async (tim) => {
+                const r = await A.goi("xuat_chi_tiet", bang.ma!, tim);
+                toast(laLoi(r) ? r.loi : "Đã xuất: " + r.path);
+              }
+              : undefined} />
         </Modal>
       )}
     </div>

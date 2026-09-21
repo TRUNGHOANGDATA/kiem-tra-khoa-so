@@ -866,6 +866,31 @@ class JsApi:
                            else "Chưa chi nhánh nào được chốt"}
         return {"pham_vi": pham_vi, "don_vi": dv, "tom_tat": _gop_tom_tat(dv)}
 
+    def xuat_chi_tiet(self, ma_check: str, tim_kiem: str = ""):
+        """Xuất TOÀN BỘ bảng chứng minh của một check ra Excel (không phân trang).
+
+        Màn hình chỉ hiện 100 dòng mỗi trang; kế toán cần cả danh sách để gửi đi hoặc
+        dò sang Bravo. `tim_kiem` giữ đúng bộ lọc đang gõ trên màn — xuất ra cái đang
+        nhìn thấy, không phải một tập khác.
+        """
+        d = self._hien
+        if d is None:
+            return {"loi": "Chưa có chi nhánh đang xem"}
+        r = d.kq.get(ma_check)
+        if r is None:
+            return {"loi": f"Không tìm thấy kết quả {ma_check}"}
+        try:
+            df = _dinh_dang_ngay(r.chi_tiet)
+            if tim_kiem:
+                tk = tim_kiem.lower()
+                df = df[df.astype(str).apply(
+                    lambda s: s.str.lower().str.contains(tk, regex=False)).any(axis=1)]
+            return {"path": report.xuat_mot_check(
+                ma_check, r.ten, self._ten(d.nhan), d.tt.ky, df, self.thu_muc_report,
+                muc_do=r.muc_do_thuc, ghi_chu=r.ghi_chu, loc=tim_kiem)}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không xuất được Excel: {e}"}
+
     def xuat_thay_doi(self, pham_vi: str = "dang_xem"):
         """Xuất "Thay đổi từ khi chốt" ra Excel — bằng chứng kiểm soát để lưu/gửi đi."""
         r = self.thay_doi_tu_khi_chot(pham_vi)

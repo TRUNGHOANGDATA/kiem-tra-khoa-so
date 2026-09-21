@@ -7,8 +7,13 @@ import { cx, fso, Icon, IC, Nut } from "./ui";
 
 const KICH_THUOC = 100;
 
-export default function BangChiTiet({ nap }: { nap: (trang: number, kt: number, tim: string) => Promise<ChiTiet | Loi> }) {
+export default function BangChiTiet({ nap, onXuat }: {
+  nap: (trang: number, kt: number, tim: string) => Promise<ChiTiet | Loi>;
+  /** Có truyền thì hiện nút "Xuất Excel"; nhận bộ lọc đang gõ để xuất đúng cái đang nhìn. */
+  onXuat?: (tim: string) => Promise<void>;
+}) {
   const [d, setD] = useState<ChiTiet | null>(null);
+  const [dangXuat, setDangXuat] = useState(false);
   const [loi, setLoi] = useState<string | null>(null);
   const [trang, setTrang] = useState(1);
   const [tim, setTim] = useState("");
@@ -46,6 +51,17 @@ export default function BangChiTiet({ nap }: { nap: (trang: number, kt: number, 
           <span className="text-[12.5px] font-semibold text-vang-dam">
             Thêm {fso(d.tom_tat.so_them)} · Bớt {fso(d.tom_tat.so_bot)} · {fso(d.tom_tat.so_ct_anh_huong)} chứng từ
           </span>
+        )}
+        {/* Xuất ĐÚNG bảng đang xem (kể cả bộ lọc đang gõ) — màn chỉ hiện 100 dòng/trang,
+            mà kế toán cần cả danh sách để gửi đi hoặc dò sang Bravo. */}
+        {onXuat && (
+          <Nut bien="chinh" disabled={!d || dangXuat} onClick={async () => {
+            setDangXuat(true);
+            await onXuat(dangTim);
+            setDangXuat(false);
+          }}>
+            <Icon d={IC.taiXuong} className="h-4 w-4" />{dangXuat ? "Đang xuất…" : "Xuất Excel"}
+          </Nut>
         )}
       </div>
 
