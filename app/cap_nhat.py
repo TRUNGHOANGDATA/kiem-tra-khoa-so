@@ -47,9 +47,15 @@ def lay_ban_moi_nhat(timeout: int = 6) -> dict:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {"khong_co_release": True}
-        return {"loi": f"Máy chủ trả lỗi {e.code}"}
+        try:
+            if e.code == 404:
+                return {"khong_co_release": True}
+            return {"loi": f"Máy chủ trả lỗi {e.code}"}
+        finally:
+            try:
+                e.close()
+            except Exception:
+                pass
     except Exception:
         return {"loi": "Không kết nối được để kiểm tra cập nhật"}
 

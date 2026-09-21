@@ -72,7 +72,8 @@ def test_tai_bo_cai_ghi_part_roi_doi_ten(monkeypatch, tmp_path):
     monkeypatch.setattr(cn.urllib.request, "urlretrieve", _fake_urlretrieve)
     p = cn.tai_bo_cai("https://x/KiemTraKhoaSo-Setup-1.2.0.exe", str(tmp_path))
     assert p.endswith("KiemTraKhoaSo-Setup-1.2.0.exe")
-    assert open(p, "rb").read() == b"noi-dung-bo-cai"
+    with open(p, "rb") as f:
+        assert f.read() == b"noi-dung-bo-cai"
     assert not any(str(f).endswith(".part") for f in tmp_path.iterdir())   # không còn file dở
 
 
