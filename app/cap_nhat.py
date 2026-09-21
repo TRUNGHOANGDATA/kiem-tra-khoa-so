@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 
 # Slug repo GitHub công khai chứa release. ĐIỀN khi tạo repo (tham số triển khai duy nhất).
-KHO_PHAT_HANH = "owner/ten-repo"
+KHO_PHAT_HANH = "TRUNGHOANGDATA/kiem-tra-khoa-so"
 TEN_ASSET = "KiemTraKhoaSo-Setup"        # tiền tố tên file cài để nhận đúng asset
 API_LATEST = f"https://api.github.com/repos/{KHO_PHAT_HANH}/releases/latest"
 
