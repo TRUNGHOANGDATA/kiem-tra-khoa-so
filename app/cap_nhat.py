@@ -5,6 +5,15 @@ Không auth (repo phát hành công khai). Mọi lỗi mạng/HTTP/IO được n
 """
 from __future__ import annotations
 
+import json
+import urllib.error
+import urllib.request
+
+# Slug repo GitHub công khai chứa release. ĐIỀN khi tạo repo (tham số triển khai duy nhất).
+KHO_PHAT_HANH = "owner/ten-repo"
+TEN_ASSET = "KiemTraKhoaSo-Setup"        # tiền tố tên file cài để nhận đúng asset
+API_LATEST = f"https://api.github.com/repos/{KHO_PHAT_HANH}/releases/latest"
+
 
 def _bo(v: str) -> tuple[int, ...]:
     """"v1.2.3" -> (1,2,3). Phần không phải số -> 0. So sánh tuple là đủ semver ở đây."""
@@ -25,3 +34,30 @@ def moi_hon(latest: str, hien_tai: str) -> bool:
     a += (0,) * (n - len(a))
     b += (0,) * (n - len(b))
     return a > b
+
+
+def lay_ban_moi_nhat(timeout: int = 6) -> dict:
+    """Hỏi release mới nhất. Trả {"phien_ban","url_tai","mo_ta"}; hoặc
+    {"khong_co_release": True} khi 404; hoặc {"loi": ...} cho mọi trục trặc khác."""
+    try:
+        req = urllib.request.Request(API_LATEST, headers={"Accept": "application/vnd.github+json",
+                                                          "User-Agent": "KiemTraKhoaSo"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {"khong_co_release": True}
+        return {"loi": f"Máy chủ trả lỗi {e.code}"}
+    except Exception:
+        return {"loi": "Không kết nối được để kiểm tra cập nhật"}
+
+    tag = str(data.get("tag_name", "")).lstrip("vV")
+    url = ""
+    for a in data.get("assets", []):
+        ten = str(a.get("name", ""))
+        if ten.startswith(TEN_ASSET) and ten.lower().endswith(".exe"):
+            url = a.get("browser_download_url", "")
+            break
+    if not tag or not url:
+        return {"loi": "Bản phát hành thiếu file cài"}
+    return {"phien_ban": tag, "url_tai": url, "mo_ta": str(data.get("body", "") or "")}
