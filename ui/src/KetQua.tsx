@@ -38,6 +38,37 @@ export function TheThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
   );
 }
 
+/* ------------- 4 số thống kê dạng CHIP, nằm gọn trong banner -------------- */
+/* Thay cho hàng thẻ lớn cũ: cùng 4 con số nhưng ăn ~8px thay vì ~72px chiều cao,
+   nhường phần còn lại cho khu 19 bước / danh sách lỗi bên dưới.
+   MÙ MÀU: mỗi chip mang KÝ HIỆU riêng đứng trước (✕ ▲ ✓ ⌂) — màu chỉ là lớp phụ. */
+function ChipThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
+  { soDo: number; soVang: number; dat: number; soChiNhanh: number; onXemLoi?: () => void }) {
+  const chips = [
+    { ky: "✕", nhan: "Nghiêm trọng", so: soDo, mau: "bg-do-nen text-do-dam ring-do-vien", nhay: true },
+    { ky: "▲", nhan: "Cảnh báo", so: soVang, mau: "bg-vang-nen text-vang-dam ring-vang-vien", nhay: true },
+    { ky: "✓", nhan: "Đạt", so: dat, mau: "bg-xanh-nen text-xanh-dam ring-xanh-vien", nhay: false },
+    { ky: "⌂", nhan: "Chi nhánh", so: soChiNhanh, mau: "bg-steel-50 text-steel-600 ring-steel-200", nhay: false },
+  ];
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {chips.map((c) => {
+        const bam = !!onXemLoi && c.nhay && c.so > 0;
+        return (
+          <button key={c.nhan} type="button" disabled={!bam} onClick={bam ? onXemLoi : undefined}
+            title={bam ? "Xem danh sách lỗi & cảnh báo" : undefined}
+            className={cx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ring-1",
+              c.mau, bam ? "cursor-pointer hover:brightness-95" : "cursor-default")}>
+            <span aria-hidden className="text-[11px] leading-none">{c.ky}</span>
+            <span className="tabular-nums font-extrabold">{fso(c.so)}</span>
+            <span className="font-medium opacity-80">{c.nhan}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* --------------------- khu mục theo mức độ (đỏ / vàng) -------------------- */
 function KhuMuc({ mau, tieuDe, ds, onCheck }: { mau: "do" | "vang"; tieuDe: string; ds: Check[]; onCheck: (c: Check) => void }) {
   const s = mau === "do"
@@ -242,10 +273,11 @@ export default function ManKetQua(p: KetQuaProps) {
   const lech = daChot && chot.doi_chieu === "LECH";
 
   return (
-    <div className="flex w-full flex-1 flex-col gap-4 overflow-hidden p-5">
-      {/* 4 thẻ thống kê — full width trên cùng (theo mockup dashboard) */}
-      <TheThongKe soDo={t.so_do} soVang={t.so_vang} dat={dat} soChiNhanh={kq.don_vi.length} onXemLoi={() => setTab("loi")} />
-
+    <div className="flex w-full flex-1 flex-col overflow-hidden p-4">
+      {/* Bốn số thống kê nay nằm THÀNH CHIP TRONG BANNER (xem ChipThongKe) chứ không
+          còn là một hàng thẻ riêng: hàng thẻ cũ ăn ~72px chiều cao mà nội dung thì đã
+          lặp lại ở banner ("còn N việc phải xử lý") và ở nhãn tab ("✕1 ▲5"). Khu làm
+          việc bên dưới cao thêm chừng ấy. Hàm TheThongKe vẫn giữ — màn Tổng quan dùng. */}
       {/* Hàng: danh sách chi nhánh | khu chính */}
       <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
       {/* Sidebar */}
@@ -271,17 +303,19 @@ export default function ManKetQua(p: KetQuaProps) {
       {/* Khu chính */}
       <main className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
         {/* Banner */}
-        <section className="relative overflow-hidden rounded-2xl border border-steel-200 bg-white p-4 shadow-card">
+        <section className="relative overflow-hidden rounded-2xl border border-steel-200 bg-white p-3.5 shadow-card">
           <span className={cx("absolute inset-y-0 left-0 w-[5px]", bVien)} />
-          <div className="flex flex-wrap items-center gap-4 pl-1">
-            <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-full", bNen)}>
-              <Icon d={bIcon} className="h-5 w-5" />
+          <div className="flex flex-wrap items-center gap-3 pl-1">
+            <span className={cx("grid h-8 w-8 shrink-0 place-items-center rounded-full", bNen)}>
+              <Icon d={bIcon} className="h-[18px] w-[18px]" />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className={cx("text-[16px] font-extrabold", bChu)}>{t.cau_ket_luan}</h2>
-              <p className="mt-0.5 truncate text-[12.5px] text-steel-500">
+              <h2 className={cx("text-[15.5px] font-extrabold leading-tight", bChu)}>{t.cau_ket_luan}</h2>
+              <p className="mt-0.5 truncate text-[12px] text-steel-500">
                 {p.nhieu && <>Chi nhánh {t.chi_nhanh_ten || t.chi_nhanh}{t.chi_nhanh_ten && t.chi_nhanh_ten !== t.chi_nhanh ? ` (${t.chi_nhanh})` : ""} · </>}Kỳ {t.ky} · {t.ten} · <span className="tabular-nums">{fso(t.so_dong)}</span> dòng
               </p>
+              <ChipThongKe soDo={t.so_do} soVang={t.so_vang} dat={dat}
+                soChiNhanh={kq.don_vi.length} onXemLoi={() => setTab("loi")} />
             </div>
             {/* Hành động chốt */}
             {daChot ? (
@@ -295,7 +329,7 @@ export default function ManKetQua(p: KetQuaProps) {
                 </div>
               </div>
             ) : (
-              <Nut bien="chinh" className="px-5 py-3 text-[14px]" onClick={p.onChot}>
+              <Nut bien="chinh" className="px-4 py-2.5 text-[13.5px]" onClick={p.onChot}>
                 <Icon d={IC.lock} className="h-4 w-4" />Chốt sổ kỳ này
               </Nut>
             )}
