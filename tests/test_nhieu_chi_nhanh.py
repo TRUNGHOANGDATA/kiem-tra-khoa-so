@@ -207,7 +207,12 @@ def test_xuat_tong_hop_co_sheet_cho_tung_chi_nhanh(tmp_path):
     kq = api.xuat_tong_hop()
     assert "loi" not in kq
     ten = openpyxl.load_workbook(kq["path"], read_only=True).sheetnames
-    assert ten == ["Tong hop chi nhanh", "A01 - TQ", "A01 - KS", "B02 - TQ", "B02 - KS"]
+    # Khung cố định: so sánh chi nhánh -> danh sách lỗi phẳng -> cặp tab mỗi chi nhánh.
+    # Sau đó là các sheet chi tiết đặt theo MÃ CHECK, tùy dữ liệu có lỗi gì nên không
+    # khẳng định cứng ở đây (đã có test riêng trong test_report.py).
+    assert ten[:6] == ["Tong hop chi nhanh", "Danh sach loi",
+                       "A01 - TQ", "A01 - KS", "B02 - TQ", "B02 - KS"]
+    assert all(t.startswith("C") for t in ten[6:]), ten[6:]
 
 
 def test_xuat_tong_hop_doi_chay_kiem_tra_truoc(tmp_path):

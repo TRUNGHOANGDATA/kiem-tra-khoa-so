@@ -129,6 +129,48 @@ def xuat_bao_cao(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo],
     return str(path)
 
 
+def _sheet_danh_sach_loi(writer, fmt, ds) -> None:
+    """Bảng PHẲNG: mỗi dòng = một (chi nhánh × check có lỗi).
+
+    Bản tổng hợp cũ bắt người đọc nhảy qua 8 cặp tab để biết chi nhánh nào sai gì.
+    Sheet này để gửi thẳng cho kế toán tổng hợp các chi nhánh: lọc cột "Chi nhánh"
+    là ra đúng phần việc của mình. Chỉ lấy check THẬT SỰ có lỗi (bỏ thống kê).
+    """
+    hang = [{"Chi nhánh": ten_hien, "Kỳ": tt.ky, "Mã": r.ma, "Nhóm": TEN_NHOM[r.nhom],
+             "Kiểm tra": r.ten, "Mức độ": TEN_MUC_DO[r.muc_do_thuc],
+             "Số dòng vi phạm": r.so_loi, "Ghi chú": r.ghi_chu}
+            for _, ten_hien, ket_qua, _, tt in ds
+            for r in ket_qua if r.so_loi > 0 and not r.la_thong_ke]
+    # Nặng trước: chi nhánh nào nhiều lỗi nghiêm trọng nhất đứng đầu.
+    hang.sort(key=lambda h: (h["Mức độ"] != TEN_MUC_DO[DO], h["Chi nhánh"], h["Mã"]))
+    bang = pd.DataFrame(hang, columns=["Chi nhánh", "Kỳ", "Mã", "Nhóm", "Kiểm tra",
+                                       "Mức độ", "Số dòng vi phạm", "Ghi chú"])
+    ws = _ghi_bang(writer, "Danh sach loi", bang, fmt, dong_dau=3)
+    ws.write(0, 0, "DANH SÁCH LỖI & CẢNH BÁO THEO CHI NHÁNH", fmt["tieu_de"])
+    ws.write(1, 0, f"{len(hang)} mục · lập lúc {datetime.now():%d/%m/%Y %H:%M}"
+                   " · lọc cột “Chi nhánh” để lấy phần của từng đơn vị")
+    for i, h in enumerate(hang, start=4):
+        ws.write(i, 5, h["Mức độ"], fmt[DO if h["Mức độ"] == TEN_MUC_DO[DO] else VANG])
+
+
+def _sheet_chi_tiet_gop(writer, fmt, ds) -> None:
+    """Chi tiết từng dòng vi phạm, gom theo CHECK và gắn cột "Chi nhánh".
+
+    Gom theo check chứ không theo chi nhánh vì Excel chỉ cho 255 sheet: 60 check × 8
+    chi nhánh là vỡ, còn 60 sheet thì luôn vừa dù bao nhiêu chi nhánh. Đổi lại mỗi
+    dòng phải tự khai thuộc chi nhánh nào.
+    """
+    gom: dict[str, list[pd.DataFrame]] = {}
+    for _, ten_hien, ket_qua, _, _ in ds:
+        for r in ket_qua:
+            if r.so_loi > 0 and not r.la_thong_ke and len(r.chi_tiet):
+                ct = r.chi_tiet.copy()
+                ct.insert(0, "Chi nhánh", ten_hien)
+                gom.setdefault(r.ma, []).append(ct)
+    for ma, phan in gom.items():
+        _ghi_bang(writer, ten_sheet_an_toan(ma), pd.concat(phan, ignore_index=True), fmt)
+
+
 def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
     """Một workbook cho nhiều chi nhánh: sheet so sánh + tổng quan & 11 bước mỗi chi nhánh.
 
@@ -168,6 +210,9 @@ def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
         for i, m in enumerate(muc, start=4):
             ws.write(i, 2, hang[i - 4]["Kết luận"], fmt[m])
 
+        # --- Danh sách lỗi phẳng (gửi kế toán tổng hợp các chi nhánh) ---
+        _sheet_danh_sach_loi(writer, fmt, ds)
+
         # --- Từng chi nhánh ---
         da_dung: set[str] = set()
         for ma, ten_hien, ket_qua, trang_thai, tt in ds:
@@ -176,6 +221,9 @@ def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
                 _sheet_tong_quan(writer, fmt, ten_tq,
                                  f"CHI NHÁNH {ten_hien} — KỲ {tt.ky}", ket_qua, trang_thai, tt)
                 _sheet_trang_thai(writer, fmt, ten_ts, trang_thai)
+
+        # --- Chi tiết dòng vi phạm, gom theo check, có cột Chi nhánh ---
+        _sheet_chi_tiet_gop(writer, fmt, ds)
     return str(path)
 
 

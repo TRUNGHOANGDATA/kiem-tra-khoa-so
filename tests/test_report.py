@@ -114,3 +114,45 @@ def test_report_biet_moi_trang_thai():
     for s in (tt.DA_LAM, tt.CHUA_LAM, tt.CAN_RA, tt.KHONG_AP_DUNG, tt.TU_XAC_NHAN):
         assert s in report.TEN_TRANG_THAI, s
         assert s in report.MAU, s
+
+
+def _hai_chi_nhanh(ctx):
+    """Hai chi nhánh có lỗi KHÁC nhau để kiểm việc ghép tên chi nhánh vào từng dòng."""
+    ds = []
+    for ma, ten_hien, rows in (
+        ("A01", "Hà Nội", [{"Description": None, "DebitAccount": "632111",
+                            "CreditAccount": "1551", "Amount": 5}]),
+        ("A02", "Long An", [{"Description": None, "DebitAccount": "632111",
+                             "CreditAccount": "1551", "Amount": 7}]),
+    ):
+        df = tao_df(rows)
+        kq = checks.chay_tat_ca(df, ctx)
+        ts = tt.suy_trang_thai(df, {r.ma: r for r in kq})
+        ds.append((ma, ten_hien, kq, ts,
+                   ThongTinFile("x.xlsx", "x.xlsx", "08/2026", 8, 2026, len(rows), 5.0, [], ma)))
+    return ds
+
+
+def test_tong_hop_co_sheet_danh_sach_loi_ghep_ten_chi_nhanh(tmp_path, ctx):
+    """Gửi cho kế toán tổng hợp các chi nhánh: phải có một bảng PHẲNG mà mỗi dòng
+    tự nói được nó là lỗi của chi nhánh nào — không bắt người đọc nhảy giữa 8 tab."""
+    path = report.xuat_tong_hop(_hai_chi_nhanh(ctx), str(tmp_path))
+    wb = openpyxl.load_workbook(path)
+    assert "Danh sach loi" in wb.sheetnames
+    ws = wb["Danh sach loi"]
+    tieu_de = [c.value for c in ws[4]]
+    assert tieu_de[0] == "Chi nhánh"
+    ten_cn = {ws.cell(r, 1).value for r in range(5, ws.max_row + 1)}
+    assert ten_cn == {"Hà Nội", "Long An"}, "mỗi dòng lỗi phải mang tên chi nhánh"
+
+
+def test_tong_hop_co_sheet_chi_tiet_tung_check_kem_chi_nhanh(tmp_path, ctx):
+    """Chi tiết gom theo CHECK (không theo chi nhánh) để không đụng trần 255 sheet của
+    Excel khi nhiều chi nhánh; bù lại mỗi dòng phải có cột Chi nhánh để lọc."""
+    path = report.xuat_tong_hop(_hai_chi_nhanh(ctx), str(tmp_path))
+    wb = openpyxl.load_workbook(path)
+    assert "C1.1" in wb.sheetnames, "check có lỗi phải có sheet chi tiết gộp"
+    ws = wb["C1.1"]
+    assert ws.cell(1, 1).value == "Chi nhánh"
+    cn = {ws.cell(r, 1).value for r in range(2, ws.max_row + 1)}
+    assert cn == {"Hà Nội", "Long An"}
