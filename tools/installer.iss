@@ -37,7 +37,7 @@ Name: "vi"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Tạo lối tắt ngoài màn hình"; GroupDescription: "Lối tắt:"
 
 [Files]
-; Toàn bộ bản PyInstaller one-folder (đã kèm _seed: kho CĐPS + tên chi nhánh).
+; Toàn bộ bản PyInstaller one-folder (đã kèm _seed: tên chi nhánh, KHÔNG kèm CĐPS).
 Source: "..\build\dist\KiemTraKhoaSo\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
