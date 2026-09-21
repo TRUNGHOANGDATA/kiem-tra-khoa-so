@@ -10,6 +10,9 @@ __pycache__/
 # Cấu hình theo máy (có thể chứa đường dẫn tuyệt đối) — không commit
 cau-hinh.json
 
+# Tên chi nhánh thật (dữ liệu nghiệp vụ) — không nhúng vào mã public
+chi_nhanh.json
+
 # Frontend React (nguon o ui/, build ra app/webapp/)
 ui/node_modules/
 ui/dist/
