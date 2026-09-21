@@ -103,6 +103,9 @@ def _api_hai_chi_nhanh(tmp_path) -> JsApi:
     ])
     api = JsApi()
     api.thu_muc_report = str(tmp_path / "out")
+    # Ép KHO vào thư mục test. Không ép thì kho rơi về cấu hình thật, và bất kỳ test nào
+    # gọi `chot_so()` sẽ ghi snapshot thẳng vào kho của người dùng — đã xảy ra một lần.
+    api._thu_muc_kho = str(tmp_path / "kho")
     api.nap_nhieu_file([p])
     return api
 
@@ -174,6 +177,10 @@ def test_chay_kiem_tra_lan_2_cung_danh_sach_khong_doc_lai(tmp_path, monkeypatch)
 
     monkeypatch.setattr(api_module, "doc_nhieu_bang_ke", dem)
     api = JsApi()
+    # Kho phải là thư mục test: `chay_kiem_tra` CỐ Ý đọc lại đĩa khi kỳ đã chốt (để drift
+    # không báo KHỚP giả), nên nếu kho thật tình cờ có bản chốt cho A01/B02 thì lần gọi
+    # thứ hai đọc lại và test này đỏ vì lý do chẳng liên quan gì tới nó.
+    api._thu_muc_kho = str(tmp_path / "kho")
     api.chay_kiem_tra([a, b])
     api.chay_kiem_tra([a, b])
     assert len(so_lan) == 1

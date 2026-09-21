@@ -23,6 +23,9 @@ MAU = {DO: "#FFC7CE", VANG: "#FFEB9C", XANH: "#C6EFCE",
        "khong_ap_dung": "#EDEDED", "tu_xac_nhan": "#E7F0FA"}
 # Ba mức kết luận của tinh_ket_luan — tô ở sheet so sánh chi nhánh.
 MAU_KET_LUAN = {"chua_san_sang": "#FFC7CE", "can_ra_soat": "#FFEB9C", "san_sang": "#C6EFCE"}
+# Nhãn thay đổi so với bản chốt — ký hiệu đứng trước cho người dùng MÙ MÀU.
+NHAN_THAY_DOI = {"them": "＋ Thêm", "bot": "－ Bớt",
+                 "sua_cu": "✎ Sửa — trước", "sua_moi": "✎ Sửa — sau"}
 FONT = "Segoe UI"
 
 
@@ -224,6 +227,60 @@ def xuat_tong_hop(don_vi, thu_muc_out: str) -> str:
 
         # --- Chi tiết dòng vi phạm, gom theo check, có cột Chi nhánh ---
         _sheet_chi_tiet_gop(writer, fmt, ds)
+    return str(path)
+
+
+def xuat_thay_doi(payload: dict, thu_muc_out: str) -> str:
+    """Xuất "Thay đổi từ khi chốt" ra Excel — bằng chứng kiểm soát để lưu/gửi đi.
+
+    `payload` là kết quả `api.thay_doi_tu_khi_chot`. Hai sheet phẳng, mỗi dòng tự mang
+    tên chi nhánh: chứng từ (thêm/bớt/sửa) và chỉ số CĐPS (thêm/mất/đổi).
+    Ký hiệu ＋ － ✎ đứng trước nhãn cho người dùng MÙ MÀU (xem TEN_MUC_DO).
+    """
+    Path(thu_muc_out).mkdir(parents=True, exist_ok=True)
+    dv = payload.get("don_vi") or []
+    ky_ten = (dv[0]["ky"].replace("/", "-") if dv else "khong-ky")
+    path = (Path(thu_muc_out) /
+            f"Thay doi tu khi chot - {ky_ten} - {datetime.now():%Y%m%d_%H%M}.xlsx")
+
+    ct_rows, cd_rows = [], []
+    for x in dv:
+        chung = {"Chi nhánh": x["chi_nhanh_ten"], "Kỳ": x["ky"],
+                 "Chốt lúc": x["thoi_diem_chot"]}
+        c = x["chung_tu"]
+        for loai, ds in (("them", c["them"]), ("bot", c["bot"])):
+            for r in ds:
+                ct_rows.append({**chung, "Thay đổi": NHAN_THAY_DOI[loai],
+                                "Số chứng từ": f'{r.get("DocCode", "")}·{r.get("DocNo", "")}', **r})
+        for s in c["sua"]:
+            for loai, ds in (("sua_cu", s["dong_cu"]), ("sua_moi", s["dong_moi"])):
+                for r in ds:
+                    ct_rows.append({**chung, "Thay đổi": NHAN_THAY_DOI[loai],
+                                    "Số chứng từ": s["so_ct"], **r})
+        cd = x.get("cdps")
+        if not x["co_cdps_chot"]:
+            cd_rows.append({**chung, "Tài khoản": "—", "Thay đổi": "– Chưa có mốc",
+                            "Cột lệch": "Bản chốt này không kèm CĐPS — không đối chiếu được"})
+        elif cd:
+            for r in cd["dong"]:
+                cd_rows.append({**chung, "Tài khoản": r["account"],
+                                "Thay đổi": {"đổi": "✎ Đổi", "thêm": "＋ Thêm",
+                                             "mất": "－ Mất"}[r["kieu"]],
+                                "Cột lệch": r.get("cot", ""),
+                                **{k: v for k, v in r.items()
+                                   if k.endswith(("_cu", "_moi"))}})
+
+    with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
+        fmt = _dinh_dang(writer.book)
+        ws = _ghi_bang(writer, "Chung tu thay doi", pd.DataFrame(ct_rows), fmt, dong_dau=3)
+        ws.write(0, 0, "CHỨNG TỪ ĐÃ ĐỔI KỂ TỪ KHI CHỐT SỔ", fmt["tieu_de"])
+        ws.write(1, 0, f'{payload.get("tom_tat", {}).get("ct_them", 0)} chứng từ thêm · '
+                       f'{payload.get("tom_tat", {}).get("ct_bot", 0)} bớt · '
+                       f'{payload.get("tom_tat", {}).get("ct_sua", 0)} bị sửa'
+                       f'  ·  lập lúc {datetime.now():%d/%m/%Y %H:%M}')
+        ws = _ghi_bang(writer, "CDPS thay doi", pd.DataFrame(cd_rows), fmt, dong_dau=3)
+        ws.write(0, 0, "CHỈ SỐ CĐPS ĐÃ ĐỔI KỂ TỪ KHI CHỐT SỔ", fmt["tieu_de"])
+        ws.write(1, 0, f'{payload.get("tom_tat", {}).get("tk_doi", 0)} tài khoản thay đổi')
     return str(path)
 
 

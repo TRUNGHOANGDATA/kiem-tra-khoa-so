@@ -6,6 +6,7 @@ from datetime import datetime
 
 import pandas as pd
 
+from .. import cdps
 from . import quy_doi as _quy_doi
 from .ket_noi import mo_kho
 
@@ -49,6 +50,14 @@ class KhoChotSo:
                 "INSERT INTO snapshot_check (snapshot_id, ma, ten, muc_do, so_loi, la_thong_ke) VALUES (?,?,?,?,?,?)",
                 [(sid, c["ma"], c["ten"], c["muc_do"], int(c["so_loi"]), int(bool(c["la_thong_ke"]))) for c in checks])
             self.con.execute("INSERT INTO snapshot_du_lieu (snapshot_id, du_lieu) VALUES (?,?)", (sid, _nen(df)))
+            # Đóng băng luôn CĐPS của đúng (chi nhánh × kỳ) để sau này đối chiếu được
+            # "chỉ số đã đổi gì kể từ khi chốt". Bảng `cdps` là bảng SỐNG (nạp lại là ghi
+            # đè sạch) nên không có bản đóng băng thì mốc so sánh biến mất. Chưa nạp CĐPS
+            # thì không ghi gì — tầng trên phân biệt "chưa có mốc" với "không đổi".
+            cd = self.doc_cdps(chi_nhanh, ky_nam, ky_thang)
+            if len(cd):
+                self.con.execute("INSERT INTO snapshot_cdps (snapshot_id, du_lieu) VALUES (?,?)",
+                                 (sid, _nen(cd)))
         return sid
 
     def doc_hieu_luc(self, ky_nam, ky_thang, chi_nhanh) -> dict | None:
@@ -56,6 +65,13 @@ class KhoChotSo:
             "SELECT * FROM snapshot WHERE ky_nam=? AND ky_thang=? AND chi_nhanh=? AND con_hieu_luc=1",
             (ky_nam, ky_thang, chi_nhanh)).fetchone()
         return dict(r) if r else None
+
+    def doc_cdps_snapshot(self, snapshot_id) -> pd.DataFrame:
+        """CĐPS đóng băng lúc chốt; RỖNG nếu bản chốt đó không kèm CĐPS (chốt trước v4
+        hoặc chốt khi chưa nạp CĐPS). Rỗng ≠ "không đổi" — người gọi phải phân biệt."""
+        r = self.con.execute("SELECT du_lieu FROM snapshot_cdps WHERE snapshot_id=?",
+                             (snapshot_id,)).fetchone()
+        return _giai_nen(r["du_lieu"]) if r else pd.DataFrame()
 
     def doc_du_lieu(self, snapshot_id) -> pd.DataFrame:
         r = self.con.execute("SELECT du_lieu FROM snapshot_du_lieu WHERE snapshot_id=?", (snapshot_id,)).fetchone()
@@ -126,34 +142,14 @@ class KhoChotSo:
 
         Nạp lại là GHI ĐÈ SẠCH, nên phải soi trước khi ghi: kế toán cần biết số liệu
         kỳ đã xem hôm qua có bị đổi hay không, đổi ở tài khoản nào.
+
+        Phép so nằm ở `cdps.so_sanh` (thuần DataFrame) để dùng chung với đường
+        "bản đang lưu vs bản đã đóng băng lúc chốt sổ".
         """
-        cu = self.doc_cdps(chi_nhanh, ky_nam, ky_thang)
-        if cu.empty:
+        d = cdps.so_sanh(self.doc_cdps(chi_nhanh, ky_nam, ky_thang), df_moi)
+        if d is None:
             return None
-        # CỘNG theo mã tài khoản chứ không set_index thẳng: CĐPS thật có mã LẶP
-        # (A01 có 6222 và 8118 mỗi mã 2 dòng), set_index xong `.loc` trả về Series
-        # và float() nổ — hỏng luôn cả nút "Nạp lại CĐPS".
-        khoa = lambda d: (d.assign(_a=d["account"].fillna("").astype(str).str.strip())
-                          .groupby("_a")[list(self.COT_SO_CDPS)].sum().astype(float))
-        a, b = khoa(cu), khoa(df_moi)
-        them = sorted(set(b.index) - set(a.index))
-        bot = sorted(set(a.index) - set(b.index))
-        dong = []
-        for tk in sorted(set(a.index) & set(b.index)):
-            lech = {c: (float(a.loc[tk, c]), float(b.loc[tk, c])) for c in self.COT_SO_CDPS
-                    if abs(float(a.loc[tk, c]) - float(b.loc[tk, c])) > 0.5}
-            if lech:
-                dong.append({"account": tk, "kieu": "đổi",
-                             **{f"{c}_cu": v[0] for c, v in lech.items()},
-                             **{f"{c}_moi": v[1] for c, v in lech.items()},
-                             "cot": ", ".join(lech)})
-        dong += [{"account": tk, "kieu": "thêm", "cot": ""} for tk in them]
-        dong += [{"account": tk, "kieu": "mất", "cot": ""} for tk in bot]
-        if not dong:
-            return None
-        return {"chi_nhanh": chi_nhanh, "ky_nam": ky_nam, "ky_thang": ky_thang,
-                "so_doi": len(dong) - len(them) - len(bot),
-                "so_them": len(them), "so_bot": len(bot), "dong": dong}
+        return {"chi_nhanh": chi_nhanh, "ky_nam": ky_nam, "ky_thang": ky_thang, **d}
 
     def doc_cdps(self, chi_nhanh, ky_nam, ky_thang) -> pd.DataFrame:
         rows = self.con.execute(

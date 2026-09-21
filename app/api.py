@@ -42,6 +42,25 @@ def _dinh_dang_so(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
+def _ban_ghi(df: pd.DataFrame) -> list[dict]:
+    """DataFrame -> list[dict] cho UI. Qua JSON của pandas để NaN/Timestamp ra JSON hợp lệ."""
+    if df is None or df.empty:
+        return []
+    return json.loads(df.to_json(orient="records", force_ascii=False))
+
+
+def _gop_tom_tat(dv: list[dict]) -> dict:
+    """Đếm gộp cả công ty — dải số ở đầu màn "Thay đổi từ khi chốt"."""
+    t = {"ct_them": 0, "ct_bot": 0, "ct_sua": 0, "tk_doi": 0, "so_chi_nhanh": len(dv)}
+    for x in dv:
+        for k in ("ct_them", "ct_bot", "ct_sua"):
+            t[k] += int(x["chung_tu"]["tom_tat"][k])
+        cd = x.get("cdps")
+        if cd:
+            t["tk_doi"] += int(cd["so_doi"]) + int(cd["so_them"]) + int(cd["so_bot"])
+    return t
+
+
 def _khoa_ky(ma: str, nam: int, thang: int) -> str:
     """Khóa nhận dạng một (chi nhánh × kỳ) để tick chọn ghi đè từng dòng."""
     return f"{ma}|{thang:02d}/{nam}"
@@ -791,6 +810,71 @@ class JsApi:
                     "dong": json.loads(df.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False))}
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không lấy được thay đổi: {e}"}
+
+    def _thay_doi_mot_don_vi(self, kho, d: "DonVi") -> dict | None:
+        """Mọi thay đổi của MỘT chi nhánh so với bản chốt đang hiệu lực. None = chưa chốt."""
+        h = kho.doc_hieu_luc(d.tt.ky_nam, d.tt.ky_thang, d.nhan)
+        if h is None:
+            return None
+        bk = chot_so.dien_diff_ct(kho.doc_du_lieu(h["id"]), d.df)
+        cd_chot = kho.doc_cdps_snapshot(h["id"])
+        # Bản chốt không kèm CĐPS (chốt trước v4, hoặc chốt khi chưa nạp CĐPS) -> KHÔNG
+        # có mốc để so. Nói thẳng "chưa có bản chốt CĐPS" chứ không suy thành "không đổi".
+        co_cdps_chot = bool(len(cd_chot))
+        cd_doi = (cdps.so_sanh(cd_chot, kho.doc_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang))
+                  if co_cdps_chot else None)
+        return {
+            "chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
+            "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}",
+            "thoi_diem_chot": h["thoi_diem_chot"], "ghi_chu_chot": h["ghi_chu"],
+            "co_cdps_chot": co_cdps_chot,
+            "chung_tu": {
+                "tom_tat": bk["tom_tat"],
+                "them": _ban_ghi(_dinh_dang_ngay(bk["them"])),
+                "bot": _ban_ghi(_dinh_dang_ngay(bk["bot"])),
+                "sua": [{"so_ct": s["so_ct"],
+                         "dong_cu": _ban_ghi(_dinh_dang_ngay(s["dong_cu"])),
+                         "dong_moi": _ban_ghi(_dinh_dang_ngay(s["dong_moi"]))}
+                        for s in bk["sua"]],
+            },
+            "cdps": cd_doi,
+        }
+
+    def thay_doi_tu_khi_chot(self, pham_vi: str = "dang_xem"):
+        """Đã đổi gì kể từ lúc chốt sổ — chứng từ (thêm/bớt/sửa) + chỉ số CĐPS.
+
+        `pham_vi`: "dang_xem" = chi nhánh đang chọn · "tat_ca" = mọi chi nhánh đang nạp
+        (soát một lượt cả công ty, mỗi dòng tự mang tên chi nhánh).
+        """
+        if not self._dv:
+            return {"loi": "Chưa nạp bảng kê"}
+        ds = self._dv if pham_vi == "tat_ca" else ([self._hien] if self._hien else [])
+        if not ds:
+            return {"loi": "Chưa có chi nhánh đang xem"}
+        try:
+            kho = self._kho()
+            try:
+                dv = [x for x in (self._thay_doi_mot_don_vi(kho, d) for d in ds) if x]
+            finally:
+                kho.dong()
+        except PhienBanMoiHon as e:
+            return {"loi": str(e)}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không lấy được thay đổi: {e}"}
+        if not dv:
+            return {"loi": "Kỳ này chưa chốt" if pham_vi == "dang_xem"
+                           else "Chưa chi nhánh nào được chốt"}
+        return {"pham_vi": pham_vi, "don_vi": dv, "tom_tat": _gop_tom_tat(dv)}
+
+    def xuat_thay_doi(self, pham_vi: str = "dang_xem"):
+        """Xuất "Thay đổi từ khi chốt" ra Excel — bằng chứng kiểm soát để lưu/gửi đi."""
+        r = self.thay_doi_tu_khi_chot(pham_vi)
+        if "loi" in r:
+            return r
+        try:
+            return {"path": report.xuat_thay_doi(r, self.thu_muc_report)}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không xuất được Excel: {e}"}
 
     def sao_luu_kho(self):
         try:

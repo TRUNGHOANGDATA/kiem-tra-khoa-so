@@ -173,3 +173,51 @@ def test_xac_nhan_cdps_ky_chua_co_thi_khong_tao_gi(tmp_path):
     assert kho.doc_cdps("A09", 2026, 8).empty
     assert kho.thoi_diem_nap_cdps("A09", 2026, 8) is None
     kho.dong()
+
+
+# ------------------------------------------- CĐPS đóng băng lúc chốt sổ (schema v4)
+def _snap(kho, chi_nhanh="A08", nam=2026, thang=8):
+    import pandas as _pd
+    return kho.luu_snapshot(ky_nam=nam, ky_thang=thang, chi_nhanh=chi_nhanh,
+                            van_tay_hash="x", so_dong=1, tong_ps=1.0, ket_luan_ma="san_sang",
+                            dem={}, checks=[], df=_pd.DataFrame([{"DocNo": "1", "Amount": 1.0}]))
+
+
+def test_chot_so_dong_bang_luon_cdps_cua_ky_do(tmp_path):
+    """Bảng `cdps` là bảng SỐNG (nạp lại ghi đè sạch). Không đóng băng lúc chốt thì mốc
+    so sánh "chỉ số đã đổi gì kể từ khi chốt" biến mất theo lần nạp kế tiếp."""
+    kho = KhoChotSo(str(tmp_path / "k.sqlite"))
+    kho.luu_cdps("A08", 2026, 8, _df([["632", "GVHB", 0, 0, 100, 0, 0, 0, False, 0]]))
+    sid = _snap(kho)
+
+    kho.luu_cdps("A08", 2026, 8, _df([["632", "GVHB", 0, 0, 999, 0, 0, 0, False, 0]]))  # nạp đè
+    dong_bang = kho.doc_cdps_snapshot(sid)
+    assert float(dong_bang.iloc[0]["ps_no"]) == 100      # bản chốt giữ nguyên số cũ
+    assert float(kho.doc_cdps("A08", 2026, 8).iloc[0]["ps_no"]) == 999   # bảng sống đã đổi
+    kho.dong()
+
+
+def test_chot_khi_chua_nap_cdps_thi_khong_co_ban_dong_bang(tmp_path):
+    """Rỗng phải phân biệt được với "không đổi" — không được bịa ra mốc rỗng."""
+    kho = KhoChotSo(str(tmp_path / "k.sqlite"))
+    sid = _snap(kho)
+    assert kho.doc_cdps_snapshot(sid).empty
+    kho.dong()
+
+
+def test_kho_v3_cu_mo_duoc_va_len_v4(tmp_path):
+    """Kho tạo bởi bản cũ phải mở được, tự có bảng mới, snapshot cũ không có CĐPS."""
+    import sqlite3
+    p = str(tmp_path / "cu.sqlite")
+    kho = KhoChotSo(p)
+    sid = _snap(kho)
+    kho.dong()
+    con = sqlite3.connect(p)                       # giả lập kho v3: hạ số phiên bản
+    con.execute("UPDATE schema_version SET phien_ban = 3")
+    con.execute("DROP TABLE snapshot_cdps")
+    con.commit(); con.close()
+
+    kho = KhoChotSo(p)                             # mở lại bằng bản mới -> migrate
+    assert kho.doc_cdps_snapshot(sid).empty
+    assert kho.con.execute("SELECT phien_ban FROM schema_version").fetchone()[0] == 4
+    kho.dong()

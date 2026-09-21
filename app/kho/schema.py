@@ -1,5 +1,5 @@
 """Định nghĩa bảng kho chốt sổ + phiên bản schema (để migrate nhẹ)."""
-PHIEN_BAN_SCHEMA = 3
+PHIEN_BAN_SCHEMA = 4
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS quy_doi_chi_nhanh (
@@ -32,6 +32,13 @@ DDL = [
     )""",
     "CREATE INDEX IF NOT EXISTS ix_check_snap ON snapshot_check (snapshot_id)",
     """CREATE TABLE IF NOT EXISTS snapshot_du_lieu (
+        snapshot_id INTEGER PRIMARY KEY REFERENCES snapshot(id),
+        du_lieu BLOB NOT NULL
+    )""",
+    # CĐPS ĐÓNG BĂNG lúc chốt (v4). Không phải mọi snapshot đều có: bản chốt tạo trước
+    # v4, hoặc kỳ chốt khi chưa nạp CĐPS. Thiếu thì tầng trên phải nói "chưa có bản chốt
+    # CĐPS" chứ KHÔNG được suy là "không đổi" — xem luật sức mạnh bằng chứng.
+    """CREATE TABLE IF NOT EXISTS snapshot_cdps (
         snapshot_id INTEGER PRIMARY KEY REFERENCES snapshot(id),
         du_lieu BLOB NOT NULL
     )""",

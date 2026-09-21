@@ -14,6 +14,45 @@ import pandas as pd
 # mã chi nhánh (chữ + số) + khoảng trắng + MMYYYY ở đầu tên file
 RE_TEN = re.compile(r"^\s*([A-Za-z]+\d+)\s+(\d{2})(\d{4})\b")
 
+# Cột số dùng để phát hiện CĐPS đổi (tên/level đổi không phải "sổ đổi").
+COT_SO_SS = ("du_dau_no", "du_dau_co", "ps_no", "ps_co", "du_cuoi_no", "du_cuoi_co")
+NGUONG_LECH = 0.5     # đồng — dưới mức này là làm tròn
+
+
+def so_sanh(df_cu: pd.DataFrame, df_moi: pd.DataFrame, nguong: float = NGUONG_LECH) -> dict | None:
+    """Hai bảng CĐPS khác nhau ở đâu: thêm / mất / đổi theo mã TK. None = y hệt hoặc
+    chưa có bản cũ để so.
+
+    Thuần DataFrame nên dùng được cho CẢ hai đường: "bản sắp nạp vs bản đang lưu"
+    (trước khi ghi đè) và "bản đang lưu vs bản đã đóng băng lúc chốt sổ".
+
+    CỘNG theo mã tài khoản chứ không `set_index` thẳng: CĐPS thật có mã LẶP (A01 có
+    6222 và 8118 mỗi mã 2 dòng), set_index xong `.loc` trả về Series và float() nổ —
+    từng làm chết cả nút "Nạp lại CĐPS" (commit 64dbbf9).
+    """
+    if df_cu is None or df_moi is None or df_cu.empty:
+        return None
+    khoa = lambda d: (d.assign(_a=d["account"].fillna("").astype(str).str.strip())
+                      .groupby("_a")[list(COT_SO_SS)].sum().astype(float))
+    a, b = khoa(df_cu), khoa(df_moi)
+    them = sorted(set(b.index) - set(a.index))
+    bot = sorted(set(a.index) - set(b.index))
+    dong = []
+    for tk in sorted(set(a.index) & set(b.index)):
+        lech = {c: (float(a.loc[tk, c]), float(b.loc[tk, c])) for c in COT_SO_SS
+                if abs(float(a.loc[tk, c]) - float(b.loc[tk, c])) > nguong}
+        if lech:
+            dong.append({"account": tk, "kieu": "đổi",
+                         **{f"{c}_cu": v[0] for c, v in lech.items()},
+                         **{f"{c}_moi": v[1] for c, v in lech.items()},
+                         "cot": ", ".join(lech)})
+    dong += [{"account": tk, "kieu": "thêm", "cot": ""} for tk in them]
+    dong += [{"account": tk, "kieu": "mất", "cot": ""} for tk in bot]
+    if not dong:
+        return None
+    return {"so_doi": len(dong) - len(them) - len(bot),
+            "so_them": len(them), "so_bot": len(bot), "dong": dong}
+
 # tên chuẩn nội bộ -> tên cột nguồn
 COT_NGUON = {
     "account": "Account", "ten": "AccountName",

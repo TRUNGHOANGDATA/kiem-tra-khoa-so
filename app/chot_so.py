@@ -124,3 +124,36 @@ def dien_diff(df_chot: pd.DataFrame, df_hien_tai: pd.DataFrame) -> dict:
     tom_tat = {"so_them": int(len(them)), "so_bot": int(len(bot)),
                "so_ct_anh_huong": int(len([c for c in ct if c and c != "·"]))}
     return {"them": them, "bot": bot, "tom_tat": tom_tat}
+
+
+def dien_diff_ct(df_chot: pd.DataFrame, df_hien_tai: pd.DataFrame) -> dict:
+    """Phân loại thay đổi theo CHỨNG TỪ: thêm hẳn / bớt hẳn / bị SỬA.
+
+    `dien_diff` trả về dòng thêm và dòng bớt rời rạc, nên một chứng từ bị sửa hiện ra
+    thành "1 bớt + 1 thêm" và người đọc phải tự ghép lại. Ở đây gom theo DocCode+DocNo:
+    chứng từ có mặt ở CẢ hai phía nghĩa là nó vẫn tồn tại nhưng nội dung đã đổi — đó là
+    MỘT việc để rà, không phải hai.
+
+    Dòng cũ/mới của chứng từ bị sửa chỉ gồm các DÒNG LỆCH (hiệu đa tập), không phải
+    toàn bộ chứng từ — đúng chỗ kế toán cần soi. Không đoán cặp từng dòng nên không bao
+    giờ ghép nhầm hai dòng vốn không liên quan (bảng kê không có số thứ tự dòng).
+    """
+    d = dien_diff(df_chot, df_hien_tai)
+    ct_them, ct_bot = _so_ct(d["them"]), _so_ct(d["bot"])
+    # Xét sự tồn tại trên FRAME ĐẦY ĐỦ, không trên kết quả diff: chứng từ chỉ được THÊM
+    # một dòng (không bớt dòng nào) chỉ hiện ở phía "thêm" của diff, nhưng nó vẫn có mặt
+    # trong bản chốt — đó là chứng từ bị SỬA, không phải chứng từ mới.
+    co_o_chot, co_o_moi = set(_so_ct(df_chot)), set(_so_ct(df_hien_tai))
+    # Chứng từ rỗng khóa ("·") không gom được -> để nguyên bên thêm/bớt, đừng ghép bừa.
+    chung = {c for c in set(ct_them) | set(ct_bot)
+             if c and c != "·" and c in co_o_chot and c in co_o_moi}
+    sua = [{"so_ct": c,
+            "dong_cu": d["bot"][ct_bot == c].reset_index(drop=True),
+            "dong_moi": d["them"][ct_them == c].reset_index(drop=True)}
+           for c in sorted(chung)]
+    them = d["them"][~ct_them.isin(chung)].reset_index(drop=True)
+    bot = d["bot"][~ct_bot.isin(chung)].reset_index(drop=True)
+    return {"them": them, "bot": bot, "sua": sua,
+            "tom_tat": {"ct_them": int(_so_ct(them).nunique()),
+                        "ct_bot": int(_so_ct(bot).nunique()),
+                        "ct_sua": len(chung)}}

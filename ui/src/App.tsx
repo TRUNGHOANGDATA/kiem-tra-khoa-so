@@ -9,16 +9,18 @@ import ModalChot from "./ModalChot";
 import ModalCaiDat from "./ModalCaiDat";
 import ManLichSu from "./LichSu";
 import ManCanDoi from "./CanDoi";
+import ManThayDoi from "./ThayDoi";
 import nen from "./assets/nen.png";
 import logo from "./assets/logo.png";
 
-type ManHinh = "tongquan" | "kiemtra" | "candoi" | "lichsu";
+type ManHinh = "tongquan" | "kiemtra" | "candoi" | "thaydoi" | "lichsu";
 type TienTrinh = { ten: string; pct: number } | null;
 
 const NAV: { id: ManHinh; nhan: string; icon: React.ReactNode }[] = [
   { id: "tongquan", nhan: "Tổng quan", icon: IC.home },
   { id: "kiemtra", nhan: "Kiểm tra khóa sổ", icon: IC.soKiemTra },
   { id: "candoi", nhan: "Cân đối phát sinh", icon: IC.bar },
+  { id: "thaydoi", nhan: "Thay đổi từ khi chốt", icon: IC.lock },
   { id: "lichsu", nhan: "Lịch sử", icon: IC.clock },
 ];
 
@@ -111,7 +113,7 @@ function Noi() {
       if (bang) setBang(null);
       else if (modalChot.mo) setModalChot({ mo: false, chotLai: false });
       else if (modalCaiDat) setModalCaiDat(false);
-      else if (man === "lichsu" || man === "candoi") setMan(kq ? "tongquan" : "kiemtra");
+      else if (man === "lichsu" || man === "candoi" || man === "thaydoi") setMan(kq ? "tongquan" : "kiemtra");
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -219,6 +221,7 @@ function Noi() {
           )}
           {man === "lichsu" && <ManLichSu onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
           {man === "candoi" && <ManCanDoi onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
+          {man === "thaydoi" && <ManThayDoi onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
           </div>
         </main>
       </div>
