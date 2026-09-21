@@ -104,6 +104,20 @@ class KhoChotSo:
                   float(r.du_cuoi_no), float(r.du_cuoi_co), int(bool(r.is_group)), int(r.level), thoi_diem)
                  for r in df.itertuples(index=False)])
 
+    def xac_nhan_cdps(self, chi_nhanh, ky_nam, ky_thang, thoi_diem=None) -> None:
+        """Ghi nhận "đã đối chiếu CĐPS kỳ này với file lúc này" — KHÔNG đụng số liệu.
+
+        Nạp lại mà số liệu y hệt thì `nap_cdps_thu_muc` bỏ qua, không ghi đè (đúng).
+        Nhưng nếu dấu thời gian cũng đứng yên thì nó mãi là lần nạp ĐẦU TIÊN, trong khi
+        người dùng vừa kiểm chứng xong — cảnh báo "CĐPS cũ hơn bảng kê" sẽ kêu oan.
+        Chạm dấu thời gian ở đây làm nó mang đúng nghĩa: LẦN CUỐI đối chiếu với file.
+        """
+        thoi_diem = thoi_diem or datetime.now().isoformat(timespec="seconds")
+        with self.con:
+            self.con.execute(
+                "UPDATE cdps SET thoi_diem_nap=? WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+                (thoi_diem, chi_nhanh, ky_nam, ky_thang))
+
     # Cột số của CĐPS dùng để phát hiện thay đổi (tên/level đổi không phải "sổ đổi").
     COT_SO_CDPS = ("du_dau_no", "du_dau_co", "ps_no", "ps_co", "du_cuoi_no", "du_cuoi_co")
 

@@ -149,3 +149,27 @@ def test_so_sanh_cdps_ma_lap_doi_so_thi_van_bat(tmp_path):
     d = k.so_sanh_cdps("A01", 2026, 8, moi)
     k.dong()
     assert d["so_doi"] == 1 and d["dong"][0]["account"] == "8118"
+
+
+def test_xac_nhan_cdps_cham_dau_thoi_gian_khong_doi_du_lieu(tmp_path):
+    """Nạp lại mà số liệu y hệt thì không ghi đè, nhưng vẫn phải ghi nhận "đã đối chiếu
+    lúc này" — nếu không, dấu thời gian mãi là lần nạp đầu và cảnh báo "CĐPS cũ hơn
+    bảng kê" kêu oan sau mỗi lần người dùng nạp lại để kiểm chứng."""
+    kho = KhoChotSo(str(tmp_path / "k.sqlite"))
+    rows = [["632", "GVHB", 0, 0, 15_944, 0, 0, 0, False, 0]]
+    kho.luu_cdps("A02", 2026, 8, _df(rows), thoi_diem="2026-09-19T11:16:00")
+    assert kho.thoi_diem_nap_cdps("A02", 2026, 8) == "2026-09-19T11:16:00"
+
+    kho.xac_nhan_cdps("A02", 2026, 8, thoi_diem="2026-09-21T10:30:00")
+    assert kho.thoi_diem_nap_cdps("A02", 2026, 8) == "2026-09-21T10:30:00"
+    got = kho.doc_cdps("A02", 2026, 8)
+    assert len(got) == 1 and float(got.iloc[0]["ps_no"]) == 15_944   # dữ liệu nguyên vẹn
+    kho.dong()
+
+
+def test_xac_nhan_cdps_ky_chua_co_thi_khong_tao_gi(tmp_path):
+    kho = KhoChotSo(str(tmp_path / "k.sqlite"))
+    kho.xac_nhan_cdps("A09", 2026, 8)
+    assert kho.doc_cdps("A09", 2026, 8).empty
+    assert kho.thoi_diem_nap_cdps("A09", 2026, 8) is None
+    kho.dong()

@@ -595,6 +595,16 @@ class JsApi:
                     da_co = not kho.doc_cdps(m.ma, m.nam, m.thang).empty
                     duoc_de = ghi_de is True if cho_de is None else (mo_ta["khoa"] in cho_de)
                     if da_co and not duoc_de:
+                        # Không đè, nhưng nếu số liệu ĐÚNG BẰNG bản đang lưu thì lần nạp
+                        # này vẫn là một lần ĐỐI CHIẾU thành công -> chạm dấu thời gian.
+                        # Thiếu bước này, dấu thời gian mãi là lần nạp đầu và cảnh báo
+                        # "CĐPS cũ hơn bảng kê" kêu oan ngay sau khi người dùng vừa nạp
+                        # lại để kiểm chứng (đã xảy ra thật 21/09 với 7/8 chi nhánh).
+                        # Số liệu THẬT SỰ khác mà người dùng chọn giữ bản cũ thì KHÔNG
+                        # chạm — lúc đó kho đúng là chưa khớp file, cảnh báo phải còn.
+                        if kho.so_sanh_cdps(m.ma, m.nam, m.thang, df) is None:
+                            kho.xac_nhan_cdps(m.ma, m.nam, m.thang)
+                            mo_ta = {**mo_ta, "da_doi_chieu": True}
                         bo_qua_trung.append(mo_ta)
                         continue
                     # Soi TRƯỚC khi ghi đè: nạp lại là thay sạch, không so trước thì

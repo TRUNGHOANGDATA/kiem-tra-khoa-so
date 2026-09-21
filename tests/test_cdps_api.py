@@ -300,3 +300,42 @@ def test_ghi_de_chi_nhung_ky_duoc_tick(tmp_path, monkeypatch):
     assert float(kho.doc_cdps("A08", 2026, 8)["ps_no"].iloc[0]) == 150.0   # đè
     assert float(kho.doc_cdps("A07", 2026, 8)["ps_no"].iloc[0]) == 100.0   # giữ
     kho.dong()
+
+
+def _doc_thoi_diem(api, cn, nam, thang):
+    kho = api._kho()
+    try:
+        return kho.thoi_diem_nap_cdps(cn, nam, thang)
+    finally:
+        kho.dong()
+
+
+def test_nap_lai_so_lieu_TRUNG_KHOP_thi_cham_dau_thoi_gian(tmp_path, monkeypatch):
+    """Nạp lại để kiểm chứng mà số liệu y hệt: không ghi đè, nhưng phải ghi nhận
+    "vừa đối chiếu" — nếu không, cảnh báo "CĐPS cũ hơn bảng kê" kêu oan."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    rows = [["632", "GVHB", "0", "0", "15944", "0", "0", "0", "False", "0"]]
+    src = _nguon(tmp_path, rows)
+    api = JsApi()
+    api.nap_cdps_thu_muc(str(src))
+    truoc = _doc_thoi_diem(api, "A08", 2026, 8)
+
+    r = api.nap_cdps_thu_muc(str(src))                  # nạp lại, KHÔNG chọn đè
+    assert r["nap"] == [] and len(r["bo_qua_trung"]) == 1
+    assert r["bo_qua_trung"][0]["da_doi_chieu"] is True
+    assert _doc_thoi_diem(api, "A08", 2026, 8) >= truoc
+
+
+def test_nap_lai_so_lieu_KHAC_ma_khong_de_thi_KHONG_cham(tmp_path, monkeypatch):
+    """Số liệu thật sự khác mà người dùng giữ bản cũ -> kho đúng là chưa khớp file,
+    cảnh báo phải còn nguyên, không được chạm dấu thời gian."""
+    monkeypatch.setattr("app.api.GOC", tmp_path)
+    src = _nguon(tmp_path, [["632", "GVHB", "0", "0", "15944", "0", "0", "0", "False", "0"]])
+    api = JsApi()
+    api.nap_cdps_thu_muc(str(src))
+    truoc = _doc_thoi_diem(api, "A08", 2026, 8)
+
+    _nguon(tmp_path, [["632", "GVHB", "0", "0", "99999", "0", "0", "0", "False", "0"]])
+    r = api.nap_cdps_thu_muc(str(src))
+    assert r["nap"] == [] and not r["bo_qua_trung"][0].get("da_doi_chieu")
+    assert _doc_thoi_diem(api, "A08", 2026, 8) == truoc
