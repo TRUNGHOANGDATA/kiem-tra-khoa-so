@@ -179,6 +179,10 @@ interface PyApi {
   luu_cau_hinh(cfg: { thu_muc_nguon?: string; thu_muc_xuat?: string; thu_muc_kho?: string;
                       quy_doi_chi_nhanh?: Record<string, string> }): Promise<{ ok: true } | Loi>;
   mo_thu_muc_kho(): Promise<boolean | Loi>;
+  kiem_tra_cap_nhat(pb_hien_tai: string): Promise<
+    { co_moi: boolean; phien_ban: string; url_tai: string; mo_ta: string }
+    | { khong_co_release: true } | Loi>;
+  tai_va_cai(url: string): Promise<Record<string, never> | Loi>;
 }
 
 declare global {

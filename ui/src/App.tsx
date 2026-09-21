@@ -34,6 +34,9 @@ function Noi() {
   const [modalChot, setModalChot] = useState<{ mo: boolean; chotLai: boolean }>({ mo: false, chotLai: false });
   const [modalCaiDat, setModalCaiDat] = useState(false);
   const [bang, setBang] = useState<{ tieuDe: string; nguon: "chi_tiet" | "diff"; ma?: string } | null>(null);
+  const [banMoi, setBanMoi] = useState<{ phien_ban: string; url_tai: string; mo_ta: string } | null>(null);
+  const [moModal, setMoModal] = useState(false);
+  const [dangTai, setDangTai] = useState(false);
 
   useEffect(() => {
     window.onTienTrinh = (ten, pct) => setTt({ ten, pct });
@@ -106,6 +109,20 @@ function Noi() {
     toast("Đã xuất tổng hợp"); A.goi("mo_file", r.path);
   };
 
+  /* ------------------------------ cập nhật -------------------------------- */
+  const kiemTraCapNhat = useCallback(async (imLang: boolean) => {
+    const r = await A.goi("kiem_tra_cap_nhat", __PHIEN_BAN__);
+    if (laLoi(r)) { if (!imLang) toast(r.loi); return; }
+    if ("khong_co_release" in r || !r.co_moi) {
+      if (!imLang) toast("Đang dùng bản mới nhất");
+      setBanMoi(null); return;
+    }
+    setBanMoi({ phien_ban: r.phien_ban, url_tai: r.url_tai, mo_ta: r.mo_ta });
+    if (!imLang) setMoModal(true);
+  }, [toast]);
+
+  useEffect(() => { void kiemTraCapNhat(true); }, [kiemTraCapNhat]);   // kiểm tra nền 1 lần lúc mở
+
   /* --------------------------- Esc quay lại ------------------------------ */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -175,6 +192,11 @@ function Noi() {
                 <Icon d={IC.toanha} className="h-4 w-4 text-steel-400" />{soChiNhanh} chi nhánh được kiểm tra
               </div>
             )}
+            <button type="button"
+              className="ml-auto inline-flex items-center gap-1 rounded-lg border border-steel-200 bg-white px-3 py-1.5 text-[13px] font-semibold text-navy shadow-soft hover:border-steel-300"
+              onClick={() => (banMoi ? setMoModal(true) : kiemTraCapNhat(false))}>
+              Kiểm tra cập nhật{banMoi ? " ●" : ""}
+            </button>
           </header>
         )}
 
@@ -231,6 +253,21 @@ function Noi() {
         mo={modalChot.mo} chotLai={modalChot.chotLai} tomtat={kq?.tomtat}
         dong={() => setModalChot({ mo: false, chotLai: false })} onChot={xacNhanChot} />
       <ModalCaiDat mo={modalCaiDat} dong={() => setModalCaiDat(false)} />
+      <Modal mo={moModal} dong={() => setMoModal(false)} tieuDe="Có bản cập nhật">
+        {banMoi && <>
+          <p className="text-sm">Có bản <b>{banMoi.phien_ban}</b> (đang dùng {__PHIEN_BAN__}).</p>
+          {banMoi.mo_ta && <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs">{banMoi.mo_ta}</pre>}
+          <div className="mt-4 flex justify-end gap-2">
+            <Nut onClick={() => setMoModal(false)}>Để sau</Nut>
+            <Nut bien="chinh" disabled={dangTai} onClick={async () => {
+              setDangTai(true);
+              const r = await A.goi("tai_va_cai", banMoi.url_tai);
+              if (laLoi(r)) { setDangTai(false); toast(r.loi); }
+              // thành công: app tự thoát, không cần xử lý thêm
+            }}>{dangTai ? "Đang tải…" : "Cài ngay"}</Nut>
+          </div>
+        </>}
+      </Modal>
       {bang && (
         <Modal mo dong={() => setBang(null)} tieuDe={bang.tieuDe} rong>
           <BangChiTiet
