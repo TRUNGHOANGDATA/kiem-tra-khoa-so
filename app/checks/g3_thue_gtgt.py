@@ -5,6 +5,12 @@ from .base import VANG, XANH, BoiCanh, CheckResult, bat_dau, khoa_chung_tu, tao_
 
 NHOM = "G3"
 TK_THUE = ("1331", "33311")
+# Phải thu / phải trả NỘI BỘ. Bán hàng giữa các đơn vị trong cùng pháp nhân (Nợ 1368 /
+# Có 511) KHÔNG phát sinh thuế GTGT đầu ra, nên "thiếu 33311" ở đó không phải thiếu sót
+# — kế toán tổng hợp xác nhận 2026-09-21. Đo trên sổ 08/2026: A05 có 104 dòng C3.2 thì
+# 99 là nội bộ, A03 4/4 và A06 14/14 đều nội bộ; loại ra thì A03/A06 sạch hẳn còn
+# A01/A02/A08 giữ nguyên vì đối ứng là 1311 (phải thu khách hàng thật).
+TK_NOI_BO = ("136", "336")
 
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
@@ -22,13 +28,19 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     r31.la_thong_ke = True
     kq.append(r31)
 
-    dt = bat_dau(df["CreditAccount"], "511") & co_thue
+    # Loại dòng doanh thu NỘI BỘ khỏi diện bắt, nhưng vẫn xét "chứng từ có 33311 chưa"
+    # trên toàn bộ chứng từ: chứng từ lẫn cả bán nội bộ lẫn bán khách ngoài thì dòng
+    # khách ngoài vẫn phải bị bắt.
+    dt = bat_dau(df["CreditAccount"], "511") & co_thue & ~bat_dau(df["DebitAccount"], *TK_NOI_BO)
     dong_33311 = bat_dau(df["DebitAccount"], "33311") | bat_dau(df["CreditAccount"], "33311")
     docs_dt_thieu = set(ct[dt]) - set(ct[dong_33311])
     kq.append(tao_ket_qua(df[dt & ct.isin(docs_dt_thieu)], "C3.2",
                           "Doanh thu thiếu thuế đầu ra", NHOM, VANG,
                           "Ghi Có 511 với mã thuế chịu thuế nhưng cả chứng từ"
-                          " không có dòng 33311 (thuế GTGT đầu ra)"))
+                          " không có dòng 33311 (thuế GTGT đầu ra)",
+                          ghi_chu="Đã loại doanh thu nội bộ (đối ứng "
+                                  + "/".join(TK_NOI_BO) + ") — bán trong cùng pháp nhân"
+                                  " không phát sinh thuế GTGT đầu ra"))
 
     vao = df[bat_dau(df["DebitAccount"], "1331")].groupby(tax[bat_dau(df["DebitAccount"], "1331")])["Amount"].sum()
     ra = df[bat_dau(df["CreditAccount"], "33311")].groupby(tax[bat_dau(df["CreditAccount"], "33311")])["Amount"].sum()
