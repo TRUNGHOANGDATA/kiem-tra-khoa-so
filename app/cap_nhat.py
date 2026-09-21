@@ -6,6 +6,8 @@ Không auth (repo phát hành công khai). Mọi lỗi mạng/HTTP/IO được n
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -61,3 +63,23 @@ def lay_ban_moi_nhat(timeout: int = 6) -> dict:
     if not tag or not url:
         return {"loi": "Bản phát hành thiếu file cài"}
     return {"phien_ban": tag, "url_tai": url, "mo_ta": str(data.get("body", "") or "")}
+
+
+def tai_bo_cai(url: str, thu_muc: str | None = None) -> str:
+    """Tải bộ cài về `thu_muc` (mặc định %TEMP%). Ghi ra .part rồi đổi tên để
+    không để lại file dở nếu đứt mạng. Trả đường dẫn .exe. Ném lỗi khi thất bại."""
+    thu_muc = thu_muc or tempfile.gettempdir()
+    ten = url.rsplit("/", 1)[-1] or "KiemTraKhoaSo-Setup.exe"
+    dich = os.path.join(thu_muc, ten)
+    tam = dich + ".part"
+    try:
+        urllib.request.urlretrieve(url, tam)
+        os.replace(tam, dich)
+        return dich
+    except Exception:
+        for p in (tam, dich):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        raise

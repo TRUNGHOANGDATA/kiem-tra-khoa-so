@@ -62,3 +62,29 @@ def test_lay_ban_moi_nhat_thieu_asset_exe(monkeypatch):
     monkeypatch.setattr(cn.urllib.request, "urlopen", lambda *a, **k: _GiaResp(data))
     r = cn.lay_ban_moi_nhat()
     assert "loi" in r
+
+
+def test_tai_bo_cai_ghi_part_roi_doi_ten(monkeypatch, tmp_path):
+    def _fake_urlretrieve(url, dich):
+        assert dich.endswith(".part")                 # tải vào .part trước
+        with open(dich, "wb") as f:
+            f.write(b"noi-dung-bo-cai")
+    monkeypatch.setattr(cn.urllib.request, "urlretrieve", _fake_urlretrieve)
+    p = cn.tai_bo_cai("https://x/KiemTraKhoaSo-Setup-1.2.0.exe", str(tmp_path))
+    assert p.endswith("KiemTraKhoaSo-Setup-1.2.0.exe")
+    assert open(p, "rb").read() == b"noi-dung-bo-cai"
+    assert not any(str(f).endswith(".part") for f in tmp_path.iterdir())   # không còn file dở
+
+
+def test_tai_bo_cai_dut_giua_chung_khong_de_lai_file_dich(monkeypatch, tmp_path):
+    def _no(url, dich):
+        with open(dich, "wb") as f:
+            f.write(b"mot-phan")
+        raise OSError("dut mang")
+    monkeypatch.setattr(cn.urllib.request, "urlretrieve", _no)
+    try:
+        cn.tai_bo_cai("https://x/KiemTraKhoaSo-Setup-1.2.0.exe", str(tmp_path))
+        assert False, "phai nem loi"
+    except OSError:
+        pass
+    assert list(tmp_path.iterdir()) == []              # dọn sạch .part, không có file đích
