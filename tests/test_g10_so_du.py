@@ -9,9 +9,9 @@ def _kq(cdps):
     return {r.ma: r for r in g10.kiem_tra(tao_df([{}]), ctx)}
 
 
-def test_du_7_ma_theo_thu_tu():
+def test_du_8_ma_theo_thu_tu():
     ma = [r.ma for r in g10.kiem_tra(tao_df([{}]), BoiCanh(8, 2026))]
-    assert ma == ["C10.1", "C10.2", "C10.3", "C10.4", "C10.5", "C10.6", "C10.7"]
+    assert ma == ["C10.1", "C10.2", "C10.3", "C10.4", "C10.5", "C10.6", "C10.7", "C10.8"]
 
 
 def test_chua_nap_cdps_thi_dung_ngoai():
@@ -81,12 +81,38 @@ def test_c105_131_du_co_va_331_du_no():
     assert c.muc_do == "vang" and c.so_loi == 2
 
 
-# ------------------------------------------------ C10.6 treo chờ xử lý
-def test_c106_1381_3381_con_du():
-    cdps = tao_cdps([{"account": "1381", "du_cuoi_no": 10}, {"account": "3381", "du_cuoi_co": 20},
-                     {"account": "1388", "du_cuoi_no": 30}])
+# ------------------------------------------------ C10.6 / C10.8 treo chờ xử lý
+# Tách theo sức mạnh bằng chứng: khoản MỚI phát sinh trong kỳ là việc của kỳ đang khóa
+# (VÀNG); khoản TỒN từ kỳ trước là tồn đọng đã biết, TT200 đòi xử lý trước BCTC năm chứ
+# không phải trước mỗi lần khóa sổ tháng -> chỉ thống kê. Đo trên CĐPS thật 08/2026:
+# cả 8 chi nhánh đều chỉ có khoản tồn cũ (0 khoản mới), kể cả 5 chi nhánh kế toán tổng
+# hợp đã xác nhận OK -> để VÀNG là kéo cả 8 xuống "cần rà soát" một cách vô lý.
+def test_c106_chi_bat_khoan_moi_phat_sinh_trong_ky():
+    cdps = tao_cdps([
+        {"account": "1381", "du_dau_no": 0, "du_cuoi_no": 10},     # mới -> C10.6
+        {"account": "3381", "du_dau_co": 500, "du_cuoi_co": 480},  # tồn cũ -> C10.8
+        {"account": "1388", "du_cuoi_no": 30},                     # không phải chờ xử lý
+    ])
     c = _kq(cdps)["C10.6"]
-    assert c.muc_do == "vang" and sorted(c.chi_tiet["Tài khoản"].tolist()) == ["1381", "3381"]
+    assert c.muc_do == "vang" and c.la_thong_ke is False
+    assert c.chi_tiet["Tài khoản"].tolist() == ["1381"]
+
+
+def test_c108_khoan_ton_cu_chi_thong_ke_khong_keo_ket_luan():
+    cdps = tao_cdps([
+        {"account": "3381", "du_dau_co": 500, "du_cuoi_co": 480},
+        {"account": "1381", "du_dau_no": 0, "du_cuoi_no": 10},
+    ])
+    c = _kq(cdps)["C10.8"]
+    assert c.la_thong_ke is True and c.so_loi == 0
+    assert c.chi_tiet["Tài khoản"].tolist() == ["3381"]
+
+
+def test_c106_khoan_ton_cu_da_tat_toan_thi_khong_bat_o_dau_ca():
+    """Dư đầu có, dư cuối về 0 = đã xử lý xong trong kỳ -> sạch cả hai check."""
+    cdps = tao_cdps([{"account": "3381", "du_dau_co": 500, "du_cuoi_co": 0}])
+    k = _kq(cdps)
+    assert k["C10.6"].so_loi == 0 and len(k["C10.8"].chi_tiet) == 0
 
 
 # ------------------------------------------------ C10.7 phải thu/trả khác lớn

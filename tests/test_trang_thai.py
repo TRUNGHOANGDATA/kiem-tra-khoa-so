@@ -337,3 +337,19 @@ def test_c75_ngoai_te_khong_413_la_tu_xac_nhan_khong_can_ra(ctx):
     kl = tt.tinh_ket_luan(kq, ds)
     assert kl["so_can_ra"] == 0
     assert kl["muc_do_ket_luan"] == tt.SAN_SANG and kl["san_sang"] is True
+
+
+def test_buoc_19_dung_xuong_khi_cdps_cu_hon_bang_ke():
+    """C9.5 hạ thống kê vì lệch độ tươi thì bước 19 không được báo CHƯA LÀM.
+
+    Nếu vẫn CHƯA LÀM thì chênh lệch do lệch thời điểm kết xuất chui vào kết luận qua
+    `so_chua_lam` — A03/A07 từng rơi "chưa sẵn sàng" chỉ vì lý do này.
+    """
+    import pandas as pd
+
+    from app.checks.base import CheckResult
+    r = CheckResult("C9.5", "Phát sinh bảng kê ≠ phát sinh CĐPS", "G9", "do",
+                    pd.DataFrame([{"Tài khoản": "632"}]),
+                    ghi_chu="CĐPS đang lưu CŨ HƠN bảng kê", la_thong_ke=True)
+    b = tt._buoc_doi_chieu({"C9.5": r})
+    assert b.trang_thai == tt.TU_XAC_NHAN

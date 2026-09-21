@@ -7,8 +7,9 @@ bảng nhận diện rủi ro theo tài khoản (htttdn).
 Phân mức theo sức mạnh bằng chứng:
   ĐỎ   — không thể đúng trong thực tế: quỹ/kho âm, hao mòn dư Nợ, nguyên giá dư Có.
   VÀNG — bất thường cần rà: dư ngược chiều ngoài nhóm lưỡng tính, ứng trước 131/331,
-         khoản chờ xử lý 1381/3381 chưa tất toán.
-  THỐNG KÊ — chỉ để soát: phải thu/phải trả khác (1388/3388) chiếm tỷ trọng lớn.
+         khoản chờ xử lý 1381/3381 MỚI phát sinh trong kỳ.
+  THỐNG KÊ — chỉ để soát: phải thu/phải trả khác (1388/3388) chiếm tỷ trọng lớn,
+         khoản chờ xử lý 1381/3381 TỒN từ kỳ trước.
 
 Chưa nạp CĐPS -> cả nhóm đứng ngoài, KHÔNG báo "đạt" giả.
 """
@@ -56,11 +57,12 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
         "C10.3": "TSCĐ ngược chiều (214 dư Nợ / 211-213 dư Có)",
         "C10.4": "Số dư ngược chiều bản chất tài khoản",
         "C10.5": "Ứng trước còn treo (131 dư Có / 331 dư Nợ)",
-        "C10.6": "Khoản chờ xử lý chưa tất toán (1381/3381)",
+        "C10.6": "Khoản chờ xử lý MỚI phát sinh chưa tất toán (1381/3381)",
         "C10.7": "Phải thu / phải trả khác chiếm tỷ trọng lớn",
+        "C10.8": "Khoản chờ xử lý tồn từ kỳ trước (1381/3381)",
     }
     muc = {"C10.1": DO, "C10.2": DO, "C10.3": DO,
-           "C10.4": VANG, "C10.5": VANG, "C10.6": VANG, "C10.7": VANG}
+           "C10.4": VANG, "C10.5": VANG, "C10.6": VANG, "C10.7": VANG, "C10.8": VANG}
     if not cd.co_cdps(ctx):
         return [cd.khong_co_cdps(ma, t, NHOM, muc[ma]) for ma, t in ten.items()]
 
@@ -101,11 +103,29 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                    "Ứng trước còn treo",
                    ghi_chu="Rà doanh thu/hóa đơn chưa ghi nhận & đối chiếu công nợ"))
 
-    # C10.6 — thừa/thiếu chờ xử lý phải tất toán trước khi khóa sổ.
+    # C10.6 / C10.8 — thừa/thiếu chờ xử lý, TÁCH theo sức mạnh bằng chứng.
+    #
+    # Khoản MỚI phát sinh trong kỳ (dư đầu 0, dư cuối còn treo) là việc của chính kỳ
+    # đang khóa -> VÀNG. Khoản TỒN từ kỳ trước là tồn đọng đã biết: TT200 đòi xử lý dứt
+    # điểm trước khi lập BCTC NĂM, không phải trước mỗi lần khóa sổ tháng -> thống kê.
+    #
+    # Đo trên CĐPS thật 08/2026: cả 8 chi nhánh đều CHỈ có khoản tồn cũ (0 khoản mới),
+    # số dư 3381 từ 184 triệu tới 1,74 tỷ — kể cả 5 chi nhánh kế toán tổng hợp đã xác
+    # nhận OK và cả chi nhánh có dư NGƯỢC chiều (A08 dư Nợ 1,17 tỷ). Để nguyên một mức
+    # VÀNG là kéo cả 8 xuống "cần rà soát" bất kể làm gì — đúng loại dương tính giả đã
+    # sửa ở C4.1/C1.1. Tách ra thì răng vẫn còn: thừa/thiếu kiểm kê MỚI vẫn chặn.
     cho_xl = ma_tk.str.startswith(TK_CHO_XU_LY) & (du_no.abs() > cd.NGUONG_DONG)
-    kq.append(_bat(la, cho_xl, "C10.6", ten["C10.6"], VANG,
-                   "Còn treo chờ xử lý",
-                   ghi_chu="Chênh lệch kiểm kê phải xử lý dứt điểm trước khi khóa sổ"))
+    du_dau = cd.net(la, "du_dau_no", "du_dau_co") if len(la) else pd.Series(dtype=float)
+    ton_cu = du_dau.abs() > cd.NGUONG_DONG
+    kq.append(_bat(la, cho_xl & ~ton_cu, "C10.6", ten["C10.6"], VANG,
+                   "Mới phát sinh trong kỳ, cuối kỳ còn treo",
+                   ghi_chu="Chênh lệch kiểm kê phát sinh trong kỳ phải xử lý dứt điểm"
+                           " trước khi khóa sổ"))
+    r108 = _bat(la, cho_xl & ton_cu, "C10.8", ten["C10.8"], VANG,
+                "Tồn từ kỳ trước, cuối kỳ còn treo",
+                ghi_chu="Tồn đọng từ kỳ trước — TT200 đòi xử lý dứt điểm trước khi lập"
+                        " BCTC năm, nên chỉ nêu để soát, không chặn khóa sổ tháng")
+    r108.la_thong_ke = True
 
     # C10.7 — thống kê: 1388/3388 lớn so với tổng tài sản (nội dung thường không rõ).
     tong_ts = float(la["du_cuoi_no"].fillna(0).sum()) if len(la) else 0.0
@@ -116,4 +136,5 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                 ghi_chu="Chỉ để soát nội dung khoản phải thu/phải trả khác")
     r107.la_thong_ke = True
     kq.append(r107)
+    kq.append(r108)
     return kq

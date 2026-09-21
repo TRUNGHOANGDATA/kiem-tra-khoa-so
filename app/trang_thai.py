@@ -248,19 +248,41 @@ def _buoc_doi_chieu(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:
         return BuocKhoaSo(ten, KHONG_AP_DUNG, "Chưa nạp CĐPS cho kỳ này", "C9.5", co_chung_cu=False)
     if len(r.chi_tiet) == 0:
         return BuocKhoaSo(ten, DA_LAM, "Phát sinh hai nguồn khớp nhau", "C9.5")
+    # CĐPS cũ hơn bảng kê -> g9 hạ C9.5 xuống thống kê. Bước này phải đứng xuống theo,
+    # nếu không chênh lệch do LỆCH ĐỘ TƯƠI vẫn chui vào kết luận qua đường `so_chua_lam`
+    # (đã thấy: A03/A07 chỉ còn check vàng mà vẫn rơi "chưa sẵn sàng").
+    if r.la_thong_ke:
+        return BuocKhoaSo(ten, TU_XAC_NHAN,
+                          f"{len(r.chi_tiet)} tài khoản lệch, nhưng CĐPS đang lưu cũ hơn bảng kê"
+                          " — nạp lại CĐPS rồi đối chiếu lại", "C9.5")
     return BuocKhoaSo(ten, CHUA_LAM,
                       f"{len(r.chi_tiet)} tài khoản lệch phát sinh giữa hai nguồn", "C9.5")
 
 
 def _buoc_cho_xu_ly(ket_qua: dict[str, CheckResult]) -> BuocKhoaSo:
-    """Bước 18 — chênh lệch kiểm kê (1381/3381) phải tất toán trước khi khóa sổ."""
+    """Bước 18 — chênh lệch kiểm kê (1381/3381) phải tất toán trước khi khóa sổ.
+
+    Ba mức theo sức mạnh bằng chứng, khớp cách tách C10.6 / C10.8 ở G10:
+      CAN_RA       — có khoản MỚI phát sinh trong kỳ còn treo (việc của chính kỳ này).
+      TU_XAC_NHAN  — chỉ còn khoản TỒN từ kỳ trước: nhắc để kế toán tự xác nhận, không
+                     kéo kết luận (TT200 đòi dứt điểm trước BCTC năm, không phải trước
+                     mỗi lần khóa sổ tháng).
+      DA_LAM       — sạch cả hai.
+    """
     ten = "Xử lý chênh lệch kiểm kê (1381/3381 về 0)"
     r = ket_qua.get("C10.6")
     if _chua_nap_cdps(r):
         return BuocKhoaSo(ten, KHONG_AP_DUNG, "Chưa nạp CĐPS cho kỳ này", "C10.6", co_chung_cu=False)
-    if len(r.chi_tiet) == 0:
-        return BuocKhoaSo(ten, DA_LAM, "Không còn khoản thừa/thiếu chờ xử lý", "C10.6")
-    return BuocKhoaSo(ten, CAN_RA, f"Còn {len(r.chi_tiet)} tài khoản 1381/3381 chưa tất toán", "C10.6")
+    if len(r.chi_tiet):
+        return BuocKhoaSo(ten, CAN_RA,
+                          f"Còn {len(r.chi_tiet)} tài khoản 1381/3381 mới phát sinh trong kỳ"
+                          " chưa tất toán", "C10.6")
+    cu = ket_qua.get("C10.8")
+    if cu is not None and len(cu.chi_tiet):
+        return BuocKhoaSo(ten, TU_XAC_NHAN,
+                          f"Không phát sinh mới; còn {len(cu.chi_tiet)} tài khoản tồn từ kỳ"
+                          " trước — tự xác nhận kế hoạch xử lý", "C10.8")
+    return BuocKhoaSo(ten, DA_LAM, "Không còn khoản thừa/thiếu chờ xử lý", "C10.6")
 
 
 def tinh_ket_luan(ket_qua: list[CheckResult], trang_thai: list[BuocKhoaSo]) -> dict:

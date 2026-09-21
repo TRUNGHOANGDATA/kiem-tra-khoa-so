@@ -168,7 +168,8 @@ def don_gia_bat_thuong(df: pd.DataFrame) -> CheckResult:
                        " — " + ty_le[lech].map(_gap_may_lan).astype("string") +
                        " đơn giá phổ biến " + _so(pho_bien[lech]) +
                        " của mã hàng này (" + so_lan[lech].astype(int).astype("string") +
-                       " lần xuất trong kỳ). Kiểm tra lại số lượng và đơn vị tính.")
+                       " lần xuất trong kỳ). Kiểm tra lại số lượng và đơn vị tính." +
+                       ty_le[lech].map(_boi_so_tron).astype("string"))
         ct = ct.reset_index(drop=True)
     else:
         ct = pd.DataFrame(columns=COT_C46)
@@ -183,3 +184,22 @@ def _gap_may_lan(ty_le: float) -> str:
     if ty_le >= 1:
         return f"gấp {ty_le:,.0f} lần".replace(",", ".")
     return f"chỉ bằng 1/{1 / ty_le:,.0f}".replace(",", ".")
+
+
+def _boi_so_tron(ty_le: float) -> str:
+    """Gợi ý khi tỷ lệ lệch xấp xỉ một BỘI SỐ NGUYÊN — dấu hiệu sai đơn vị tính.
+
+    Lệch do biến động giá thì tỷ lệ là số lẻ; lệch do quy cách đóng gói (nhập theo
+    thùng, xuất theo cái) hay sai đơn vị tính thì rơi đúng vào bội số nguyên. Trên sổ
+    08/2026 của A01 có 5 mã như vậy: ×75, ×75, ×40, ×40, ×25 — tròn tới 4 chữ số thập
+    phân, không phải trùng hợp. Nói thẳng nghi vấn giúp kế toán khỏi phải tự nhận ra.
+    """
+    if ty_le <= 0:
+        return ""
+    lan = ty_le if ty_le >= 1 else 1 / ty_le
+    gan = round(lan)
+    if gan < 2 or abs(lan - gan) > 0.01 * gan:
+        return ""
+    chieu = "gấp" if ty_le >= 1 else "bằng 1/"
+    return (f" Tỷ lệ đúng bằng bội số nguyên ({chieu}{gan:,.0f})".replace(",", ".")
+            + " — nghi sai đơn vị tính hoặc quy cách đóng gói hơn là biến động giá.")

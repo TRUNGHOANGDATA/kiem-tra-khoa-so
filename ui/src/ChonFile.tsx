@@ -7,6 +7,7 @@ import { cx, fso, Icon, IC, Modal, Nut, useToast } from "./ui";
 
 interface TrangThaiCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; thoi_diem_nap?: string }
 interface ThieuCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string }
+interface CdpsCu extends ThieuCdps { nap_cdps: string; xuat_bang_ke: string }
 /** CĐPS nạp lại KHÁC bản đang lưu — nạp lại là ghi đè sạch nên phải báo trước. */
 /** Kỳ đã có trong kho — phải hỏi trước khi đè, vì nạp lại là thay sạch cả kỳ. */
 interface TrungCdps {
@@ -63,6 +64,7 @@ export default function ManChonFile(p: ChonFileProps) {
   const [keo, setKeo] = useState(false);
   const [ts, setTs] = useState<TrangThaiCdps[]>([]);
   const [thieu, setThieu] = useState<ThieuCdps[]>([]);
+  const [cu, setCu] = useState<CdpsCu[]>([]);
   const [dangNapCdps, setDangNapCdps] = useState(false);
   const [doi, setDoi] = useState<ThayDoiCdps[]>([]);
   const [hoi, setHoi] = useState<{ path: string; moi: TrungCdps[]; trung: TrungCdps[] } | null>(null);
@@ -76,8 +78,9 @@ export default function ManChonFile(p: ChonFileProps) {
   useEffect(() => { taiTs(); }, [taiTs]);
 
   useEffect(() => {
-    if (!nap || nap.loi) { setThieu([]); return; }
+    if (!nap || nap.loi) { setThieu([]); setCu([]); return; }
     A.goi("thieu_cdps").then((r) => { if (Array.isArray(r)) setThieu(r as ThieuCdps[]); });
+    A.goi("cdps_cu").then((r) => { if (Array.isArray(r)) setCu(r as CdpsCu[]); });
   }, [nap]);
 
   // Chọn thư mục -> XEM TRƯỚC (chỉ đọc). Có kỳ trùng thì hỏi, không thì nạp luôn.
@@ -249,6 +252,20 @@ export default function ManChonFile(p: ChonFileProps) {
             <div className="flex items-start gap-2 rounded-xl border border-do-vien bg-do-nen px-3 py-2.5 text-[12.5px] leading-snug text-do-dam">
               <Icon d={IC.x} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>Còn <b>{thieu.length}</b> chi nhánh chưa có CĐPS ({thieu.map((t) => t.chi_nhanh_ten || t.chi_nhanh).join(", ")}) — nạp CĐPS ở Bước 1 rồi mới Kiểm tra.</span>
+            </div>
+          )}
+
+          {/* CĐPS cũ hơn bảng kê: CẢNH BÁO, không chặn — vẫn kiểm tra được, chỉ là các
+              con số đối chiếu hai nguồn (C9.5) chưa đáng tin. Đã dính thật 21/09: CĐPS
+              nạp 17/09 vs bảng kê xuất 21/09 làm C9.5 nổ giả ở 7/8 chi nhánh. */}
+          {nap && !nap.loi && cu.length > 0 && (
+            <div className="flex items-start gap-2 rounded-xl border border-vang-vien bg-vang-nen px-3 py-2.5 text-[12.5px] leading-snug text-vang-dam">
+              <Icon d={IC.warn} className="mt-0.5 h-4 w-4 shrink-0 text-vang" />
+              <span>
+                <b>{cu.length}</b> chi nhánh có CĐPS <b>cũ hơn</b> bảng kê — đối chiếu bảng kê ↔ CĐPS (C9.5)
+                chưa đáng tin cho tới khi nạp lại CĐPS:{" "}
+                {cu.map((c) => `${c.chi_nhanh_ten || c.chi_nhanh} (CĐPS ${c.nap_cdps} · bảng kê ${c.xuat_bang_ke})`).join(" · ")}
+              </span>
             </div>
           )}
 

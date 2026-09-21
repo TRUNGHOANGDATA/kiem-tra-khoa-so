@@ -284,3 +284,28 @@ def test_c46_frame_rong_khong_no(ctx):
 def test_c46_la_canh_bao_khong_phai_nghiem_trong(ctx):
     rows = [_xuat("A", 10, 100_000) for _ in range(5)] + [_xuat("A", 1, 1_000_000)]
     assert _c46(rows, ctx).muc_do_thuc == "vang"
+
+
+# ------------------------------------------------ C4.6 gợi ý bội số tròn
+def test_c46_boi_so_tron_goi_y_sai_don_vi_tinh(ctx):
+    """Lệch đúng bội số nguyên = nghi sai đơn vị tính, không phải biến động giá.
+
+    Trên sổ 08/2026 A01 có 5 mã rơi đúng vào ×75/×40/×25 (tròn tới 4 chữ số thập phân).
+    """
+    rows = [{"DebitAccount": "632", "CreditAccount": "1561", "ItemCode": "H1",
+             "Quantity9": 10, "Amount": 1_000} for _ in range(4)]
+    rows.append({"DebitAccount": "632", "CreditAccount": "1561", "ItemCode": "H1",
+                 "Quantity9": 1, "Amount": 7_500, "DocNo": "SAI"})   # 7.500 = 75 × 100
+    r = g4.don_gia_bat_thuong(tao_df(rows))
+    assert r.so_loi == 1 and r.chi_tiet.iloc[0]["DocNo"] == "SAI"
+    assert "bội số nguyên" in r.chi_tiet.iloc[0]["ly_do"] and "75" in r.chi_tiet.iloc[0]["ly_do"]
+
+
+def test_c46_lech_so_le_khong_goi_y_boi_so(ctx):
+    """Lệch 13,7 lần (số lẻ) thì không được gợi ý sai đơn vị tính."""
+    rows = [{"DebitAccount": "632", "CreditAccount": "1561", "ItemCode": "H2",
+             "Quantity9": 10, "Amount": 1_000} for _ in range(4)]
+    rows.append({"DebitAccount": "632", "CreditAccount": "1561", "ItemCode": "H2",
+                 "Quantity9": 10, "Amount": 13_700})
+    r = g4.don_gia_bat_thuong(tao_df(rows))
+    assert r.so_loi == 1 and "bội số nguyên" not in r.chi_tiet.iloc[0]["ly_do"]

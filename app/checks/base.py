@@ -111,6 +111,11 @@ class BoiCanh:
     # Dùng để so biến động giữa hai kỳ — không có thì check phải đứng ngoài
     # (la_thong_ke), KHÔNG được coi "không có kỳ trước" là "không biến động".
     cdps_truoc: pd.DataFrame | None = None
+    # CĐPS trong kho được nạp TRƯỚC thời điểm kết xuất bảng kê -> hai nguồn không cùng
+    # một lát cắt sổ. Mọi đối chiếu GIỮA hai nguồn (C9.5) lúc này không chứng minh được
+    # sổ sai, nên phải hạ xuống thống kê. Các check chỉ đọc CĐPS (C9.1–C9.4, G10, G11)
+    # vẫn nhất quán nội bộ nên không đụng tới.
+    cdps_cu_hon: bool = False
 
 
 @dataclass

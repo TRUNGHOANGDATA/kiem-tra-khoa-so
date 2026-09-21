@@ -162,6 +162,17 @@ class KhoChotSo:
             (chi_nhanh, ky_nam, ky_thang, prefix + "%")).fetchone()
         return float(r[0]), float(r[1])
 
+    def thoi_diem_nap_cdps(self, chi_nhanh, ky_nam, ky_thang) -> str | None:
+        """Lần nạp CĐPS gần nhất của (chi nhánh × kỳ) — ISO, None nếu chưa nạp.
+
+        Dùng để so với thời điểm kết xuất bảng kê: CĐPS cũ hơn thì đối chiếu hai nguồn
+        (C9.5) không còn nghĩa.
+        """
+        r = self.con.execute(
+            "SELECT MAX(thoi_diem_nap) FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+            (chi_nhanh, ky_nam, ky_thang)).fetchone()
+        return r[0] if r and r[0] else None
+
     def co_cdps(self, chi_nhanh, ky_nam, ky_thang) -> bool:
         r = self.con.execute(
             "SELECT 1 FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=? LIMIT 1",

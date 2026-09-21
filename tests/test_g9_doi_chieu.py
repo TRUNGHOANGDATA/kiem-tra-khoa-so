@@ -25,6 +25,24 @@ def test_chua_nap_cdps_thi_dung_ngoai():
     assert r.la_thong_ke is True and "Chưa nạp CĐPS" in r.ghi_chu
 
 
+def test_cdps_cu_hon_bang_ke_thi_c95_chi_thong_ke():
+    """Hai nguồn kết xuất lệch thời điểm thì chênh lệch KHÔNG chứng minh sổ sai.
+
+    Đã dính thật 2026-09-21: kho có CĐPS nạp 17/09, bảng kê xuất 21/09 -> C9.5 nổ 5–26
+    TK ở 7/8 chi nhánh. Kiểm chứng đó là lệch độ tươi chứ không phải sổ sai: PS 511 khớp
+    TUYỆT ĐỐI 8/8 chi nhánh, chỉ 632 lệch đúng ở 3 chi nhánh vừa chạy lại giá vốn
+    (A02 lệch 10,8 tỷ). Vẫn liệt kê để soi, nhưng không được kéo kết luận.
+    """
+    df = tao_df([{"DebitAccount": "1111", "CreditAccount": "5111", "Amount": 1_000_000}])
+    cdps = tao_cdps([{"account": "1111", "ps_no": 400_000},
+                     {"account": "5111", "ps_co": 400_000}])
+    ctx = BoiCanh(ky_thang=8, ky_nam=2026, cdps=cdps, cdps_cu_hon=True)
+    r = {x.ma: x for x in g9.kiem_tra(df, ctx)}["C9.5"]
+    assert len(r.chi_tiet) > 0, "vẫn phải liệt kê để soi"
+    assert r.la_thong_ke is True and r.so_loi == 0
+    assert "cũ hơn" in r.ghi_chu.lower()
+
+
 def test_khop_hoan_toan_thi_khong_bao():
     df = tao_df([{"DebitAccount": "1111", "CreditAccount": "5111", "Amount": 1_000_000}])
     cdps = tao_cdps([{"account": "1111", "ps_no": 1_000_000},

@@ -11,7 +11,7 @@ TEN_FIXTURE = ["df_rong", "df_tk_null", "df_description_nan"]
 def test_pipeline_chay_duoc_tren_moi_hinh_dang(ten, ctx, request):
     df = request.getfixturevalue(ten)
     kq = checks.chay_tat_ca(df, ctx)
-    assert len(kq) == 59
+    assert len(kq) == 60
     ds = tt.suy_trang_thai(df, {r.ma: r for r in kq})
     assert len(ds) == 19
     kl = tt.tinh_ket_luan(kq, ds)

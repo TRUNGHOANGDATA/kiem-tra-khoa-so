@@ -109,6 +109,18 @@ def test_c81_khong_bao_gio_bat_632(ctx):
     assert _kq(df, ctx)["C8.1"].so_loi == 0
 
 
+def test_c81_khong_bat_tk_chi_phi_o_ve_co(ctx):
+    """TK đầu 6/8 hạch toán bên CÓ thì bảng kê Bravo KHÔNG xuất khoản mục (kế toán tổng
+    hợp xác nhận 2026-09-21). Đo trên sổ 08/2026: 1.576 dòng 6xx/8xx vế Có ngoài kết
+    chuyển 911, 97,8% bỏ trống khoản mục, 98 tỷ — phần lớn là Nợ 154/Có 621 (kết chuyển
+    chi phí SX, không phải ghi nhận chi phí). Mở C8.1 sang vế Có = 1.542 dương tính giả."""
+    df = tao_df([
+        {"DebitAccount": "1111", "CreditAccount": "6421", "Amount": 100, "ExpenseCatgCode": "2001"},
+        {"DebitAccount": "154", "CreditAccount": "621", "Amount": 5_000, "ExpenseCatgCode": None},
+    ])
+    assert _kq(df, ctx)["C8.1"].so_loi == 0
+
+
 def test_c83_gom_ca_thu_nhap_515_711(ctx):
     """C8.3 là cột 'Bravo' để đối chiếu sheet CHECK, nên phải gồm đủ 9 TK của sheet."""
     df = tao_df([

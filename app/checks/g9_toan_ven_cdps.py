@@ -150,4 +150,12 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
         return [cd.khong_co_cdps(ma, t, NHOM, DO) for ma, t in ten.items()]
     cdps = ctx.cdps
     la = cd.dong_la(cdps)
-    return [_c91(la), _c92(la), _c93(cdps, la), _c94(la), _c95(df, la)]
+    r95 = _c95(df, la)
+    # CĐPS nạp trước khi bảng kê được kết xuất -> hai nguồn là hai lát cắt sổ khác nhau,
+    # chênh lệch giữa chúng KHÔNG chứng minh sổ sai. Vẫn liệt kê để soi, nhưng không kéo
+    # kết luận (xem BoiCanh.cdps_cu_hon). C9.1–C9.4 chỉ đọc CĐPS nên không bị ảnh hưởng.
+    if getattr(ctx, "cdps_cu_hon", False):
+        r95.la_thong_ke = True
+        r95.ghi_chu = ("CĐPS đang lưu CŨ HƠN bảng kê — nạp lại CĐPS rồi kiểm tra lại thì"
+                       " con số này mới có nghĩa. " + r95.ghi_chu)
+    return [_c91(la), _c92(la), _c93(cdps, la), _c94(la), r95]

@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -274,6 +275,57 @@ class JsApi:
         """CĐPS của đúng (chi nhánh × kỳ) cho G9/G10/C7; None nếu chưa nạp."""
         return self._cdps_neu_co(lambda kho: kho.doc_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang))
 
+    def _moc_lech_cdps(self, d: "DonVi") -> dict | None:
+        """CĐPS trong kho có CŨ HƠN bảng kê đang nạp không? None = không / không biết.
+
+        Bảng kê và CĐPS phải là hai lát cắt của CÙNG một thời điểm. Lệch nhau thì C9.5
+        so hai quyển sổ khác nhau: 2026-09-21 bản thật có CĐPS nạp 17/09 với bảng kê xuất
+        21/09, C9.5 nổ 5–26 TK ở 7/8 chi nhánh trong khi PS 511 khớp tuyệt đối 8/8 —
+        toàn bộ chênh nằm ở 632 của 3 chi nhánh vừa chạy lại giá vốn (A02: 10,8 tỷ).
+
+        Không bao giờ ném: kho hỏng / thiếu file chỉ làm mất cảnh báo, không chặn kiểm tra.
+        """
+        if not Path(self._duong_dan_kho()).exists():
+            return None
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return None
+        try:
+            nap = kho.thoi_diem_nap_cdps(d.nhan, d.tt.ky_nam, d.tt.ky_thang)
+        except Exception:  # noqa: BLE001
+            return None
+        finally:
+            kho.dong()
+        if not nap:
+            return None
+        try:
+            t_nap = datetime.fromisoformat(nap)
+        except ValueError:
+            return None
+        # Bảng kê của một chi nhánh có thể đến từ nhiều file -> lấy file MỚI NHẤT.
+        moc = [Path(p).stat().st_mtime for p in (d.tt.cac_file or [d.tt.path])
+               if p and Path(p).exists()]
+        if not moc:
+            return None
+        t_bk = datetime.fromtimestamp(max(moc))
+        if t_nap >= t_bk:
+            return None
+        return {"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
+                "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}",
+                "nap_cdps": t_nap.strftime("%d/%m/%Y %H:%M"),
+                "xuat_bang_ke": t_bk.strftime("%d/%m/%Y %H:%M")}
+
+    def cdps_cu(self):
+        """Chi nhánh đang nạp mà CĐPS trong kho CŨ HƠN bảng kê — cảnh báo, KHÔNG chặn.
+
+        Khác `thieu_cdps` (chặn cứng nút Kiểm tra): ở đây vẫn kiểm tra được, chỉ là các
+        con số đối chiếu hai nguồn chưa đáng tin cho tới khi nạp lại CĐPS.
+        """
+        if not self._dv:
+            return []
+        return [m for m in (self._moc_lech_cdps(d) for d in self._dv) if m]
+
     def _cdps_truoc(self, d: "DonVi"):
         """CĐPS của kỳ liền trước — để so biến động hai kỳ; None nếu chưa nạp."""
         return self._cdps_neu_co(lambda kho: kho.doc_cdps_ky_truoc(d.nhan, d.tt.ky_nam, d.tt.ky_thang))
@@ -281,7 +333,8 @@ class JsApi:
     def _chay_mot_don_vi(self, d: DonVi, on_progress=None) -> None:
         """Chạy toàn bộ check + suy 18 bước cho MỘT chi nhánh, trên frame của riêng nó."""
         ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam, lo_luy_ke_dau=self._lo_luy_ke_dau(d),
-                      cdps=self._cdps_cua(d), cdps_truoc=self._cdps_truoc(d))
+                      cdps=self._cdps_cua(d), cdps_truoc=self._cdps_truoc(d),
+                      cdps_cu_hon=self._moc_lech_cdps(d) is not None)
         d.ket_qua = checks.chay_tat_ca(d.df, ctx, on_progress=on_progress)
         d.kq = {r.ma: r for r in d.ket_qua}
         d.trang_thai = suy_trang_thai(d.df, d.kq)
