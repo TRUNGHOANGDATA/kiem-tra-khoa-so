@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report
+from . import cap_nhat, cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report
 from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
 from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
@@ -186,6 +186,26 @@ class JsApi:
     # ---- cửa sổ & tiến trình ----
     def gan_window(self, window):
         self._window = window
+
+    def kiem_tra_cap_nhat(self, pb_hien_tai: str) -> dict:
+        r = cap_nhat.lay_ban_moi_nhat()
+        if "loi" in r or r.get("khong_co_release"):
+            return r
+        r["co_moi"] = cap_nhat.moi_hon(r["phien_ban"], pb_hien_tai)
+        return r
+
+    def tai_va_cai(self, url: str) -> dict:
+        try:
+            duong = cap_nhat.tai_bo_cai(url)
+        except Exception as e:
+            return {"loi": f"Không tải được bản cài: {e}"}
+        try:
+            os.startfile(duong)                       # chạy Inno; noqa: chỉ có trên Windows
+        except Exception as e:
+            return {"loi": f"Không mở được bản cài: {e}"}
+        if self._window is not None:
+            self._window.destroy()                    # thoát để bộ cài đè file
+        return {}
 
     def _tien_trinh(self, ten: str, pct: int):
         if self._window is not None:
