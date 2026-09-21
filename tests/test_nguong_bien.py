@@ -29,11 +29,25 @@ def test_c42_nguong_ty_le_theo_so_tien_lon(ctx):
     assert len(_kq(g4, tren_nguong, ctx)["C4.2"].chi_tiet) == 1  # lệch 1.002
 
 
+def _biet_so_c24(tinh: float, am: bool = False) -> float:
+    """Lệch LỚN NHẤT vẫn được coi là làm tròn, giải từ chính bất đẳng thức của C2.4.
+
+    Điều kiện bắt: |Amount − tính| > |Amount|·r + c, mà Amount = tính ± d nên ngưỡng
+    phụ thuộc vào chính d — phải giải xuôi thay vì cộng thẳng hằng số.
+        d > (tính·r + c) / (1 ∓ r)
+    """
+    r, c = g2.TY_LE_LECH_TY_GIA, g2.NGUONG_LECH_TY_GIA
+    return (tinh * r + c) / (1 + r if am else 1 - r)
+
+
 def test_c24_dung_tai_nguong_lech_ty_gia_khong_bi_bat(ctx):
-    """NGUONG_LECH_TY_GIA = 1,0 — lệch đúng 1đ là làm tròn, 2đ là sai quy đổi."""
+    """Ngưỡng theo TỶ LỆ: lệch đúng ngưỡng là làm tròn, hơn một đồng là sai quy đổi."""
     chung = {"CurrencyCode": "USD", "OriginalAmount": 100.0, "ExchangeRate": 26_000.0}
-    tai_nguong = tao_df([{**chung, "Amount": 2_600_000 + g2.NGUONG_LECH_TY_GIA}])
-    tren_nguong = tao_df([{**chung, "Amount": 2_600_000 + g2.NGUONG_LECH_TY_GIA + 1}])
+    d = _biet_so_c24(2_600_000)
+    # Kẹp hai bên thay vì đặt ĐÚNG điểm biên: ngưỡng là số lẻ (2.603,6đ) nên so sánh
+    # dấu phẩy động ngay tại biên phụ thuộc bit cuối, không phải thứ đáng khóa vào test.
+    tai_nguong = tao_df([{**chung, "Amount": 2_600_000 + d - 1}])
+    tren_nguong = tao_df([{**chung, "Amount": 2_600_000 + d + 1}])
     assert _kq(g2, tai_nguong, ctx)["C2.4"].so_loi == 0
     assert _kq(g2, tren_nguong, ctx)["C2.4"].so_loi == 1
 
@@ -41,8 +55,9 @@ def test_c24_dung_tai_nguong_lech_ty_gia_khong_bi_bat(ctx):
 def test_c24_lech_am_dung_tai_nguong(ctx):
     """Ngưỡng áp cho trị tuyệt đối — chiều âm phải đối xứng."""
     chung = {"CurrencyCode": "USD", "OriginalAmount": 100.0, "ExchangeRate": 26_000.0}
-    tai_nguong = tao_df([{**chung, "Amount": 2_600_000 - g2.NGUONG_LECH_TY_GIA}])
-    tren_nguong = tao_df([{**chung, "Amount": 2_600_000 - g2.NGUONG_LECH_TY_GIA - 1}])
+    d = _biet_so_c24(2_600_000, am=True)
+    tai_nguong = tao_df([{**chung, "Amount": 2_600_000 - d + 1}])
+    tren_nguong = tao_df([{**chung, "Amount": 2_600_000 - d - 1}])
     assert _kq(g2, tai_nguong, ctx)["C2.4"].so_loi == 0
     assert _kq(g2, tren_nguong, ctx)["C2.4"].so_loi == 1
 

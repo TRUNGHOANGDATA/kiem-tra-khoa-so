@@ -17,6 +17,9 @@ MAC_DINH = {
     "BranchCode": None, "Đơn vị": None,
     # Trục dựng báo cáo quản trị (Nhóm 8): mã khoản mục chi phí & bộ phận.
     "ExpenseCatgCode": None, "ExpenseCatgName": None, "DeptName": None,
+    # Tài khoản ngân hàng hai vế — thứ phân biệt "chuyển tiền giữa hai ngân hàng của
+    # công ty" với "tự chuyển vào chính mình" khi số hiệu TK hai vế giống nhau (C2.3).
+    "BankAccId": None, "CrspBankAccId": None,
 }
 
 
