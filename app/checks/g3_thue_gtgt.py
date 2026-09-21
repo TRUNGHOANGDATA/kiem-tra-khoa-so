@@ -8,15 +8,23 @@ TK_THUE = ("1331", "33311")
 # GIAO DỊCH NỘI BỘ — nhận theo MÃ LOẠI GIAO DỊCH của Bravo, KHÔNG đoán theo số hiệu TK.
 #   2303 — bán nội bộ (hóa đơn HD, chủ yếu Nợ 1368 / Có 5112)
 #   2110 — điều chuyển nội bộ (chứng từ TL: 1388/1368, 5213/1368, 1521/1388…)
+#
 # Bán/điều chuyển trong cùng pháp nhân không phát sinh thuế GTGT đầu ra, nên "chứng từ
 # thiếu 33311" ở đó không phải thiếu sót. Ngoài hai mã này mà thiếu 33311 là THIẾU VAT
 # THẬT (kế toán tổng hợp chốt 2026-09-21).
 #
-# Bản trước lọc theo `Nợ 136/336` — SAI CẢ HAI CHIỀU. Đo trên sổ 08/2026, trong miền
-# C3.2 xét: tiêu chí TK bắt 639 dòng, TransCode bắt đúng 639 dòng ấy CỘNG 6 dòng nội bộ
-# hạch toán qua 1311/1388 mà tiêu chí TK bỏ lọt (A05 từ 5 dòng về 0). Chiều ngược lại,
-# 1368 với mã giao dịch bán thường thì VẪN phải có thuế đầu ra — số hiệu TK không phải
-# căn cứ. A01 (68) và A08 (15) không đổi: đó là thiếu VAT thật.
+# ĐỪNG XÓA 2110 DÙ NÓ ĐANG KHÔNG KHỚP DÒNG NÀO. Trên sổ 08/2026, trong miền C3.2 xét
+# (53.314 dòng Có 511 + có mã thuế): 2303 khớp 645 dòng, 2110 khớp **0 dòng** — điều
+# chuyển không ghi Có 511 (175 dòng mang mã 2110 toàn 1388/1368, 5213/1368, 1551/6322…,
+# không dòng nào Có 511) nên chưa bao giờ lọt vào diện C3.2. Người dùng chốt 2026-09-21:
+# "2110 chưa có nhưng tương lai sẽ có" — giữ lại theo yêu cầu nghiệp vụ, KHÔNG phải
+# code chết, đừng dọn.
+#
+# Tiêu chí cũ `Nợ 136/336` SAI CẢ HAI CHIỀU. Đo trên sổ 08/2026, trong miền C3.2 xét:
+# tiêu chí TK bắt 639 dòng, TransCode bắt đúng 639 dòng ấy CỘNG 6 dòng nội bộ hạch toán
+# qua 1311/1388 mà tiêu chí TK bỏ lọt (A05 từ 5 dòng về 0). Chiều ngược lại, 1368 với mã
+# giao dịch bán thường thì VẪN phải có thuế đầu ra — số hiệu TK không phải căn cứ.
+# A01 (68) và A08 (15) không đổi: đó là thiếu VAT thật.
 TRANSCODE_NOI_BO = ("2303", "2110")
 
 

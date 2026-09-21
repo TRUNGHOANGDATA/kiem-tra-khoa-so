@@ -96,3 +96,17 @@ def test_c32_van_bat_khi_chung_tu_co_ca_noi_bo_lan_khach_ngoai(ctx):
     ])
     c = _kq(df, ctx)["C3.2"]
     assert c.so_loi == 1 and c.chi_tiet.iloc[0]["DebitAccount"] == "1311"
+
+
+def test_c32_giu_ma_2110_du_hien_chua_khop_dong_nao(ctx):
+    """2110 (điều chuyển nội bộ) phải nằm trong danh sách dù sổ 08/2026 chưa có dòng nào
+    lọt vào diện C3.2 — điều chuyển không ghi Có 511.
+
+    Người dùng chốt 2026-09-21: "2110 chưa có nhưng tương lai sẽ có". Không có test này
+    thì phiên sau đo thấy 2110 khớp 0 dòng sẽ tưởng là code chết và dọn đi.
+    """
+    assert "2110" in g3.TRANSCODE_NOI_BO
+    # Và khi Bravo bắt đầu ghi Có 511 cho điều chuyển, nó phải được loại ngay:
+    df = tao_df([{"DocNo": "DC1", "DebitAccount": "1388", "CreditAccount": "5111",
+                  "TaxCode": "R10A", "TransCode": "2110"}])
+    assert _kq(df, ctx)["C3.2"].so_loi == 0
