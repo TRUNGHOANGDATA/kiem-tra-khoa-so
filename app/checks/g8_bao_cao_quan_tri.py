@@ -19,11 +19,20 @@ import pandas as pd
 from .base import VANG, BoiCanh, CheckResult, bat_dau, tao_ket_qua
 
 NHOM = "G8"
-# CHỈ tài khoản CHI PHÍ, và soi ở BÊN NỢ: khoản mục/bộ phận được gắn khi ghi nhận
-# chi phí (Nợ 62x/64x/635/811 / Có ...). KHÔNG gộp TK doanh thu 515/711: chúng chỉ
-# xuất hiện bên Nợ ở bút toán KẾT CHUYỂN (Nợ 515/Có 911) — không mang khoản mục, gộp
-# vào sẽ bắt nhầm mọi dòng kết chuyển doanh thu (đã thấy trên file thật: 5 dòng).
-TK_CHI_PHI = ("621", "622", "627", "635", "641", "642", "811")
+# Danh sách TK cần mã khoản mục do kế toán tổng hợp chốt (sheet CHECK của BC quản trị
+# liệt kê đúng 9 tài khoản): 621, 622, 627, 641, 642, 515, 635, 711, 811.
+#
+# Chia theo VẾ, vì khoản mục được gắn lúc GHI NHẬN:
+#   - chi phí ghi nhận bên NỢ  (Nợ 62x/635/64x/811 / Có ...)
+#   - thu nhập ghi nhận bên CÓ (Nợ 111/112/131 / Có 515/711)
+# Soi 515/711 ở vế Nợ là sai: trên sổ 08/2026 vế Nợ của chúng chỉ có 24 dòng và TOÀN
+# BỘ là kết chuyển sang 911 — không mang khoản mục, bắt vào là dương tính giả.
+TK_CHI_PHI = ("621", "622", "627", "635", "641", "642", "811")   # soi vế NỢ
+TK_THU_NHAP = ("515", "711")                                      # soi vế CÓ
+# 632 KHÔNG nằm trong danh sách: giá vốn phân loại theo mã hàng, không theo khoản mục.
+# Đo trên sổ 08/2026: 67.666/67.670 dòng 632 bỏ trống khoản mục ở cả 8 chi nhánh, kể cả
+# các chi nhánh đã chốt được -> đưa 632 vào sẽ đẻ 11.486–17.282 dương tính giả mỗi chi
+# nhánh (đúng bẫy C4.1). 821 cũng không có trong sheet CHECK.
 
 
 def _trong(s: pd.Series) -> pd.Series:
@@ -34,7 +43,13 @@ def _trong(s: pd.Series) -> pd.Series:
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
     la_cp = bat_dau(df["DebitAccount"], *TK_CHI_PHI)
-    tk3 = df["DebitAccount"].astype("string").str.strip().str[:3]
+    la_tn = bat_dau(df["CreditAccount"], *TK_THU_NHAP)
+    can_km = la_cp | la_tn          # dòng phải có mã khoản mục (chi phí vế Nợ, thu nhập vế Có)
+    no3 = df["DebitAccount"].astype("string").str.strip().str[:3]
+    co3 = df["CreditAccount"].astype("string").str.strip().str[:3]
+    # Nhãn nhóm TK lấy theo ĐÚNG VẾ đang xét, nếu không dòng thu nhập sẽ bị gán nhãn
+    # theo TK tiền ở vế Nợ và rơi nhầm nhóm.
+    tk3 = no3.where(la_cp, co3)
 
     # --- C8.1: thiếu mã khoản mục — tự suy theo TỪNG nhóm TK cấp 1 ---
     # Chỉ nhóm TK nào kỳ này có dòng đã điền khoản mục mới coi là "công ty phân loại
@@ -42,12 +57,14 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     # cục ("cả công ty có dùng khoản mục") quá thô: nó bắt nhầm dòng của TK vốn không
     # bao giờ dùng khoản mục chỉ vì TK khác có dùng — đúng bẫy C4.1.
     trong_km = _trong(df["ExpenseCatgCode"])
-    nhom_co_km = set(tk3[la_cp & ~trong_km].dropna())
-    thieu_km = la_cp & trong_km & tk3.isin(nhom_co_km)
-    kq.append(tao_ket_qua(df[thieu_km], "C8.1", "Chi phí thiếu mã khoản mục (KMCP)", NHOM, VANG,
-                          "Dòng chi phí thuộc nhóm TK có phân loại khoản mục nhưng bỏ trống khoản mục"
+    nhom_co_km = set(tk3[can_km & ~trong_km].dropna())
+    thieu_km = can_km & trong_km & tk3.isin(nhom_co_km)
+    kq.append(tao_ket_qua(df[thieu_km], "C8.1", "Thiếu mã khoản mục (KMCP)", NHOM, VANG,
+                          "Dòng thuộc nhóm TK có phân loại khoản mục nhưng bỏ trống khoản mục"
                           " — sẽ rơi khỏi báo cáo quản trị theo khoản mục",
-                          ghi_chu="Chỉ xét nhóm TK cấp 1 mà kỳ này có dòng đã điền khoản mục"))
+                          ghi_chu="Chi phí xét vế Nợ (" + "/".join(TK_CHI_PHI) + "), thu nhập xét vế Có ("
+                                  + "/".join(TK_THU_NHAP) + "); chỉ xét nhóm TK cấp 1 mà kỳ này"
+                                  " có dòng đã điền khoản mục"))
 
     # --- C8.2: thiếu bộ phận, cùng cơ chế tự suy theo nhóm TK cấp 1 ---
     trong_dept = _trong(df["DeptName"])
@@ -60,9 +77,9 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                           ghi_chu="Chỉ xét nhóm TK cấp 1 mà kỳ này có dòng đã điền bộ phận"))
 
     # --- C8.3: thống kê tổng hợp chi phí theo khoản mục × TK (cột "Bravo" sạch) ---
-    sub = df[la_cp].copy()
+    sub = df[can_km].copy()
     if len(sub):
-        sub["TK"] = tk3[la_cp]
+        sub["TK"] = tk3[can_km]
         sub["ma_khoan_muc"] = sub["ExpenseCatgCode"].astype("string").str.strip()
         sub["ten_khoan_muc"] = sub["ExpenseCatgName"].astype("string").str.strip()
         bang = (sub.groupby(["TK", "ma_khoan_muc", "ten_khoan_muc"], dropna=False)

@@ -85,5 +85,42 @@ def test_c81_khong_bat_ket_chuyen_doanh_thu(ctx):
     assert _kq(df, ctx)["C8.1"].so_loi == 0
 
 
+def test_c81_bat_thu_nhap_515_711_thieu_khoan_muc_ben_co(ctx):
+    """515/711 cũng phải có mã phí (sheet CHECK của BC quản trị liệt kê 9 TK:
+    621/622/627/641/642/515/635/711/811) — nhưng chúng mang khoản mục ở vế CÓ,
+    lúc ghi nhận thu nhập, chứ không phải vế Nợ (vế Nợ chỉ là kết chuyển 911)."""
+    df = tao_df([
+        {"DebitAccount": "1111", "CreditAccount": "7111", "Amount": 100, "ExpenseCatgCode": "3001"},
+        {"DebitAccount": "1111", "CreditAccount": "7111", "Amount": 50, "ExpenseCatgCode": None, "DocNo": "Z"},
+    ])
+    r = _kq(df, ctx)["C8.1"]
+    assert r.so_loi == 1 and r.chi_tiet.iloc[0]["DocNo"] == "Z"
+
+
+def test_c81_khong_bao_gio_bat_632(ctx):
+    """632 KHÔNG nằm trong danh sách cần mã phí. Đo trên sổ 08/2026: 67.666/67.670
+    dòng 632 bỏ trống khoản mục ở CẢ 8 chi nhánh (kể cả chi nhánh đã chốt được),
+    nên coi 632 là 'thiếu khoản mục' sẽ đẻ ra hàng vạn dương tính giả — đúng bẫy C4.1.
+    Vài dòng 632 có khoản mục là nhiễu, không được kéo cả nhóm vào diện xét."""
+    df = tao_df([
+        {"DebitAccount": "632111", "CreditAccount": "1561", "Amount": 100, "ExpenseCatgCode": "2001"},
+        {"DebitAccount": "632111", "CreditAccount": "1561", "Amount": 50, "ExpenseCatgCode": None},
+    ])
+    assert _kq(df, ctx)["C8.1"].so_loi == 0
+
+
+def test_c83_gom_ca_thu_nhap_515_711(ctx):
+    """C8.3 là cột 'Bravo' để đối chiếu sheet CHECK, nên phải gồm đủ 9 TK của sheet."""
+    df = tao_df([
+        {"DebitAccount": "6421", "CreditAccount": "1111", "ExpenseCatgCode": "2001",
+         "ExpenseCatgName": "Thuê mặt bằng", "Amount": 100},
+        {"DebitAccount": "1111", "CreditAccount": "7111", "ExpenseCatgCode": "3001",
+         "ExpenseCatgName": "Thu nhập khác", "Amount": 70},
+    ])
+    hang = {(x["TK"], x["ma_khoan_muc"]): x for x in _kq(df, ctx)["C8.3"].chi_tiet.to_dict("records")}
+    assert hang[("642", "2001")]["tong"] == 100
+    assert hang[("711", "3001")]["tong"] == 70
+
+
 def test_du_3_ma(ctx):
     assert [r.ma for r in g8.kiem_tra(tao_df([{}]), ctx)] == ["C8.1", "C8.2", "C8.3"]
