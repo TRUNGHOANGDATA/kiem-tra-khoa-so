@@ -1,6 +1,6 @@
 /** Màn KẾT QUẢ — sidebar chi nhánh + banner kết luận + bảng bước/lỗi. Nối dữ liệu thật. */
 import { useMemo, useState } from "react";
-import type { Buoc, Check, DonVi, KetQua, Nhom } from "./api";
+import type { Buoc, ChanDoan, Check, DonVi, KetQua, Nhom } from "./api";
 import { cx, Dau, fso, Icon, IC, khoaKL, KY_HIEU, Nut } from "./ui";
 
 const MUC = { chua_san_sang: "do", can_ra_soat: "vang", san_sang: "xanh" } as const;
@@ -42,13 +42,17 @@ export function TheThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
 /* Thay cho hàng thẻ lớn cũ: cùng 4 con số nhưng ăn ~8px thay vì ~72px chiều cao,
    nhường phần còn lại cho khu 19 bước / danh sách lỗi bên dưới.
    MÙ MÀU: mỗi chip mang KÝ HIỆU riêng đứng trước (✕ ▲ ✓ ⌂) — màu chỉ là lớp phụ. */
-function ChipThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
-  { soDo: number; soVang: number; dat: number; soChiNhanh: number; onXemLoi?: () => void }) {
+function ChipThongKe({ soDo, soVang, dat, soChiNhanh, soChanDoan = 0, onXemLoi }:
+  { soDo: number; soVang: number; dat: number; soChiNhanh: number; soChanDoan?: number; onXemLoi?: () => void }) {
   const chips = [
     { ky: "✕", nhan: "Nghiêm trọng", so: soDo, mau: "bg-do-nen text-do-dam ring-do-vien", nhay: true },
     { ky: "▲", nhan: "Cảnh báo", so: soVang, mau: "bg-vang-nen text-vang-dam ring-vang-vien", nhay: true },
     { ky: "✓", nhan: "Đạt", so: dat, mau: "bg-xanh-nen text-xanh-dam ring-xanh-vien", nhay: false },
     { ky: "⌂", nhan: "Chi nhánh", so: soChiNhanh, mau: "bg-steel-50 text-steel-600 ring-steel-200", nhay: false },
+    // Chẩn đoán nằm TRONG tab Lỗi; chip này là đường dẫn tới nó nên chỉ hiện khi có.
+    ...(soChanDoan > 0
+      ? [{ ky: "⚕", nhan: "Chẩn đoán", so: soChanDoan, mau: "bg-navy/5 text-navy ring-navy/25", nhay: true }]
+      : []),
   ];
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -66,6 +70,30 @@ function ChipThongKe({ soDo, soVang, dat, soChiNhanh, onXemLoi }:
         );
       })}
     </div>
+  );
+}
+
+/* ----------------------------- chẩn đoán chung ---------------------------- */
+/* Gộp nhiều cảnh báo cùng gốc thành một câu hành động. Nằm TRONG tab Lỗi, ngay trên
+   danh sách mà nó tóm tắt — cuộn xuống là trôi đi, không chiếm chỗ thường trực. */
+function KhoiChanDoan({ ds }: { ds: ChanDoan[] }) {
+  return (
+    <>
+      {ds.map((c) => (
+        <section key={c.ma} className="rounded-xl border border-navy/25 bg-navy/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-[13.5px] font-bold text-navy">
+            <Icon d={IC.warn} className="h-4 w-4 shrink-0" />
+            Chẩn đoán chung — {c.ma_check.length} cảnh báo cùng một nguyên nhân
+          </div>
+          <p className="mt-1 text-[13px] leading-snug text-ink">{c.thong_diep}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {c.ma_check.map((m) => (
+              <span key={m} className="rounded-md bg-white px-1.5 py-0.5 text-[11px] font-bold text-steel-500 ring-1 ring-steel-200">{m}</span>
+            ))}
+          </div>
+        </section>
+      ))}
+    </>
   );
 }
 
@@ -315,7 +343,8 @@ export default function ManKetQua(p: KetQuaProps) {
                 {p.nhieu && <>Chi nhánh {t.chi_nhanh_ten || t.chi_nhanh}{t.chi_nhanh_ten && t.chi_nhanh_ten !== t.chi_nhanh ? ` (${t.chi_nhanh})` : ""} · </>}Kỳ {t.ky} · {t.ten} · <span className="tabular-nums">{fso(t.so_dong)}</span> dòng
               </p>
               <ChipThongKe soDo={t.so_do} soVang={t.so_vang} dat={dat}
-                soChiNhanh={kq.don_vi.length} onXemLoi={() => setTab("loi")} />
+                soChiNhanh={kq.don_vi.length} soChanDoan={(t.chan_doan ?? []).length}
+                onXemLoi={() => setTab("loi")} />
             </div>
             {/* Hành động chốt */}
             {daChot ? (
@@ -336,39 +365,31 @@ export default function ManKetQua(p: KetQuaProps) {
           </div>
         </section>
 
-        {/* Băng drift khi LỆCH */}
+        {/* Băng drift khi LỆCH — MỘT hàng: cảnh báo + số liệu + hành động. GIỮ ở đây
+            (không đẩy vào tab Lỗi như khối chẩn đoán) vì đây là trạng thái nguy hiểm kèm
+            việc phải làm ngay — giấu đi là che mất việc. */}
         {lech && (
-          <section className="rounded-xl border border-vang-vien bg-vang-nen px-4 py-3">
-            <div className="flex items-center gap-2 text-[14px] font-bold text-vang-dam">
-              <Icon d={IC.warn} className="h-4 w-4" />Kỳ đã chốt nhưng dữ liệu nguồn đã thay đổi
-            </div>
-            <div className="mt-1 text-[13px] text-vang-dam">
-              Δ dòng: <b className="tabular-nums text-ink">{chot!.tom_tat_lech!.delta_dong > 0 ? "+" : ""}{fso(chot!.tom_tat_lech!.delta_dong)}</b> ·
-              Δ tổng phát sinh: <b className="tabular-nums text-ink">{fso(chot!.tom_tat_lech!.delta_ps)}</b> ·
-              <b className="tabular-nums text-ink"> {fso(chot!.tom_tat_lech!.so_ct_anh_huong)}</b> chứng từ ảnh hưởng
-            </div>
-            <div className="mt-2 flex gap-2">
-              <Nut bien="phu" className="px-3 py-1.5 text-[12px]" onClick={p.onXemThayDoi}>Xem thay đổi</Nut>
-              <Nut bien="chinh" className="px-3 py-1.5 text-[12px]" onClick={p.onCapNhatChotLai}>Cập nhật & chốt lại</Nut>
-            </div>
+          <section className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-vang-vien bg-vang-nen px-3.5 py-2">
+            <span className="flex items-center gap-2 text-[13px] font-bold text-vang-dam">
+              <Icon d={IC.warn} className="h-4 w-4 shrink-0" />Đã chốt nhưng dữ liệu nguồn đã đổi
+            </span>
+            <span className="text-[12.5px] text-vang-dam">
+              Δ dòng <b className="tabular-nums text-ink">{chot!.tom_tat_lech!.delta_dong > 0 ? "+" : ""}{fso(chot!.tom_tat_lech!.delta_dong)}</b> ·
+              Δ phát sinh <b className="tabular-nums text-ink">{fso(chot!.tom_tat_lech!.delta_ps)}</b> ·
+              <b className="tabular-nums text-ink"> {fso(chot!.tom_tat_lech!.so_ct_anh_huong)}</b> chứng từ
+            </span>
+            <span className="ml-auto flex gap-2">
+              <Nut bien="phu" className="px-2.5 py-1 text-[12px]" onClick={p.onXemThayDoi}>Xem thay đổi</Nut>
+              <Nut bien="chinh" className="px-2.5 py-1 text-[12px]" onClick={p.onCapNhatChotLai}>Cập nhật & chốt lại</Nut>
+            </span>
           </section>
         )}
 
-        {/* Chẩn đoán: gộp nhiều cảnh báo cùng gốc thành một câu hành động. */}
-        {(t.chan_doan ?? []).map((c) => (
-          <section key={c.ma} className="rounded-xl border border-navy/25 bg-navy/5 px-4 py-3">
-            <div className="flex items-center gap-2 text-[13.5px] font-bold text-navy">
-              <Icon d={IC.warn} className="h-4 w-4 shrink-0" />
-              Chẩn đoán chung — {c.ma_check.length} cảnh báo cùng một nguyên nhân
-            </div>
-            <p className="mt-1 text-[13px] leading-snug text-ink">{c.thong_diep}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {c.ma_check.map((m) => (
-                <span key={m} className="rounded-md bg-white px-1.5 py-0.5 text-[11px] font-bold text-steel-500 ring-1 ring-steel-200">{m}</span>
-              ))}
-            </div>
-          </section>
-        ))}
+        {/* Chẩn đoán KHÔNG nằm ở đây nữa: nó là bản tóm tắt của chính danh sách lỗi,
+            nên đã chuyển vào đầu vùng cuộn của tab "Lỗi & cảnh báo" (xem KhoiChanDoan).
+            Để ngoài này thì mỗi luật chẩn đoán mới lại ăn thêm ~102px chiều cao VĨNH VIỄN
+            của khu làm việc, kể cả khi đang xem tab Trạng thái vốn chẳng liên quan.
+            Banner có chip "⚕ N chẩn đoán" bấm để nhảy tới. */}
 
         {/* Tabs + nội dung */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-steel-200 bg-white shadow-card">
@@ -422,6 +443,7 @@ export default function ManKetQua(p: KetQuaProps) {
             </>
           ) : (
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              <KhoiChanDoan ds={t.chan_doan ?? []} />
               {dsDo.length === 0 && dsVang.length === 0 && (
                 <div className="rounded-xl border-2 border-xanh-vien bg-xanh-nen px-4 py-6 text-center text-[13px] font-bold text-xanh-dam">
                   Không có lỗi hay cảnh báo nào.
