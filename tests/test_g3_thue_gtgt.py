@@ -56,29 +56,43 @@ def test_c33_bang_tong_hop_thue(ctx):
     assert b.loc["V10", "thue_vao_1331"] == 100 and b.loc["R10A", "thue_ra_33311"] == 200
 
 
-def test_c32_bo_qua_doanh_thu_noi_bo_136_336(ctx):
-    """Bán nội bộ (Nợ 1368/3368 / Có 511) KHÔNG phát sinh thuế GTGT đầu ra.
+def test_c32_bo_qua_giao_dich_noi_bo_theo_transcode(ctx):
+    """Giao dịch nội bộ nhận theo MÃ LOẠI GIAO DỊCH (TransCode), không đoán theo số
+    hiệu TK. Kế toán tổng hợp chốt 2026-09-21: 2303 = bán nội bộ, 2110 = điều chuyển
+    nội bộ; ngoài hai mã đó mà thiếu 33311 là thiếu VAT THẬT.
 
-    Kế toán tổng hợp báo 2026-09-21. Đo trên sổ 08/2026: A05 có 104 dòng C3.2 thì 99
-    là nội bộ, A03 4/4 và A06 14/14 đều nội bộ — cả ba chi nhánh này đã được xác nhận
-    OK. Loại 136/336 thì A03 và A06 sạch hẳn, còn A01/A02/A08 giữ nguyên vì đối ứng là
-    1311 (phải thu khách hàng thật) — đúng chỗ đáng rà.
+    Đo trên sổ 08/2026, trong miền C3.2 xét: tiêu chí cũ (Nợ 136/336) bắt 639 dòng,
+    TransCode bắt đúng 639 dòng ấy CỘNG 6 dòng nội bộ hạch toán qua 1311/1388 mà tiêu
+    chí tài khoản bỏ lọt. Không dòng 136/336 nào nằm ngoài hai mã này.
     """
     df = tao_df([
-        {"DocNo": "NB1", "DebitAccount": "1368", "CreditAccount": "51113", "TaxCode": "R10A"},
-        {"DocNo": "NB2", "DebitAccount": "3368", "CreditAccount": "51123", "TaxCode": "R10A"},
-        {"DocNo": "KH1", "DebitAccount": "1311", "CreditAccount": "5111", "TaxCode": "R10A"},
+        {"DocNo": "NB1", "DebitAccount": "1368", "CreditAccount": "51113",
+         "TaxCode": "R10A", "TransCode": "2303"},
+        {"DocNo": "NB2", "DebitAccount": "1388", "CreditAccount": "51123",
+         "TaxCode": "R10A", "TransCode": "2110"},     # nội bộ nhưng KHÔNG phải 136/336
+        {"DocNo": "KH1", "DebitAccount": "1311", "CreditAccount": "5111",
+         "TaxCode": "R10A", "TransCode": "2301"},
     ])
     c = _kq(df, ctx)["C3.2"]
     assert c.so_loi == 1, "chỉ còn dòng bán cho khách hàng ngoài"
     assert c.chi_tiet.iloc[0]["DocNo"] == "KH1"
 
 
+def test_c32_no_136_336_ma_khong_phai_ma_noi_bo_van_bi_bat(ctx):
+    """Số hiệu TK KHÔNG còn là căn cứ: 1368 mà mã giao dịch là bán thường thì vẫn phải
+    có thuế đầu ra. Đây là chỗ tiêu chí cũ sai chiều ngược lại."""
+    df = tao_df([{"DocNo": "X", "DebitAccount": "1368", "CreditAccount": "5111",
+                  "TaxCode": "R10A", "TransCode": "2301"}])
+    assert _kq(df, ctx)["C3.2"].so_loi == 1
+
+
 def test_c32_van_bat_khi_chung_tu_co_ca_noi_bo_lan_khach_ngoai(ctx):
     """Chứng từ lẫn cả hai vế: dòng nội bộ im, dòng khách ngoài vẫn phải bị bắt."""
     df = tao_df([
-        {"DocNo": "MIX", "DebitAccount": "1368", "CreditAccount": "5111", "TaxCode": "R10A"},
-        {"DocNo": "MIX", "DebitAccount": "1311", "CreditAccount": "5111", "TaxCode": "R10A"},
+        {"DocNo": "MIX", "DebitAccount": "1368", "CreditAccount": "5111",
+         "TaxCode": "R10A", "TransCode": "2303"},
+        {"DocNo": "MIX", "DebitAccount": "1311", "CreditAccount": "5111",
+         "TaxCode": "R10A", "TransCode": "2301"},
     ])
     c = _kq(df, ctx)["C3.2"]
     assert c.so_loi == 1 and c.chi_tiet.iloc[0]["DebitAccount"] == "1311"

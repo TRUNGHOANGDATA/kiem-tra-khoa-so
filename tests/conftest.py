@@ -17,6 +17,9 @@ MAC_DINH = {
     "BranchCode": None, "Đơn vị": None,
     # Trục dựng báo cáo quản trị (Nhóm 8): mã khoản mục chi phí & bộ phận.
     "ExpenseCatgCode": None, "ExpenseCatgName": None, "DeptName": None,
+    # Mã loại giao dịch của Bravo — thứ nhận diện GIAO DỊCH NỘI BỘ (2303 bán nội bộ,
+    # 2110 điều chuyển nội bộ), chính xác hơn đoán theo số hiệu TK. Xem g3 C3.2.
+    "TransCode": None,
     # Tài khoản ngân hàng hai vế — thứ phân biệt "chuyển tiền giữa hai ngân hàng của
     # công ty" với "tự chuyển vào chính mình" khi số hiệu TK hai vế giống nhau (C2.3).
     "BankAccId": None, "CrspBankAccId": None,
