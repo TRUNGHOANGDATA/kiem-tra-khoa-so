@@ -62,4 +62,10 @@ def dung(seed: Path) -> None:
 
 
 if __name__ == "__main__":
+    # stdout mặc định của console Windows (cp1252) không mã hoá được 'Đ'/dấu tiếng
+    # Việt trong dòng thông báo -> ép utf-8 để không rớt build vì một câu print.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
     dung(GOC / "build" / "_seed")
