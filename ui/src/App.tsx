@@ -108,6 +108,10 @@ function Noi() {
     if (laLoi(r)) { toast(r.loi); return; }
     toast("Đã xuất tổng hợp"); A.goi("mo_file", r.path);
   };
+  const moThuMucBaoCao = async () => {
+    const r = await A.goi("mo_thu_muc_bao_cao");
+    if (laLoi(r)) toast(r.loi);
+  };
 
   /* ------------------------------ cập nhật -------------------------------- */
   const kiemTraCapNhat = useCallback(async (imLang: boolean) => {
@@ -215,7 +219,7 @@ function Noi() {
                 onCapNhatChotLai={capNhatChotLai}
                 onXemThayDoi={() => setBang({ tieuDe: "Thay đổi so với bản đã chốt", nguon: "diff" })}
                 onXemChiTiet={(ma, td) => setBang({ tieuDe: td, nguon: "chi_tiet", ma })}
-                onXuat={xuat} onXuatTongHop={xuatTongHop}
+                onXuat={xuat} onXuatTongHop={xuatTongHop} onMoThuMuc={moThuMucBaoCao}
                 onKiemTraLai={kiemTra} onFileKhac={() => setMan("kiemtra")} />
             ) : (
               <div className="w-full flex-1 overflow-auto p-6">

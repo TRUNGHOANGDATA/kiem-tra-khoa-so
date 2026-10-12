@@ -27,6 +27,15 @@ def thu_muc_tai_nguyen() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def thu_muc_cai_dat() -> Path:
+    """Thư mục CHỨA ứng dụng (nơi đặt .exe). Bản đóng gói: cạnh exe (= {app} của bộ
+    cài, per-user nên ghi được); chạy mã nguồn: gốc repo. Dùng làm nơi MẶC ĐỊNH để
+    xuất báo cáo — cạnh phần mềm cho dễ tìm, thay vì chôn trong %LOCALAPPDATA%."""
+    if _dong_goi():
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[1]
+
+
 def thu_muc_du_lieu() -> Path:
     """Nơi ghi cấu hình / kho / báo cáo. Tạo sẵn nếu chưa có (bản đóng gói)."""
     if not _dong_goi():
@@ -35,6 +44,32 @@ def thu_muc_du_lieu() -> Path:
     d = Path(base) / TEN_APP
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _ghi_duoc(d: Path) -> bool:
+    """Thử tạo thư mục + ghi một file dò rồi xóa — cách chắc chắn nhất để biết ghi
+    được (os.access trên Windows không tin được vì ACL)."""
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        probe = d / ".wtest"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def giai_thu_muc_xuat(raw: str) -> str:
+    """Giải đường dẫn xuất báo cáo. Tuyệt đối -> giữ nguyên (người dùng tự chọn).
+    Tương đối (mặc định "2. Report") -> đặt CẠNH APP cho dễ tìm; chỉ khi thư mục cài
+    chỉ-đọc (hiếm: cài quyền admin vào Program Files thật) mới lui về thư mục dữ liệu."""
+    p = Path(raw)
+    if p.is_absolute():
+        return str(p)
+    canh_app = thu_muc_cai_dat() / raw
+    if not _dong_goi() or _ghi_duoc(canh_app):
+        return str(canh_app)
+    return str(thu_muc_du_lieu() / raw)
 
 
 def bay_seed_neu_can() -> None:

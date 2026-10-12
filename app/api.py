@@ -153,7 +153,17 @@ class JsApi:
     def thu_muc_source(self, v: str): self._ovr_thu_muc["thu_muc_nguon"] = v
 
     @property
-    def thu_muc_report(self) -> str: return self._tm("thu_muc_xuat")
+    def thu_muc_report(self) -> str:
+        # Mặc định xuất CẠNH APP (dễ tìm) thay vì chôn trong %LOCALAPPDATA%; đường dẫn
+        # người dùng tự chọn (tuyệt đối) thì theo họ. giai_thu_muc_xuat lo cả fallback.
+        raw = self._ovr_thu_muc.get("thu_muc_xuat") \
+            or cau_hinh._doc_tho(str(GOC)).get("thu_muc_xuat") or cau_hinh.MAC_DINH["thu_muc_xuat"]
+        d = duong_dan.giai_thu_muc_xuat(str(raw))
+        try:
+            Path(d).mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return d
     @thu_muc_report.setter
     def thu_muc_report(self, v: str): self._ovr_thu_muc["thu_muc_xuat"] = v
 
@@ -1061,6 +1071,10 @@ class JsApi:
         except Exception as e:  # noqa: BLE001
             return {"loi": f"Không mở được thư mục: {e}"}
 
+    def mo_thu_muc_bao_cao(self):
+        """Mở thư mục đang dùng để xuất báo cáo (tạo trước nếu chưa có)."""
+        return self.mo_thu_muc(self.thu_muc_report)
+
     # ---- cài đặt thư mục ----
     def lay_cau_hinh(self) -> dict:
         """Giá trị thô (để hiện trong ô nhập) + đường dẫn đã giải (để hiển thị) +
@@ -1068,6 +1082,7 @@ class JsApi:
         để màn Cài đặt điền sẵn hàng, người dùng chỉ việc gõ tên)."""
         tho = cau_hinh._doc_tho(str(GOC))
         giai = cau_hinh.doc_cau_hinh(str(GOC))
+        giai["thu_muc_xuat"] = self.thu_muc_report   # hiện đúng nơi thật sự ghi (cạnh app)
         quy_doi = self._quy_doi                 # đọc từ kho (đã di trú nếu cần)
         goi_y = list(dict.fromkeys([d.nhan for d in self._dv] + list(quy_doi)))
         return {"tho": {k: str(tho.get(k, cau_hinh.MAC_DINH[k])) for k in cau_hinh.KHOA},

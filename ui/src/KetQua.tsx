@@ -259,6 +259,7 @@ export interface KetQuaProps {
   onXemThayDoi: () => void;
   onXuat: () => void;
   onXuatTongHop: () => void;
+  onMoThuMuc: () => void;
   onKiemTraLai: () => void;
   onFileKhac: () => void;
 }
@@ -476,6 +477,7 @@ export default function ManKetQua(p: KetQuaProps) {
         <footer className="flex flex-wrap items-center gap-2 border-t border-steel-200 pt-3">
           <Nut bien="chinh" onClick={p.onXuat}><Icon d={IC.taiXuong} className="h-4 w-4" />Xuất báo cáo Excel</Nut>
           {p.nhieu && <Nut onClick={p.onXuatTongHop}><Icon d={IC.bar} className="h-4 w-4" />Xuất tổng hợp chi nhánh</Nut>}
+          <Nut onClick={p.onMoThuMuc}><Icon d={IC.thu_muc} className="h-4 w-4" />Mở thư mục báo cáo</Nut>
           <Nut onClick={p.onKiemTraLai}><Icon d={IC.lam_moi} className="h-4 w-4" />Kiểm tra lại</Nut>
           <Nut className="ml-auto" onClick={p.onFileKhac}><Icon d={IC.file} className="h-4 w-4" />Kiểm tra file khác</Nut>
         </footer>

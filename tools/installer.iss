@@ -36,6 +36,11 @@ Name: "vi"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Tạo lối tắt ngoài màn hình"; GroupDescription: "Lối tắt:"
 
+[Dirs]
+; Tạo sẵn thư mục xuất báo cáo CẠNH APP cho dễ tìm (mặc định app ghi vào đây).
+; uninsneveruninstall: gỡ cài KHÔNG xóa báo cáo người dùng đã xuất.
+Name: "{app}\2. Report"; Flags: uninsneveruninstall
+
 [Files]
 ; Toàn bộ bản PyInstaller one-folder (đã kèm _seed: tên chi nhánh, KHÔNG kèm CĐPS).
 Source: "..\build\dist\KiemTraKhoaSo\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion

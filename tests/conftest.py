@@ -3,6 +3,15 @@ import pytest
 
 from app.checks.base import BoiCanh
 
+
+@pytest.fixture(autouse=True)
+def _export_canh_app_vao_tmp(tmp_path, monkeypatch):
+    """Mặc định thư mục xuất báo cáo nay nằm CẠNH APP (duong_dan.thu_muc_cai_dat),
+    mà ở dev cái đó = gốc repo -> đọc thu_muc_report sẽ tạo "2. Report" trong repo
+    thật. Ép về tmp_path cho MỌI test để không bao giờ chạm thư mục thật. Test nào
+    cần giá trị riêng cứ monkeypatch đè lại (thắng fixture này)."""
+    monkeypatch.setattr("app.duong_dan.thu_muc_cai_dat", lambda: tmp_path)
+
 MAC_DINH = {
     # PC = phiếu chi, cố ý KHÔNG thuộc DOC_DIEU_CHUYEN để dòng mặc định vẫn bị C1.4 soi
     "DocCode": "PC", "DocNo": "PC2608-000001", "DocDate": "2026-08-15",
