@@ -85,6 +85,20 @@ def test_c81_khong_bat_ket_chuyen_doanh_thu(ctx):
     assert _kq(df, ctx)["C8.1"].so_loi == 0
 
 
+def test_c81_khong_bat_ket_chuyen_chi_phi_ve_911(ctx):
+    """Bút toán kết chuyển chi phí về 911 (vd 'Nợ 81182 / Có 911') KHÔNG mang khoản
+    mục — chi phí đã gắn khoản mục ở bút toán gốc. Dù kỳ có dòng 811 đã điền khoản
+    mục (nhóm 811 'có dùng'), dòng kết chuyển 911 vẫn không được bắt (báo giả thật
+    trên sổ 09/2026)."""
+    df = tao_df([
+        {"DebitAccount": "81182", "CreditAccount": "1111", "Amount": 100, "ExpenseCatgCode": "2001"},
+        {"DebitAccount": "81182", "CreditAccount": "911", "Amount": 27_207, "ExpenseCatgCode": None,
+         "DeptName": None, "DocNo": "072"},
+    ])
+    assert _kq(df, ctx)["C8.1"].so_loi == 0
+    assert _kq(df, ctx)["C8.2"].so_loi == 0
+
+
 def test_c81_bat_thu_nhap_515_711_thieu_khoan_muc_ben_co(ctx):
     """515/711 cũng phải có mã phí (sheet CHECK của BC quản trị liệt kê 9 TK:
     621/622/627/641/642/515/635/711/811) — nhưng chúng mang khoản mục ở vế CÓ,

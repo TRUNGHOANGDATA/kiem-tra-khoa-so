@@ -42,8 +42,15 @@ def _trong(s: pd.Series) -> pd.Series:
 
 def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq = []
-    la_cp = bat_dau(df["DebitAccount"], *TK_CHI_PHI)
-    la_tn = bat_dau(df["CreditAccount"], *TK_THU_NHAP)
+    # Bút toán KẾT CHUYỂN xác định KQKD (đối ứng 911) KHÔNG mang khoản mục/bộ phận:
+    # chi phí/thu nhập đã gắn trục ở bút toán GỐC lúc phát sinh, dòng đưa về 911 chỉ là
+    # chốt lãi lỗ. Soi nó là dương tính giả — ví dụ "Nợ 81182 / Có 911". Đây là cùng lý
+    # do code soi 515/711 ở vế CÓ (vế Nợ của chúng toàn kết chuyển 911), nay áp cho cả
+    # vế chi phí.
+    no_911 = bat_dau(df["DebitAccount"], "911")
+    co_911 = bat_dau(df["CreditAccount"], "911")
+    la_cp = bat_dau(df["DebitAccount"], *TK_CHI_PHI) & ~co_911
+    la_tn = bat_dau(df["CreditAccount"], *TK_THU_NHAP) & ~no_911
     can_km = la_cp | la_tn          # dòng phải có mã khoản mục (chi phí vế Nợ, thu nhập vế Có)
     no3 = df["DebitAccount"].astype("string").str.strip().str[:3]
     co3 = df["CreditAccount"].astype("string").str.strip().str[:3]
