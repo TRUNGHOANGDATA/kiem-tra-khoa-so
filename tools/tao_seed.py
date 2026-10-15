@@ -56,7 +56,9 @@ def dung(seed: Path) -> None:
 
     (seed / MAC_DINH["thu_muc_nguon"] / "ĐỌC TRƯỚC.txt").write_text(
         "Thả file Bảng kê chứng từ (xuất từ Bravo) vào thư mục này rồi bấm Kiểm tra.\n"
-        "Lần đầu dùng: nạp Cân đối phát sinh (CĐPS) của bạn trước khi kiểm.\n",
+        "Lần đầu dùng: nạp Cân đối phát sinh (CĐPS) của bạn trước khi kiểm.\n"
+        "Kỳ có bán hàng/trả lại: nạp thêm Sổ chi tiết bán hàng (tên 'So chi tiet ban hang"
+        " A01 092026'), xuất CÙNG LÚC với bảng kê.\n",
         encoding="utf-8")
     print(f"Seed xong: {seed}  ({len(quy_doi)} chi nhánh, không kèm CĐPS)")
 
