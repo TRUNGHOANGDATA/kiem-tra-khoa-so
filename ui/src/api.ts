@@ -111,7 +111,22 @@ export interface ThongTinNap {
   so_dong: number;
   tong_ps: number;
   don_vi: DonViNap[];
+  /** Đã đọc được bảng kê nhưng KHÔNG lưu được vào kho (kho hỏng/bản mới hơn) — không chặn. */
+  loi_kho?: string;
   loi?: string;
+}
+
+/** Một (chi nhánh × kỳ) có trong kho — bảng kê hoặc sổ chi tiết bán hàng. */
+export interface NguonKho {
+  chi_nhanh: string; chi_nhanh_ten?: string; ky: string; ky_nam: number; ky_thang: number;
+  so_dong: number; file: string; thoi_diem_nap: string;
+}
+export interface KyTrongKho extends NguonKho { khoa: string; co_cdps: boolean; co_so_ban_hang: boolean }
+export interface KetQuaNapSbh {
+  nap: { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; file: string; so_dong: number;
+         ket_qua: "moi" | "doi" | "giong" }[];
+  bo_qua: { file: string; ly_do: string }[];
+  trang_thai: NguonKho[];
 }
 
 export interface ChiTiet {
@@ -159,6 +174,12 @@ interface PyApi {
   quet_thu_muc(): Promise<ThongTinNap | Loi>;
   nap_nhieu_file(paths: string[]): Promise<ThongTinNap | Loi>;
   chay_kiem_tra(path: string | string[] | null): Promise<KetQua | Loi>;
+  nap_so_ban_hang_thu_muc(thu_muc?: string): Promise<KetQuaNapSbh | Loi>;
+  trang_thai_so_ban_hang(): Promise<NguonKho[]>;
+  thieu_so_ban_hang(): Promise<{ chi_nhanh: string; chi_nhanh_ten?: string; ky: string }[]>;
+  khong_can_so_ban_hang(): Promise<string[]>;
+  ky_trong_kho(): Promise<KyTrongKho[]>;
+  nap_tu_kho(khoa: string[]): Promise<ThongTinNap | Loi>;
   chon_don_vi(i: number): Promise<KetQua | Loi>;
   lay_chi_tiet(ma: string, trang?: number, kich_thuoc?: number, tim?: string): Promise<ChiTiet | Loi>;
   xuat_bao_cao(): Promise<{ path: string } | Loi>;

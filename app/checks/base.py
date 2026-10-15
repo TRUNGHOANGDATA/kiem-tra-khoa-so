@@ -34,17 +34,23 @@ TEN_COT = {
     "so_do": "Nghiêm trọng", "so_vang": "Cảnh báo",
     "so_chua_lam": "Bước chưa làm", "so_can_ra": "Bước cần rà",
     "tong_ps": "Tổng phát sinh", "cac_file": "Nguồn dữ liệu",
+    # Sổ chi tiết bán hàng (C3.2/C3.4)
+    "TransCode": "Loại giao dịch", "CustomerName": "Khách hàng",
+    "DebitAccount2": "TK Nợ", "CreditAccount2": "TK Có",
+    "Quantity": "Số lượng", "UnitPrice": "Đơn giá bán",
+    "Amount2": "Doanh thu", "Amount3": "Thuế GTGT",
 }
 # Cột canh phải & định dạng số — một danh sách duy nhất cho cả giao diện lẫn Excel.
 COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",
                    "thue_vao_1331", "thue_ra_33311", "UnitCost", "Quantity9",
                    "don_gia", "don_gia_pho_bien", "so_lan_xuat", "tong_ps",
                    "nguong_tk", "so_lan",
-                   "so_do", "so_vang", "so_chua_lam", "so_can_ra")
+                   "so_do", "so_vang", "so_chua_lam", "so_can_ra",
+                   "Quantity", "UnitPrice", "Amount2", "Amount3")
 # Cột số CÓ PHẦN THẬP PHÂN — làm tròn 0 chữ số ở đây là nói sai sự thật: số lượng
 # 0,059 in ra "0" đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được
 # nêu. Cột Quantity9 của Bravo mang tới 9 chữ số thập phân (xem fmt_sl).
-COT_SO_LE = ("Quantity9",)
+COT_SO_LE = ("Quantity9", "Quantity")
 
 
 def ten_cot(cot) -> list[str]:
@@ -116,6 +122,11 @@ class BoiCanh:
     # sổ sai, nên phải hạ xuống thống kê. Các check chỉ đọc CĐPS (C9.1–C9.4, G10, G11)
     # vẫn nhất quán nội bộ nên không đụng tới.
     cdps_cu_hon: bool = False
+    # Sổ chi tiết bán hàng của đúng (chi nhánh × kỳ) — thuế GTGT THEO TỪNG DÒNG HÀNG
+    # (`Amount2` doanh thu, `Amount3` thuế), thứ bảng kê không có. Cột: xem
+    # app/so_ban_hang.py. None = chưa nạp; C3.2/C3.4 khi đó chỉ chạy nếu kỳ không có
+    # bán hàng / trả lại (luồng nạp chặn cứng mọi trường hợp còn lại).
+    so_ban_hang: pd.DataFrame | None = None
 
 
 @dataclass

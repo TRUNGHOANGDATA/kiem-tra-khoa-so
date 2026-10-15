@@ -1,5 +1,5 @@
 """Định nghĩa bảng kho chốt sổ + phiên bản schema (để migrate nhẹ)."""
-PHIEN_BAN_SCHEMA = 4
+PHIEN_BAN_SCHEMA = 5
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS quy_doi_chi_nhanh (
@@ -39,6 +39,22 @@ DDL = [
     # v4, hoặc kỳ chốt khi chưa nạp CĐPS. Thiếu thì tầng trên phải nói "chưa có bản chốt
     # CĐPS" chứ KHÔNG được suy là "không đổi" — xem luật sức mạnh bằng chứng.
     """CREATE TABLE IF NOT EXISTS snapshot_cdps (
+        snapshot_id INTEGER PRIMARY KEY REFERENCES snapshot(id),
+        du_lieu BLOB NOT NULL
+    )""",
+    # NGUỒN SỐNG (v5): bảng kê chứng từ + sổ chi tiết bán hàng của từng (chi nhánh × kỳ),
+    # lưu ngay khi nạp để kiểm tra lại được từ kho mà không cần file. Nạp lại = thay
+    # sạch. Cùng dạng BLOB gzip JSON orient="table" với snapshot_du_lieu (giữ dtype,
+    # giữ số 0 đầu DocNo). CĐPS KHÔNG ở đây — nó có bảng cột riêng `cdps` để truy vấn TK.
+    """CREATE TABLE IF NOT EXISTS nguon (
+        loai TEXT NOT NULL,
+        chi_nhanh TEXT NOT NULL, ky_nam INTEGER NOT NULL, ky_thang INTEGER NOT NULL,
+        du_lieu BLOB NOT NULL, so_dong INTEGER NOT NULL, van_tay TEXT NOT NULL,
+        ten_file TEXT, mtime_file TEXT, thoi_diem_nap TEXT NOT NULL,
+        PRIMARY KEY (loai, chi_nhanh, ky_nam, ky_thang)
+    )""",
+    # Sổ bán hàng ĐÓNG BĂNG lúc chốt (v5). Thiếu = chốt khi chưa nạp sổ, KHÔNG phải "không đổi".
+    """CREATE TABLE IF NOT EXISTS snapshot_so_ban_hang (
         snapshot_id INTEGER PRIMARY KEY REFERENCES snapshot(id),
         du_lieu BLOB NOT NULL
     )""",

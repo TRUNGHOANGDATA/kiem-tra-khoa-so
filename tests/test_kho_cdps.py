@@ -205,7 +205,7 @@ def test_chot_khi_chua_nap_cdps_thi_khong_co_ban_dong_bang(tmp_path):
     kho.dong()
 
 
-def test_kho_v3_cu_mo_duoc_va_len_v4(tmp_path):
+def test_kho_v3_cu_mo_duoc_va_len_ban_moi(tmp_path):
     """Kho tạo bởi bản cũ phải mở được, tự có bảng mới, snapshot cũ không có CĐPS."""
     import sqlite3
     p = str(tmp_path / "cu.sqlite")
@@ -219,5 +219,6 @@ def test_kho_v3_cu_mo_duoc_va_len_v4(tmp_path):
 
     kho = KhoChotSo(p)                             # mở lại bằng bản mới -> migrate
     assert kho.doc_cdps_snapshot(sid).empty
-    assert kho.con.execute("SELECT phien_ban FROM schema_version").fetchone()[0] == 4
+    from app.kho.schema import PHIEN_BAN_SCHEMA
+    assert kho.con.execute("SELECT phien_ban FROM schema_version").fetchone()[0] == PHIEN_BAN_SCHEMA
     kho.dong()

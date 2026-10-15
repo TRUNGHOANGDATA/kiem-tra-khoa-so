@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -38,6 +39,14 @@ class ThongTinFile:
     # và bảng phân rã theo tháng, xem thong_ke_ngoai_ky().
     so_dong_ngoai_ky: int = 0
     ngoai_ky: list = field(default_factory=list)   # [(nhãn 'MM/YYYY', số dòng)]
+    # Lúc file nguồn được kết xuất (mtime MỚI NHẤT trong các file góp dòng, ISO) — mốc
+    # để so độ tươi với CĐPS. Nạp từ kho thì lấy mốc đã lưu cùng nguồn, không cần file.
+    mtime_file: str = ""
+
+
+def _mtime_iso(paths) -> str:
+    moc = [os.path.getmtime(p) for p in paths if p and os.path.exists(p)]
+    return datetime.fromtimestamp(max(moc)).isoformat(timespec="seconds") if moc else ""
 
 
 def doc_ngay(s: pd.Series) -> pd.Series:
@@ -119,6 +128,9 @@ def doc_bang_ke(path: str) -> tuple[pd.DataFrame, ThongTinFile]:
         raw = pd.read_excel(path, engine="openpyxl")
     thieu = [c for c in COT_BAT_BUOC if c not in raw.columns]
     if thieu:
+        if {"DebitAccount2", "CreditAccount2", "Amount3"} <= set(raw.columns):
+            raise ValueError(f"{Path(path).name} là SỔ CHI TIẾT BÁN HÀNG, không phải bảng kê"
+                             " — nạp nó ở bước Sổ chi tiết bán hàng")
         raise ValueError(f"Thiếu cột bắt buộc: {', '.join(thieu)}")
     df, log = chuan_hoa(raw)
     if df.empty:
@@ -130,7 +142,8 @@ def doc_bang_ke(path: str) -> tuple[pd.DataFrame, ThongTinFile]:
                       ky_thang=thang, ky_nam=nam, so_dong=len(df),
                       tong_ps=float(df["Amount"].sum()), nhat_ky=log,
                       chi_nhanh=mot_chi_nhanh(df), cac_file=[ten],
-                      so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky)
+                      so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky,
+                      mtime_file=_mtime_iso([path]))
     return df, tt
 
 
@@ -209,7 +222,8 @@ def doc_nhieu_bang_ke(paths, on_file=None) -> list[tuple[pd.DataFrame, ThongTinF
             ky_thang=thang, ky_nam=nam, so_dong=len(con),
             tong_ps=float(con["Amount"].sum()), nhat_ky=nhat_ky,
             chi_nhanh=cn, cac_file=list(ten_file),
-            so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky)))
+            so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky,
+            mtime_file=_mtime_iso(duong_dan))))
     return ds
 
 

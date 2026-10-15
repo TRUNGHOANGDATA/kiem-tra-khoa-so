@@ -55,6 +55,11 @@ def tom_tat_kho(path_nguon: str) -> dict:
             "COUNT(DISTINCT ky_nam*100+ky_thang) so_ky, COUNT(DISTINCT chi_nhanh) so_cn, "
             "MIN(ky_nam*100+ky_thang) ky_min, MAX(ky_nam*100+ky_thang) ky_max FROM snapshot"
         ).fetchone()
+        # Kho trước v5 chưa có bảng `nguon` — đọc thẳng nên phải hỏi trước, không tạo bảng.
+        co_nguon = con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='nguon'").fetchone()
+        nguon = dict(con.execute(
+            "SELECT loai, COUNT(*) FROM nguon GROUP BY loai").fetchall()) if co_nguon else {}
     finally:
         con.close()
 
@@ -63,7 +68,9 @@ def tom_tat_kho(path_nguon: str) -> dict:
 
     return {"so_ban": int(r["so_ban"] or 0), "so_ban_hieu_luc": int(r["so_hieu_luc"] or 0),
             "so_ky": int(r["so_ky"] or 0), "so_chi_nhanh": int(r["so_cn"] or 0),
-            "ky_dau": _ky(r["ky_min"]), "ky_cuoi": _ky(r["ky_max"])}
+            "ky_dau": _ky(r["ky_min"]), "ky_cuoi": _ky(r["ky_max"]),
+            "so_ky_bang_ke": int(nguon.get("bang_ke", 0)),
+            "so_ky_so_ban_hang": int(nguon.get("so_ban_hang", 0))}
 
 
 def nhap_gop(path_kho: str, path_nguon: str) -> dict:
@@ -91,9 +98,12 @@ def nhap_gop(path_kho: str, path_nguon: str) -> dict:
                 for c in ng.execute("SELECT * FROM snapshot_check WHERE snapshot_id=?", (s["id"],)):
                     dich.execute("INSERT INTO snapshot_check (snapshot_id,ma,ten,muc_do,so_loi,la_thong_ke) VALUES (?,?,?,?,?,?)",
                                  (moi, c["ma"], c["ten"], c["muc_do"], c["so_loi"], c["la_thong_ke"]))
-                d = ng.execute("SELECT du_lieu FROM snapshot_du_lieu WHERE snapshot_id=?", (s["id"],)).fetchone()
-                if d:
-                    dich.execute("INSERT INTO snapshot_du_lieu (snapshot_id,du_lieu) VALUES (?,?)", (moi, d[0]))
+                # Mọi phần đóng băng của bản chốt đi cùng nhau — thiếu bảng nào thì bản
+                # chốt gộp sang mất mốc so của nguồn đó (CĐPS, sổ bán hàng).
+                for bang in ("snapshot_du_lieu", "snapshot_cdps", "snapshot_so_ban_hang"):
+                    d = ng.execute(f"SELECT du_lieu FROM {bang} WHERE snapshot_id=?", (s["id"],)).fetchone()
+                    if d:
+                        dich.execute(f"INSERT INTO {bang} (snapshot_id,du_lieu) VALUES (?,?)", (moi, d[0]))
                 da_them += 1
                 cham.add((s["ky_nam"], s["ky_thang"], s["chi_nhanh"]))
             # Tính lại hiệu lực cho mỗi (kỳ,chi nhánh) bị chạm: bản thoi_diem_chot mới nhất = 1

@@ -56,6 +56,7 @@ function Noi() {
   const chonFile = async () => xuLyNap(await A.goi("chon_file", false));
   const chonNhieu = async () => xuLyNap(await A.goi("chon_nhieu_file"));
   const quet = async () => xuLyNap(await A.goi("quet_thu_muc"));
+  const napTuKho = async (khoa: string[]) => xuLyNap(await A.goi("nap_tu_kho", khoa));
 
   /* ----------------------------- kiểm tra -------------------------------- */
   const kiemTra = useCallback(async () => {
@@ -243,7 +244,8 @@ function Noi() {
             )
           )}
           {man === "kiemtra" && (
-            <ManChonFile nap={nap} tienTrinh={tt} onChonFile={chonFile} onChonNhieu={chonNhieu} onQuet={quet} onKiemTra={kiemTra} />
+            <ManChonFile nap={nap} tienTrinh={tt} onChonFile={chonFile} onChonNhieu={chonNhieu} onQuet={quet} onKiemTra={kiemTra}
+              onNapTuKho={napTuKho} xoaTienTrinh={() => setTt(null)} />
           )}
           {man === "lichsu" && <ManLichSu onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
           {man === "candoi" && <ManCanDoi onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}

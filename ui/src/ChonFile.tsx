@@ -1,8 +1,9 @@
-/** Màn "Kiểm tra khóa sổ" — trải rộng 2 cột: Bước 1 Cân đối phát sinh (CĐPS, bắt buộc)
- * | Bước 2 Bảng kê chứng từ + Kiểm tra (chặn cứng nếu còn chi nhánh thiếu CĐPS). */
+/** Màn "Kiểm tra khóa sổ" — 2 cột: (Bước 1 CĐPS + Bước 2 Sổ chi tiết bán hàng) | Bước 3
+ * Bảng kê chứng từ + Kiểm tra. Chặn cứng khi còn chi nhánh thiếu CĐPS, hoặc có bán hàng /
+ * trả lại mà thiếu sổ bán hàng (C3.2/C3.4 cần thuế từng dòng hàng). */
 import { useCallback, useEffect, useState } from "react";
 import * as A from "./api";
-import { laLoi, type ThongTinNap } from "./api";
+import { laLoi, type KetQuaNapSbh, type KyTrongKho, type NguonKho, type ThongTinNap } from "./api";
 import { cx, fso, Icon, IC, Modal, Nut, useToast } from "./ui";
 
 interface TrangThaiCdps { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; thoi_diem_nap?: string }
@@ -27,6 +28,10 @@ export interface ChonFileProps {
   onChonNhieu: () => void;
   onQuet: () => void;
   onKiemTra: () => void;
+  /** Dựng chi nhánh từ bảng kê ĐÃ LƯU trong kho (không cần chọn lại file). */
+  onNapTuKho: (khoa: string[]) => void;
+  /** Gỡ thanh tiến trình sau một việc chạy nền không đi qua App (nạp sổ bán hàng). */
+  xoaTienTrinh: () => void;
 }
 
 function DauBuoc({ n, tieuDe, phu, xong }: { n: number; tieuDe: string; phu: string; xong?: boolean }) {
@@ -69,6 +74,13 @@ export default function ManChonFile(p: ChonFileProps) {
   const [doi, setDoi] = useState<ThayDoiCdps[]>([]);
   const [hoi, setHoi] = useState<{ path: string; moi: TrungCdps[]; trung: TrungCdps[] } | null>(null);
   const [tick, setTick] = useState<Set<string>>(new Set());   // khóa các kỳ được chọn đè
+  const [tsSbh, setTsSbh] = useState<NguonKho[]>([]);
+  const [thieuSbh, setThieuSbh] = useState<ThieuCdps[]>([]);
+  const [khongCanSbh, setKhongCanSbh] = useState<string[]>([]);
+  const [dangNapSbh, setDangNapSbh] = useState(false);
+  const [kqSbh, setKqSbh] = useState<KetQuaNapSbh | null>(null);
+  const [khoKy, setKhoKy] = useState<KyTrongKho[] | null>(null);   // modal "Kiểm tra lại từ kho"
+  const [chonKho, setChonKho] = useState<Set<string>>(new Set());
   const dangChay = !!tienTrinh;
 
   const taiTs = useCallback(async () => {
@@ -76,6 +88,42 @@ export default function ManChonFile(p: ChonFileProps) {
     if (Array.isArray(r)) setTs(r as TrangThaiCdps[]);
   }, []);
   useEffect(() => { taiTs(); }, [taiTs]);
+  const taiTsSbh = useCallback(async () => {
+    const r = await A.goi("trang_thai_so_ban_hang");
+    if (Array.isArray(r)) setTsSbh(r);
+  }, []);
+  useEffect(() => { taiTsSbh(); }, [taiTsSbh]);
+
+  const taiThieuSbh = useCallback(() => {
+    if (!nap || nap.loi) { setThieuSbh([]); setKhongCanSbh([]); return; }
+    A.goi("thieu_so_ban_hang").then((r) => { if (Array.isArray(r)) setThieuSbh(r); });
+    A.goi("khong_can_so_ban_hang").then((r) => { if (Array.isArray(r)) setKhongCanSbh(r); });
+  }, [nap]);
+  useEffect(() => { taiThieuSbh(); }, [taiThieuSbh]);
+
+  // Sổ bán hàng: chọn thư mục -> nạp hết (thay sạch từng kỳ; kết quả nói rõ mới/đổi/giống).
+  const napSbh = async () => {
+    const r0 = await A.goi("chon_thu_muc", "");
+    if (laLoi(r0)) { toast(r0.loi); return; }
+    if (!r0 || (r0 as { huy?: boolean }).huy) return;
+    setDangNapSbh(true);
+    const r = await A.goi("nap_so_ban_hang_thu_muc", (r0 as { path: string }).path);
+    setDangNapSbh(false);
+    p.xoaTienTrinh();
+    if (laLoi(r)) { toast(r.loi); return; }
+    setKqSbh(r);
+    toast(r.nap.length
+      ? `Đã nạp sổ bán hàng ${r.nap.length} kỳ/chi nhánh${r.bo_qua.length ? ` · bỏ qua ${r.bo_qua.length} file` : ""}`
+      : `Không thấy sổ bán hàng hợp lệ (tên “So chi tiet ban hang A01 092026 …”). Bỏ qua ${r.bo_qua.length} file.`);
+    setTsSbh(r.trang_thai);
+    taiThieuSbh();
+  };
+
+  const moKhoKy = async () => {
+    const r = await A.goi("ky_trong_kho");
+    if (!Array.isArray(r) || !r.length) { toast("Kho chưa có bảng kê nào — nạp file bảng kê một lần trước."); return; }
+    setChonKho(new Set()); setKhoKy(r);
+  };
 
   useEffect(() => {
     if (!nap || nap.loi) { setThieu([]); setCu([]); return; }
@@ -130,10 +178,11 @@ export default function ManChonFile(p: ChonFileProps) {
     <div className="flex w-full flex-1 flex-col gap-4 overflow-auto p-5">
       <div>
         <h1 className="text-[20px] font-extrabold text-ink">Kiểm tra khóa sổ</h1>
-        <p className="mt-0.5 text-[13px] text-steel-500">Nạp <b>Cân đối phát sinh</b> (bắt buộc) → nạp <b>Bảng kê chứng từ</b> → chạy kiểm tra.</p>
+        <p className="mt-0.5 text-[13px] text-steel-500">Nạp <b>Cân đối phát sinh</b> → <b>Sổ chi tiết bán hàng</b> → <b>Bảng kê chứng từ</b> → chạy kiểm tra. Cả ba được lưu vào kho.</p>
       </div>
 
       <div className="grid flex-1 items-start gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
         {/* ------------------------------ BƯỚC 1 ------------------------------ */}
         <section className="flex flex-col gap-3 rounded-2xl border border-steel-200 bg-white p-5 shadow-card">
           <DauBuoc n={1} tieuDe="Cân đối phát sinh (CĐPS)" phu="Bắt buộc — để C7.6 trừ lỗ lũy kế" xong={coCdps} />
@@ -191,10 +240,51 @@ export default function ManChonFile(p: ChonFileProps) {
           )}
         </section>
 
-        {/* ------------------------------ BƯỚC 2 ------------------------------ */}
+        {/* ------------------------- BƯỚC 2 · SỔ BÁN HÀNG ------------------------- */}
+        <section className="flex flex-col gap-3 rounded-2xl border border-steel-200 bg-white p-5 shadow-card">
+          <DauBuoc n={2} tieuDe="Sổ chi tiết bán hàng" xong={tsSbh.length > 0}
+            phu="Bắt buộc khi kỳ có bán hàng / trả lại — soát thuế GTGT từng dòng hàng (C3.2, C3.4)" />
+          <div className={cx("rounded-xl px-3 py-2.5 text-[12.5px]", tsSbh.length ? "bg-xanh-nen text-xanh-dam" : "bg-vang-nen text-vang-dam")}>
+            {tsSbh.length
+              ? <>Đã có sổ bán hàng cho <b>{tsSbh.length}</b> kỳ/chi nhánh trong kho.</>
+              : <>Chưa có sổ bán hàng nào. Mỗi chi nhánh 1 file, tên “So chi tiet ban hang A01 092026”, xuất <b>cùng lúc</b> với bảng kê.</>}
+          </div>
+          <Nut bien={tsSbh.length ? "phu" : "chinh"} onClick={napSbh} disabled={dangNapSbh} className="justify-center">
+            <Icon d={IC.thu_muc} className="h-4 w-4" />{dangNapSbh ? "Đang nạp…" : tsSbh.length ? "Nạp thêm / nạp lại sổ bán hàng" : "Nạp sổ bán hàng (chọn thư mục)"}
+          </Nut>
+          {kqSbh && (kqSbh.nap.some((x) => x.ket_qua === "doi") || kqSbh.bo_qua.length > 0) && (
+            <div className="rounded-xl border border-vang-vien bg-vang-nen px-3 py-2.5 text-[12.5px] text-vang-dam">
+              {kqSbh.nap.filter((x) => x.ket_qua === "doi").map((x) => (
+                <div key={x.chi_nhanh + x.ky}>▲ <b>{x.chi_nhanh_ten || x.chi_nhanh}</b> · {x.ky}: KHÁC bản cũ trong kho — đã thay.</div>
+              ))}
+              {kqSbh.bo_qua.map((x) => <div key={x.file}>– Bỏ qua <b>{x.file}</b>: {x.ly_do}</div>)}
+            </div>
+          )}
+          {tsSbh.length > 0 && (
+            <div className="max-h-[200px] overflow-auto rounded-xl border border-steel-200">
+              <table className="w-full text-[12.5px]">
+                <thead className="sticky top-0 bg-steel-50 text-[11px] font-bold uppercase tracking-wide text-steel-400">
+                  <tr><th className="px-3 py-2 text-left">Chi nhánh</th><th className="px-3 py-2 text-left">Kỳ</th><th className="px-3 py-2 text-right">Số dòng</th></tr>
+                </thead>
+                <tbody>
+                  {tsSbh.map((t) => (
+                    <tr key={`${t.chi_nhanh}|${t.ky}`} className="border-t border-steel-100">
+                      <td className="px-3 py-1.5 font-semibold">{t.chi_nhanh_ten || t.chi_nhanh}</td>
+                      <td className="px-3 py-1.5 tabular-nums text-steel-500">{t.ky}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-steel-500">{fso(t.so_dong)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+        </div>
+
+        {/* ------------------------------ BƯỚC 3 ------------------------------ */}
         <section className={cx("relative flex flex-col gap-3 rounded-2xl border border-steel-200 bg-white p-5 shadow-card",
           !coCdps && "opacity-60")}>
-          <DauBuoc n={2} tieuDe="Bảng kê chứng từ" phu="Chọn file bảng kê rồi chạy kiểm tra" />
+          <DauBuoc n={3} tieuDe="Bảng kê chứng từ" phu="Chọn file bảng kê (tự lưu vào kho) rồi chạy kiểm tra" />
 
           {!coCdps && (
             <div className="absolute inset-0 z-20 grid place-items-center rounded-2xl bg-white/40">
@@ -217,6 +307,7 @@ export default function ManChonFile(p: ChonFileProps) {
               <Nut bien="phu" onClick={p.onChonFile}><Icon d={IC.file} className="h-4 w-4" />Chọn file…</Nut>
               <Nut bien="phu" onClick={p.onChonNhieu}><Icon d={IC.file} className="h-4 w-4" />Chọn nhiều file</Nut>
               <Nut bien="phu" onClick={p.onQuet}><Icon d={IC.thu_muc} className="h-4 w-4" />Nạp cả thư mục</Nut>
+              <Nut bien="phu" onClick={moKhoKy}><Icon d={IC.lam_moi} className="h-4 w-4" />Kiểm tra lại từ kho…</Nut>
             </div>
           </div>
 
@@ -243,6 +334,22 @@ export default function ManChonFile(p: ChonFileProps) {
                   })}
                 </div>
               )}
+              {dv.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {dv.map((d) => {
+                    const khongCan = khongCanSbh.includes(d.ma);
+                    const thieuD = thieuSbh.some((t) => t.chi_nhanh === d.ma);
+                    return (
+                      <span key={d.ma}
+                        className={cx("inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold",
+                          khongCan ? "bg-steel-100 text-steel-500" : thieuD ? "bg-do-nen text-do-dam" : "bg-xanh-nen text-xanh-dam")}>
+                        {khongCan ? "–" : thieuD ? "✕" : "✓"} {d.ten_hien || d.ma} · {khongCan ? "không cần sổ bán hàng" : thieuD ? "thiếu sổ bán hàng" : "có sổ bán hàng"}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              {nap.loi_kho && <div className="rounded-xl border border-vang-vien bg-vang-nen px-3 py-2 text-[12.5px] text-vang-dam">▲ {nap.loi_kho}</div>}
               <CanhBaoNgoaiKy nap={nap} />
             </>
           )}
@@ -252,6 +359,13 @@ export default function ManChonFile(p: ChonFileProps) {
             <div className="flex items-start gap-2 rounded-xl border border-do-vien bg-do-nen px-3 py-2.5 text-[12.5px] leading-snug text-do-dam">
               <Icon d={IC.x} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>Còn <b>{thieu.length}</b> chi nhánh chưa có CĐPS ({thieu.map((t) => t.chi_nhanh_ten || t.chi_nhanh).join(", ")}) — nạp CĐPS ở Bước 1 rồi mới Kiểm tra.</span>
+            </div>
+          )}
+
+          {nap && !nap.loi && thieuSbh.length > 0 && (
+            <div className="flex items-start gap-2 rounded-xl border border-do-vien bg-do-nen px-3 py-2.5 text-[12.5px] leading-snug text-do-dam">
+              <Icon d={IC.x} className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Còn <b>{thieuSbh.length}</b> chi nhánh có bán hàng/trả lại mà chưa có sổ chi tiết bán hàng ({thieuSbh.map((t) => `${t.chi_nhanh_ten || t.chi_nhanh} ${t.ky}`).join(", ")}) — nạp ở Bước 2 rồi mới Kiểm tra.</span>
             </div>
           )}
 
@@ -269,7 +383,7 @@ export default function ManChonFile(p: ChonFileProps) {
             </div>
           )}
 
-          <Nut bien="chinh" disabled={!nap || !!nap.loi || dangChay || thieu.length > 0} onClick={p.onKiemTra} className="justify-center py-3 text-[14px]">
+          <Nut bien="chinh" disabled={!nap || !!nap.loi || dangChay || thieu.length > 0 || thieuSbh.length > 0} onClick={p.onKiemTra} className="justify-center py-3 text-[14px]">
             <Icon d={IC.soKiemTra} className="h-4 w-4" />Kiểm tra
           </Nut>
 
@@ -287,6 +401,46 @@ export default function ManChonFile(p: ChonFileProps) {
           )}
         </section>
       </div>
+      {/* Kiểm tra lại từ kho: chọn (chi nhánh × kỳ) đã lưu bảng kê, khỏi chọn lại file. */}
+      <Modal mo={!!khoKy} dong={() => setKhoKy(null)} tieuDe="Kiểm tra lại từ kho" rong>
+        {khoKy && (
+          <div className="space-y-3 text-[13px]">
+            <p className="text-steel-600">Chọn kỳ/chi nhánh có bảng kê đã lưu. Dữ liệu là bản <b>lần nạp gần nhất</b> — muốn số mới thì nạp lại file.</p>
+            <div className="max-h-[45vh] overflow-auto rounded-xl border border-steel-200">
+              <table className="w-full text-[12.5px]">
+                <thead className="sticky top-0 bg-steel-50 text-[11px] font-bold uppercase tracking-wide text-steel-400">
+                  <tr><th className="w-9 px-3 py-2" /><th className="px-3 py-2 text-left">Chi nhánh</th><th className="px-3 py-2 text-left">Kỳ</th>
+                    <th className="px-3 py-2 text-right">Số dòng</th><th className="px-3 py-2 text-left">Nạp lúc</th>
+                    <th className="px-3 py-2 text-left">CĐPS</th><th className="px-3 py-2 text-left">Sổ bán hàng</th></tr>
+                </thead>
+                <tbody>
+                  {khoKy.map((k) => {
+                    const chon = chonKho.has(k.khoa);
+                    const doi = () => setChonKho((cu) => { const s2 = new Set(cu); if (chon) s2.delete(k.khoa); else s2.add(k.khoa); return s2; });
+                    return (
+                      <tr key={k.khoa} onClick={doi} className={cx("cursor-pointer border-t border-steel-100 hover:bg-steel-50", chon && "bg-navy/5")}>
+                        <td className="px-3 py-1.5 text-center"><input type="checkbox" className="accent-navy" checked={chon} onChange={doi} onClick={(e) => e.stopPropagation()} /></td>
+                        <td className="px-3 py-1.5 font-semibold">{k.chi_nhanh_ten || k.chi_nhanh}</td>
+                        <td className="px-3 py-1.5 tabular-nums">{k.ky}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{fso(k.so_dong)}</td>
+                        <td className="px-3 py-1.5 tabular-nums text-steel-500">{(k.thoi_diem_nap || "").replace("T", " ").slice(0, 16)}</td>
+                        <td className="px-3 py-1.5">{k.co_cdps ? "✓ có" : "✕ thiếu"}</td>
+                        <td className="px-3 py-1.5">{k.co_so_ban_hang ? "✓ có" : "– chưa có"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Nut bien="phu" onClick={() => setKhoKy(null)}>Hủy</Nut>
+              <Nut bien="chinh" disabled={!chonKho.size} onClick={() => { p.onNapTuKho([...chonKho]); setKhoKy(null); }}>
+                Dùng {chonKho.size} kỳ đã chọn
+              </Nut>
+            </div>
+          </div>
+        )}
+      </Modal>
       {/* Xác nhận trước khi ĐÈ: nạp lại thay sạch cả kỳ, mất số liệu cũ. */}
       <Modal mo={!!hoi} dong={() => setHoi(null)} tieuDe="Có kỳ đã nạp trước đó" rong>
         {hoi && (() => {

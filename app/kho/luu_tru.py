@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 from datetime import datetime
 
 import pandas as pd
@@ -10,12 +11,19 @@ from .. import cdps
 from . import quy_doi as _quy_doi
 from .ket_noi import mo_kho
 
+# Loại nguồn sống trong bảng `nguon`.
+BANG_KE, SO_BAN_HANG = "bang_ke", "so_ban_hang"
 
-def _nen(df: pd.DataFrame) -> bytes:
+
+def _json(df: pd.DataFrame) -> bytes:
     # orient="table" nhúng schema (dtype) → read lại KHÔNG trôi kiểu: chuỗi "0001"
     # vẫn là "0001" (không mất số 0 đầu), float không bị ép thành int. Nhờ vậy vân
     # tay/diff ổn định qua lưu/đọc mà chuoi_dong không phải coerce lossy.
-    return gzip.compress(df.to_json(orient="table", index=False).encode("utf-8"))
+    return df.to_json(orient="table", index=False).encode("utf-8")
+
+
+def _nen(df: pd.DataFrame) -> bytes:
+    return gzip.compress(_json(df))
 
 
 def _giai_nen(blob: bytes) -> pd.DataFrame:
@@ -58,6 +66,13 @@ class KhoChotSo:
             if len(cd):
                 self.con.execute("INSERT INTO snapshot_cdps (snapshot_id, du_lieu) VALUES (?,?)",
                                  (sid, _nen(cd)))
+            # Sổ bán hàng cũng đóng băng (v5) — chép thẳng BLOB, không giải nén.
+            r = self.con.execute(
+                "SELECT du_lieu FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+                (SO_BAN_HANG, chi_nhanh, ky_nam, ky_thang)).fetchone()
+            if r:
+                self.con.execute("INSERT INTO snapshot_so_ban_hang (snapshot_id, du_lieu) VALUES (?,?)",
+                                 (sid, r[0]))
         return sid
 
     def doc_hieu_luc(self, ky_nam, ky_thang, chi_nhanh) -> dict | None:
@@ -72,6 +87,12 @@ class KhoChotSo:
         r = self.con.execute("SELECT du_lieu FROM snapshot_cdps WHERE snapshot_id=?",
                              (snapshot_id,)).fetchone()
         return _giai_nen(r["du_lieu"]) if r else pd.DataFrame()
+
+    def doc_so_ban_hang_snapshot(self, snapshot_id) -> pd.DataFrame:
+        """Sổ bán hàng đóng băng lúc chốt; RỖNG nếu chốt khi chưa nạp sổ (≠ "không đổi")."""
+        r = self.con.execute("SELECT du_lieu FROM snapshot_so_ban_hang WHERE snapshot_id=?",
+                             (snapshot_id,)).fetchone()
+        return _giai_nen(r[0]) if r else pd.DataFrame()
 
     def doc_du_lieu(self, snapshot_id) -> pd.DataFrame:
         r = self.con.execute("SELECT du_lieu FROM snapshot_du_lieu WHERE snapshot_id=?", (snapshot_id,)).fetchone()
@@ -194,4 +215,54 @@ class KhoChotSo:
             """SELECT chi_nhanh, ky_nam, ky_thang, MAX(thoi_diem_nap) AS thoi_diem_nap
                FROM cdps GROUP BY chi_nhanh, ky_nam, ky_thang
                ORDER BY ky_nam DESC, ky_thang DESC, chi_nhanh""").fetchall()
+        return [dict(r) for r in rows]
+
+    # ---- NGUỒN SỐNG (v5): bảng kê + sổ bán hàng theo (loại × chi nhánh × kỳ) ----
+    def luu_nguon(self, loai, chi_nhanh, ky_nam, ky_thang, df, ten_file="", mtime_file="",
+                  thoi_diem=None) -> str:
+        """Ghi một nguồn; trả "moi" | "doi" | "giong".
+
+        Nạp lại đúng y hệt (cùng vân tay) thì KHÔNG ghi lại BLOB, chỉ chạm thời điểm nạp
+        + mốc file — cùng lý do `xac_nhan_cdps`: dấu thời gian phải là LẦN CUỐI đối chiếu
+        với file, không thì cảnh báo độ tươi kêu oan.
+        """
+        thoi_diem = thoi_diem or datetime.now().isoformat(timespec="seconds")
+        js = _json(df)
+        vt = hashlib.sha256(js).hexdigest()
+        khoa = (loai, chi_nhanh, int(ky_nam), int(ky_thang))
+        cu = self.con.execute(
+            "SELECT van_tay FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+            khoa).fetchone()
+        with self.con:
+            if cu and cu[0] == vt:
+                self.con.execute(
+                    "UPDATE nguon SET thoi_diem_nap=?, ten_file=?, mtime_file=? "
+                    "WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+                    (thoi_diem, ten_file, mtime_file, *khoa))
+                return "giong"
+            self.con.execute(
+                """INSERT OR REPLACE INTO nguon (loai, chi_nhanh, ky_nam, ky_thang, du_lieu,
+                     so_dong, van_tay, ten_file, mtime_file, thoi_diem_nap)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (*khoa, gzip.compress(js), int(len(df)), vt, ten_file, mtime_file, thoi_diem))
+        return "doi" if cu else "moi"
+
+    def doc_nguon(self, loai, chi_nhanh, ky_nam, ky_thang) -> pd.DataFrame | None:
+        """None = chưa nạp (khác frame rỗng)."""
+        r = self.con.execute(
+            "SELECT du_lieu FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+            (loai, chi_nhanh, int(ky_nam), int(ky_thang))).fetchone()
+        return _giai_nen(r[0]) if r else None
+
+    def co_nguon(self, loai, chi_nhanh, ky_nam, ky_thang) -> bool:
+        return self.con.execute(
+            "SELECT 1 FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+            (loai, chi_nhanh, int(ky_nam), int(ky_thang))).fetchone() is not None
+
+    def trang_thai_nguon(self, loai) -> list[dict]:
+        """Danh sách (chi nhánh × kỳ) đã có nguồn `loai` — KHÔNG kèm BLOB."""
+        rows = self.con.execute(
+            """SELECT chi_nhanh, ky_nam, ky_thang, so_dong, ten_file, mtime_file, thoi_diem_nap
+               FROM nguon WHERE loai=? ORDER BY ky_nam DESC, ky_thang DESC, chi_nhanh""",
+            (loai,)).fetchall()
         return [dict(r) for r in rows]

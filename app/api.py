@@ -12,11 +12,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import cap_nhat, cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report
+from . import cap_nhat, cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report, so_ban_hang
 from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
-from .kho import KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
-from .loader import ThongTinFile, doc_nhieu_bang_ke, tim_file_excel, tim_file_moi_nhat
+from .kho import BANG_KE, SO_BAN_HANG, KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
+from .loader import (ThongTinFile, doc_nhieu_bang_ke, thong_ke_ngoai_ky, tim_file_excel,
+                     tim_file_moi_nhat)
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
 # Gốc DỮ LIỆU (cấu hình/kho/báo cáo). Bản đóng gói trỏ sang thư mục người dùng;
@@ -64,6 +65,18 @@ def _gop_tom_tat(dv: list[dict]) -> dict:
 def _khoa_ky(ma: str, nam: int, thang: int) -> str:
     """Khóa nhận dạng một (chi nhánh × kỳ) để tick chọn ghi đè từng dòng."""
     return f"{ma}|{thang:02d}/{nam}"
+
+
+def _can_so_ban_hang(df: pd.DataFrame) -> bool:
+    """Kỳ có bán hàng (Nợ 131/Có 511) hoặc trả lại (Nợ 5213/Có 131) thì C3.2/C3.4 cần sổ
+    chi tiết bán hàng. Không có thì không đòi — chi nhánh không bán hàng (vd HO) không
+    bao giờ có file để nộp, đòi là chặn nó vĩnh viễn."""
+    if df is None or df.empty:
+        return False
+    no = df["DebitAccount"].fillna("").astype(str)
+    co = df["CreditAccount"].fillna("").astype(str)
+    return bool(((no.str.startswith("131") & co.str.startswith("511"))
+                 | (no.str.startswith("5213") & co.str.startswith("131"))).any())
 
 
 @dataclass
@@ -232,6 +245,7 @@ class JsApi:
             "ky": " · ".join(dict.fromkeys(d.tt.ky for d in self._dv)),
             "so_dong": sum(d.tt.so_dong for d in self._dv),
             "tong_ps": sum(d.tt.tong_ps for d in self._dv),
+            "loi_kho": getattr(self, "_loi_kho", ""),
             "don_vi": [{"ma": d.nhan, "ten_hien": self._ten(d.nhan), "ky": d.tt.ky,
                         "so_dong": d.tt.so_dong,
                         "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten,
@@ -259,6 +273,9 @@ class JsApi:
                 ket["ds"] = doc_nhieu_bang_ke(paths, on_file=_bao)
             except Exception as e:  # noqa: BLE001  (chuyển lỗi về luồng chính để ném lại)
                 ket["loi"] = e
+                return
+            tt_doc["ten"] = "lưu vào kho"
+            ket["loi_kho"] = self._luu_bang_ke_vao_kho(ket["ds"])
 
         luong = threading.Thread(target=_chay, daemon=True)
         self._tien_trinh("Đang đọc dữ liệu từ Excel…", 0)
@@ -271,10 +288,13 @@ class JsApi:
                 nhan = f"Đang đọc {tt_doc['ten']} ({tt_doc['i']}/{tong}) · {giay}s"
             else:
                 nhan = f"Đang đọc dữ liệu từ Excel… · {giay}s"
+            if tt_doc["ten"] == "lưu vào kho":
+                nhan = f"Đang lưu bảng kê vào kho… · {giay}s"
             self._tien_trinh(nhan, 0)   # 0 -> chế độ không xác định (vệt sáng CSS chạy)
         if "loi" in ket:
             raise ket["loi"]
 
+        self._loi_kho = ket.get("loi_kho") or ""
         self._dv = [DonVi(df, tt) for df, tt in ket["ds"]]
         self._i = 0
         self._duong_dan = list(paths)
@@ -282,6 +302,24 @@ class JsApi:
         don_vi = f" · {len(self._dv)} chi nhánh" if len(self._dv) > 1 else ""
         self._tien_trinh(f"Đã đọc {_dinh_dang_so(n)} dòng{don_vi}", 85)
         return self._thong_tin_nap()
+
+    def _luu_bang_ke_vao_kho(self, ds) -> str:
+        """Ghi từng (chi nhánh × kỳ) vừa đọc vào bảng `nguon` — để kiểm tra lại từ kho
+        không cần file. Trả "" hoặc lời báo lỗi: kho hỏng/mới hơn KHÔNG được chặn việc
+        kiểm tra (dữ liệu đã nằm trong bộ nhớ), chỉ mất phần lưu."""
+        try:
+            kho = self._kho()
+        except Exception as e:  # noqa: BLE001
+            return f"Không lưu được bảng kê vào kho: {e}"
+        try:
+            for df, tt in ds:
+                kho.luu_nguon(BANG_KE, tt.chi_nhanh or tt.ten, tt.ky_nam, tt.ky_thang, df,
+                              tt.ten, tt.mtime_file)
+            return ""
+        except Exception as e:  # noqa: BLE001
+            return f"Không lưu được bảng kê vào kho: {e}"
+        finally:
+            kho.dong()
 
     def _nap_file(self, path: str) -> dict:
         return self._nap_nhieu([path])
@@ -352,12 +390,13 @@ class JsApi:
             t_nap = datetime.fromisoformat(nap)
         except ValueError:
             return None
-        # Bảng kê của một chi nhánh có thể đến từ nhiều file -> lấy file MỚI NHẤT.
-        moc = [Path(p).stat().st_mtime for p in (d.tt.cac_file or [d.tt.path])
-               if p and Path(p).exists()]
-        if not moc:
+        # Mốc kết xuất bảng kê (file MỚI NHẤT của chi nhánh) do loader ghi sẵn — nạp từ
+        # kho thì là mốc đã lưu cùng nguồn. (Trước v5 đọc lại mtime từ `cac_file`, mà đó
+        # là TÊN file chứ không phải đường dẫn -> cảnh báo này gần như không bao giờ bật.)
+        try:
+            t_bk = datetime.fromisoformat(getattr(d.tt, "mtime_file", "") or "")
+        except ValueError:
             return None
-        t_bk = datetime.fromtimestamp(max(moc))
         if t_nap >= t_bk:
             return None
         return {"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),
@@ -375,6 +414,12 @@ class JsApi:
             return []
         return [m for m in (self._moc_lech_cdps(d) for d in self._dv) if m]
 
+    def _so_ban_hang_cua(self, d: "DonVi"):
+        """Sổ chi tiết bán hàng của đúng (chi nhánh × kỳ); None nếu chưa nạp."""
+        return self._cdps_neu_co(lambda kho: kho.doc_nguon(SO_BAN_HANG, d.nhan, d.tt.ky_nam, d.tt.ky_thang)
+                                 if kho.co_nguon(SO_BAN_HANG, d.nhan, d.tt.ky_nam, d.tt.ky_thang)
+                                 else pd.DataFrame())
+
     def _cdps_truoc(self, d: "DonVi"):
         """CĐPS của kỳ liền trước — để so biến động hai kỳ; None nếu chưa nạp."""
         return self._cdps_neu_co(lambda kho: kho.doc_cdps_ky_truoc(d.nhan, d.tt.ky_nam, d.tt.ky_thang))
@@ -383,7 +428,8 @@ class JsApi:
         """Chạy toàn bộ check + suy 18 bước cho MỘT chi nhánh, trên frame của riêng nó."""
         ctx = BoiCanh(d.tt.ky_thang, d.tt.ky_nam, lo_luy_ke_dau=self._lo_luy_ke_dau(d),
                       cdps=self._cdps_cua(d), cdps_truoc=self._cdps_truoc(d),
-                      cdps_cu_hon=self._moc_lech_cdps(d) is not None)
+                      cdps_cu_hon=self._moc_lech_cdps(d) is not None,
+                      so_ban_hang=self._so_ban_hang_cua(d))
         d.ket_qua = checks.chay_tat_ca(d.df, ctx, on_progress=on_progress)
         d.kq = {r.ma: r for r in d.ket_qua}
         d.trang_thai = suy_trang_thai(d.df, d.kq)
@@ -721,6 +767,154 @@ class JsApi:
                     for r in kho.trang_thai_cdps()]
         finally:
             kho.dong()
+
+    # ---- Sổ chi tiết bán hàng (nguồn thứ 3, v5) ----
+    def nap_so_ban_hang_thu_muc(self, thu_muc: str = ""):
+        """Nạp mọi sổ chi tiết bán hàng trong thư mục vào kho (thay sạch từng kỳ).
+
+        Không hỏi trước khi đè như CĐPS: sổ này chỉ là nguồn đọc của C3.2/C3.4 và được
+        đóng băng riêng lúc chốt sổ, nên mất bản cũ không mất mốc đối chiếu nào. Kết quả
+        vẫn nói rõ từng kỳ là MỚI / ĐỔI so với bản trong kho / GIỐNG HỆT.
+
+        Đọc Excel chậm (~3-5 s/file) -> chạy ở LUỒNG NỀN, luồng js_api chỉ đập nhịp
+        (evaluate_js giữa pha nặng đồng bộ từng treo cứng WebView2).
+        """
+        ds = [p for p in tim_file_excel(thu_muc or self.thu_muc_source)]
+        tt_doc: dict = {"ten": "", "i": 0}
+        ket: dict = {"nap": [], "bo_qua": []}
+
+        def _lam():
+            try:
+                kho = self._kho()
+            except Exception as e:  # noqa: BLE001
+                ket["loi"] = f"Không mở được kho: {e}"
+                return
+            try:
+                for p in ds:
+                    ten = Path(p).name
+                    tt_doc["i"] += 1
+                    tt_doc["ten"] = ten
+                    if so_ban_hang.suy_branch_ky(p) is None:
+                        ket["bo_qua"].append({"file": ten, "ly_do": "tên file không có mã chi nhánh + MMYYYY"})
+                        continue
+                    try:
+                        df, m = so_ban_hang.doc_so_ban_hang(p)
+                    except so_ban_hang.KhongPhaiSoBanHang as e:
+                        ket["bo_qua"].append({"file": ten, "ly_do": str(e)})
+                        continue
+                    except Exception as e:  # noqa: BLE001 (file hỏng/đang khóa: bỏ qua, nạp tiếp)
+                        ket["bo_qua"].append({"file": ten, "ly_do": f"không đọc được: {e}"})
+                        continue
+                    mt = datetime.fromtimestamp(os.path.getmtime(p)).isoformat(timespec="seconds")
+                    kieu = kho.luu_nguon(SO_BAN_HANG, m.ma, m.nam, m.thang, df, ten, mt)
+                    ket["nap"].append({"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
+                                       "ky": f"{m.thang:02d}/{m.nam}", "file": ten,
+                                       "so_dong": int(len(df)), "ket_qua": kieu})
+            except Exception as e:  # noqa: BLE001
+                ket["loi"] = f"Không nạp được sổ bán hàng: {e}"
+            finally:
+                kho.dong()
+
+        luong = threading.Thread(target=_lam, daemon=True)
+        luong.start()
+        t0 = time.monotonic()
+        while luong.is_alive():
+            luong.join(timeout=0.35)
+            self._tien_trinh(f"Đang đọc sổ bán hàng {tt_doc['ten']} ({tt_doc['i']}/{len(ds)})"
+                             f" · {int(time.monotonic() - t0)}s", 0)
+        if "loi" in ket:
+            return {"loi": ket["loi"]}
+        return {**ket, "trang_thai": self.trang_thai_so_ban_hang()}
+
+    def trang_thai_so_ban_hang(self):
+        """(chi nhánh × kỳ) đã có sổ bán hàng trong kho — cho màn nạp."""
+        return self._trang_thai_nguon(SO_BAN_HANG)
+
+    def _trang_thai_nguon(self, loai: str) -> list[dict]:
+        if not Path(self._duong_dan_kho()).exists():
+            return []
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return []
+        try:
+            return [{"chi_nhanh": r["chi_nhanh"], "chi_nhanh_ten": self._ten(r["chi_nhanh"]),
+                     "ky": f'{int(r["ky_thang"]):02d}/{r["ky_nam"]}',
+                     "ky_nam": int(r["ky_nam"]), "ky_thang": int(r["ky_thang"]),
+                     "so_dong": int(r["so_dong"]), "file": r["ten_file"] or "",
+                     "thoi_diem_nap": r["thoi_diem_nap"]}
+                    for r in kho.trang_thai_nguon(loai)]
+        finally:
+            kho.dong()
+
+    def thieu_so_ban_hang(self):
+        """Chi nhánh đang nạp có bán hàng/trả lại mà kỳ đó CHƯA có sổ bán hàng — CHẶN CỨNG
+        nút Kiểm tra (không có sổ thì C3.2/C3.4 không kiểm được thuế từng dòng hàng)."""
+        can = [d for d in self._dv if _can_so_ban_hang(d.df)]
+        if not can:
+            return []
+        mo_ta = lambda d: {"chi_nhanh": d.nhan, "chi_nhanh_ten": self._ten(d.nhan),  # noqa: E731
+                           "ky": f"{d.tt.ky_thang:02d}/{d.tt.ky_nam}"}
+        if not Path(self._duong_dan_kho()).exists():
+            return [mo_ta(d) for d in can]
+        try:
+            kho = self._kho()
+        except Exception:  # noqa: BLE001
+            return [mo_ta(d) for d in can]
+        try:
+            return [mo_ta(d) for d in can
+                    if not kho.co_nguon(SO_BAN_HANG, d.nhan, d.tt.ky_nam, d.tt.ky_thang)]
+        finally:
+            kho.dong()
+
+    def khong_can_so_ban_hang(self):
+        """Mã chi nhánh đang nạp KHÔNG có bán hàng/trả lại — UI hiện "– không cần"."""
+        return [d.nhan for d in self._dv if not _can_so_ban_hang(d.df)]
+
+    # ---- Kiểm tra lại từ kho (không cần chọn lại file bảng kê) ----
+    def ky_trong_kho(self):
+        """Mọi (chi nhánh × kỳ) đã có bảng kê trong kho, kèm cờ đủ nguồn CĐPS / sổ bán hàng."""
+        bk = self._trang_thai_nguon(BANG_KE)
+        if not bk:
+            return []
+        cd = {(r["chi_nhanh"], r["ky"]) for r in self.trang_thai_cdps()}
+        sbh = {(r["chi_nhanh"], r["ky"]) for r in self.trang_thai_so_ban_hang()}
+        return [{**r, "khoa": _khoa_ky(r["chi_nhanh"], r["ky_nam"], r["ky_thang"]),
+                 "co_cdps": (r["chi_nhanh"], r["ky"]) in cd,
+                 "co_so_ban_hang": (r["chi_nhanh"], r["ky"]) in sbh} for r in bk]
+
+    def nap_tu_kho(self, khoa: list):
+        """Dựng các chi nhánh từ bảng kê ĐÃ LƯU trong kho. `khoa`: ["A01|09/2026", …]."""
+        try:
+            kho = self._kho()
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không mở được kho: {e}"}
+        try:
+            meta = {(r["chi_nhanh"], int(r["ky_nam"]), int(r["ky_thang"])): r
+                    for r in kho.trang_thai_nguon(BANG_KE)}
+            dv = []
+            for k in khoa or []:
+                cn, ky = str(k).rsplit("|", 1)
+                thang, nam = (int(x) for x in ky.split("/"))
+                r = meta.get((cn, nam, thang))
+                df = kho.doc_nguon(BANG_KE, cn, nam, thang) if r else None
+                if df is None:
+                    return {"loi": f"Kho không có bảng kê {cn} kỳ {ky}"}
+                so_nk, nk = thong_ke_ngoai_ky(df, thang, nam)
+                dv.append(DonVi(df, ThongTinFile(
+                    path="", ten=r["ten_file"] or f"{cn} (từ kho)", ky=f"{thang:02d}/{nam}",
+                    ky_thang=thang, ky_nam=nam, so_dong=len(df),
+                    tong_ps=float(df["Amount"].sum()), chi_nhanh=cn,
+                    cac_file=[r["ten_file"] or ""], so_dong_ngoai_ky=so_nk, ngoai_ky=nk,
+                    mtime_file=r["mtime_file"] or "")))
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không đọc được bảng kê từ kho: {e}"}
+        finally:
+            kho.dong()
+        if not dv:
+            return {"loi": "Chưa chọn kỳ nào"}
+        self._dv, self._i, self._duong_dan, self._loi_kho = dv, 0, [], ""
+        return self._thong_tin_nap()
 
     def _co_don_vi_da_chot(self) -> bool:
         """True nếu có chi nhánh đang nạp đã được chốt (có snapshot hiệu lực) — dùng

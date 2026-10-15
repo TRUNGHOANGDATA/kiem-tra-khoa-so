@@ -11,6 +11,10 @@ def _export_canh_app_vao_tmp(tmp_path, monkeypatch):
     thật. Ép về tmp_path cho MỌI test để không bao giờ chạm thư mục thật. Test nào
     cần giá trị riêng cứ monkeypatch đè lại (thắng fixture này)."""
     monkeypatch.setattr("app.duong_dan.thu_muc_cai_dat", lambda: tmp_path)
+    # Từ v5 việc NẠP bảng kê cũng ghi vào kho SQLite — mọi JsApi() không tự ép
+    # `_thu_muc_kho` sẽ ghi vào kho THẬT của người dùng (đã từng xảy ra: 12 snapshot rác).
+    # Ép gốc dữ liệu về tmp_path cho MỌI test; test nào cần gốc riêng cứ patch đè.
+    monkeypatch.setattr("app.api.GOC", tmp_path)
 
 MAC_DINH = {
     # PC = phiếu chi, cố ý KHÔNG thuộc DOC_DIEU_CHUYEN để dòng mặc định vẫn bị C1.4 soi
@@ -65,6 +69,23 @@ def tao_cdps(rows: list[dict]) -> pd.DataFrame:
     for c in COT_CDPS[2:8]:
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0).astype(float)
     return df
+
+
+MAC_DINH_SBH = {
+    "DocNo": "0051998", "DocCode": "HD", "DocDate": "2026-08-15", "TransCode": "2301",
+    "DebitAccount2": "1311", "CreditAccount2": "51111",
+    "CustomerCode": "KH01", "CustomerName": "Khách A", "ItemCode": "H101", "ItemName": "Tôn",
+    "Unit": "M", "Description": None,
+    "Quantity": 10.0, "UnitPrice": 100_000.0, "Amount": 900_000.0,
+    "Amount2": 1_000_000.0, "Amount3": 80_000.0,
+}
+
+
+def tao_sbh(rows: list[dict]) -> pd.DataFrame:
+    """Sổ chi tiết bán hàng giả (dạng sau app.so_ban_hang.chuan_hoa): mặc định là một
+    dòng bán Nợ 1311/Có 51111 CÓ thuế 8%."""
+    from app.so_ban_hang import chuan_hoa
+    return chuan_hoa(pd.DataFrame([{**MAC_DINH_SBH, **r} for r in rows], columns=list(MAC_DINH_SBH)))
 
 
 @pytest.fixture
