@@ -41,12 +41,11 @@ do hai nguyên nhân gốc:
 1. **Chứng từ "thuế một phần" (5 CT, 5 dòng):** hóa đơn có dòng 33311 nhưng vài dòng hàng
    thuế = 0 → check mức chứng từ cho qua. Vd `0051998`: 3 dòng hàng, 2 có thuế, dòng
    `H101PK0000072` 1.386.000 không thuế. Cùng loại: `0051113`, `0051551`, `0051566`, `0051976`.
-2. **Dòng không gắn TaxCode (4 CT, 6 dòng, 74,4 tr — khách FOD):** check cũ đòi
+2. **Dòng không gắn TaxCode (4 CT, 6 dòng, 74,4 tr — cùng một khách):** check cũ đòi
    `TaxCode` chịu thuế mới xét → dòng để trống mã thuế (chính là quên nhập VAT) bị loại.
    `0052763`, `0053483`, `0053678`, `0054063`.
 
-Phân bố 31 dòng 09/2026: **30 dòng TransCode 2304** (khách Thép Việt Xô & các CN, Vhome,
-FOD), 1 dòng 2301. Theo chốt 21/09 của KTTH: ngoài 2303/2110, thiếu thuế = thiếu thật.
+Phân bố 31 dòng 09/2026: **30 dòng TransCode 2304** (bán cho các công ty trong nhóm), 1 dòng 2301. Theo chốt 21/09 của KTTH: ngoài 2303/2110, thiếu thuế = thiếu thật.
 
 **Danh mục loại giao dịch** (`1. Source/Danh mục loại giao dịch.xlsx`) xác nhận luật này:
 
@@ -97,8 +96,8 @@ thuế đầu ra tương ứng). Đối xứng với C3.2 (Nợ 131/Có 511).
 
 | A01 | C3.4 (Nợ 521 / Có 131, thuế 0) |
 |---|---|
-| 09/2026 | **6 dòng · 1 CT · −6.810.000** (`NM2609-000806`, Tiến Viên — trả lại do đặt thừa) |
-| 08/2026 | **20 dòng · 10 CT · −32.676.776** (vd `NM2608-001234` Vhome 7 dòng, `NM2608-000847` −10,4 tr) |
+| 09/2026 | **6 dòng · 1 CT · −6.810.000** (1 phiếu trả lại do khách đặt thừa) |
+| 08/2026 | **20 dòng · 10 CT · −32.676.776** (phiếu lớn nhất −10,4 tr) |
 
 Lọc đối ứng 131 tự loại trả lại nội bộ 52133/1368. Vẫn giữ điều kiện `TransCode` ∉ nội bộ
 (2303/2110) như C3.2 — phòng nội bộ hạch toán qua 1311 (đã gặp ở C3.2, memory 21/09); hiện

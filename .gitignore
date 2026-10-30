@@ -22,3 +22,6 @@ ui/.vite/
 # Bo cai / dong goi
 /build/
 *.spec.bak
+
+# Backup bo nho Claude (chi luu tren may, co so lieu that) — KHONG commit
+_backup_claude/

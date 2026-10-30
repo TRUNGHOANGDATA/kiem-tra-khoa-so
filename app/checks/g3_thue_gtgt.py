@@ -51,7 +51,7 @@ def _dong_thue_0(sbh: pd.DataFrame, mat_na_tk: pd.Series) -> pd.Series:
     - Ngoài giao dịch nội bộ (TransCode 2303/2110 — bán/trả lại CHI NHÁNH, cùng pháp
       nhân). 2304/2112 là "Công ty nội bộ" = pháp nhân khác → VẪN phải có thuế.
     - KHÔNG xét TaxCode: dòng để trống mã thuế chính là dòng quên nhập VAT (A01 09/2026:
-      6 dòng khách FOD, 74,4 tr — check cũ trên bảng kê bỏ lọt vì đòi TaxCode).
+      6 dòng của cùng một khách, 74,4 tr — check cũ trên bảng kê bỏ lọt vì đòi TaxCode).
     """
     return mat_na_tk & sbh["Amount3"].eq(0) & sbh["Amount2"].ne(0) & ~_noi_bo(sbh)
 

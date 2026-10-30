@@ -47,9 +47,9 @@ def test_c32_bat_dong_thue_0_trong_chung_tu_co_thue_mot_phan(ctx):
 
 
 def test_c32_khong_xet_taxcode_dong_trong_ma_thue_van_bi_bat(ctx):
-    """Nguyên nhân gốc #2: dòng không gắn mã thuế (khách FOD, 74,4 tr) bị check cũ loại vì
+    """Nguyên nhân gốc #2: dòng không gắn mã thuế (một khách, 74,4 tr) bị check cũ loại vì
     đòi TaxCode chịu thuế. Sổ bán hàng không có TaxCode — thuế 0 là đủ để bắt."""
-    sbh = tao_sbh([{"TransCode": "2304", "CustomerName": "Công ty cổ phần FOD", "Amount3": 0}])
+    sbh = tao_sbh([{"TransCode": "2304", "CustomerName": "Công ty X", "Amount3": 0}])
     assert _kq(tao_df([]), ctx, sbh)["C3.2"].so_loi == 1
 
 
@@ -84,15 +84,15 @@ def test_c32_giu_ma_2110_du_hien_chua_khop_dong_nao():
 
 def test_c34_tra_lai_131_thue_0_bi_bat(ctx):
     sbh = tao_sbh([
-        {"DocCode": "TL", "DocNo": "NM2609-000806", "TransCode": "2107",
+        {"DocCode": "TL", "DocNo": "TL-0001", "TransCode": "2107",
          "DebitAccount2": "52131", "CreditAccount2": "1311",
          "Quantity": -120, "Amount2": -1_320_000, "Amount3": 0},
-        {"DocCode": "TL", "DocNo": "NM2609-000900", "TransCode": "2107",
+        {"DocCode": "TL", "DocNo": "TL-0002", "TransCode": "2107",
          "DebitAccount2": "52131", "CreditAccount2": "1311",
          "Quantity": -10, "Amount2": -1_000_000, "Amount3": -80_000},       # có giảm thuế
     ])
     kq = _kq(tao_df([]), ctx, sbh)
-    assert kq["C3.4"].chi_tiet["DocNo"].tolist() == ["NM2609-000806"]
+    assert kq["C3.4"].chi_tiet["DocNo"].tolist() == ["TL-0001"]
     assert kq["C3.2"].so_loi == 0, "trả lại không được lọt sang C3.2"
 
 
