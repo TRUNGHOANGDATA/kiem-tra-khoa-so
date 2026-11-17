@@ -159,7 +159,7 @@ def _sheet_danh_sach_loi(writer, fmt, ds) -> None:
 def _sheet_chi_tiet_gop(writer, fmt, ds) -> None:
     """Chi tiết từng dòng vi phạm, gom theo CHECK và gắn cột "Chi nhánh".
 
-    Gom theo check chứ không theo chi nhánh vì Excel chỉ cho 255 sheet: 60 check × 8
+    Gom theo check chứ không theo chi nhánh vì Excel chỉ cho 255 sheet: 61 check × 8
     chi nhánh là vỡ, còn 60 sheet thì luôn vừa dù bao nhiêu chi nhánh. Đổi lại mỗi
     dòng phải tự khai thuộc chi nhánh nào.
     """

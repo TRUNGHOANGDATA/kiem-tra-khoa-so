@@ -1,7 +1,7 @@
 """Nhóm 2 — Định khoản bất thường."""
 import pandas as pd
 
-from .base import VANG, BoiCanh, CheckResult, bat_dau, tao_ket_qua
+from .base import DO, VANG, BoiCanh, CheckResult, bat_dau, fmt_so, tao_ket_qua
 
 NHOM = "G2"
 # C2.4 — quy đổi ngoại tệ luôn có sai số làm tròn, nên ngưỡng phải THEO TỶ LỆ.
@@ -49,7 +49,89 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
     kq.append(tao_ket_qua(df[ngoai_te & lech], "C2.4", "Lệch quy đổi ngoại tệ", NHOM, VANG,
                           "Amount ≠ OriginalAmount × ExchangeRate",
                           ghi_chu=f"Bỏ qua chênh dưới {TY_LE_LECH_TY_GIA:.1%} do làm tròn quy đổi"))
+    kq.append(_c25(df))
     return kq
+
+
+# C2.5 — BÁN TSCĐ CHUYỂN GIAO SANG KHAY C: thu 711 phải BẰNG giá trị còn lại (GTCL).
+# Người dùng chốt 16–17/11/2026: tách pháp nhân không phải giao dịch kinh tế, hóa đơn bán
+# xuất đúng GTCL → Có 711 = Nợ 811/Có 21x, không được ghi chênh. Lệch là ✕ ĐỎ.
+#
+# Cách tính lấy NGUYÊN từ dự án Power BI (`giai_trinh_chuyen_giao_tscd.py`, sheet
+# "TSCĐ - theo khay"); chạy trên file 15/11 ra đúng 5 số Power BI đã báo. Hai chỗ khác
+# (red-team 17/11): thu chỉ lấy dòng Nợ 131 — tên khách khớp cả các chi nhánh của pháp nhân
+# nhận (phạt trừ lương Nợ 334/Có 711…) sinh ĐỎ giả ở 6 khay; và tính RÒNG (trừ bút toán
+# đảo Nợ 711/Có 131, Nợ 21x/Có 811) để kế toán sửa xong thì cảnh báo tắt được.
+#
+# Phần tất toán CCDC / chi phí chờ phân bổ (Nợ 811/Có 24x, 6xx, 15x) bán kèm KHÔNG vào
+# GTCL — y như Power BI; chỉ nêu số trong ghi chú để kế toán đối chiếu.
+KHACH_NHAN = "thành phố hồ chí minh"            # tên khách của pháp nhân nhận chuyển giao
+TU_KHOA_NOI_BO = ("bán hà nội", "an giang")     # diễn giải: chuyển nội bộ pháp nhân cũ
+TU_KHOA_NHAN = "hcm"                            # diễn giải KHÔNG có -> cũng là nội bộ
+# Hóa đơn làm tròn NGHÌN ĐỒNG theo từng tài sản (ghép 1-1 đo được: lệch vài nghìn đồng/TS).
+# A08 file 15/11: 53 TS lệch tổng 48đ — Power BI coi là khớp; ngưỡng 1đ sẽ báo ĐỎ giả.
+NGUONG_C25_MOI_TS = 1_000.0
+COT_C25 = ["DocCode", "DocNo", "DocDate", "Description", "CustomerName", "DebitAccount",
+           "CreditAccount", "Amount"]
+
+
+def _chua(s: pd.Series, *tu: str) -> pd.Series:
+    t = s.fillna("").astype(str).str.lower()
+    m = pd.Series(False, index=s.index)
+    for x in tu:
+        m |= t.str.contains(x, regex=False)
+    return m
+
+
+def _c25(df: pd.DataFrame) -> CheckResult:
+    ten = "Bán TSCĐ chuyển giao: thu 711 ≠ giá trị còn lại"
+    no, co = df["DebitAccount"], df["CreditAccount"]
+    df = df[~bat_dau(no, "911") & ~bat_dau(co, "911")]
+    no, co = df["DebitAccount"], df["CreditAccount"]
+    khach = (_chua(df["CustomerName"], KHACH_NHAN) if "CustomerName" in df.columns
+             else pd.Series(False, index=df.index))
+    mo_ta = df["Description"] if "Description" in df.columns else pd.Series("", index=df.index)
+    noi_bo = _chua(mo_ta, *TU_KHOA_NOI_BO) | ~_chua(mo_ta, TU_KHOA_NHAN)
+
+    thu = khach & bat_dau(no, "131") & bat_dau(co, "711")
+    thu_dao = khach & bat_dau(no, "711") & bat_dau(co, "131")
+    gt = bat_dau(no, "811") & bat_dau(co, "21") & ~noi_bo
+    gt_dao = bat_dau(no, "21") & bat_dau(co, "811") & ~noi_bo
+    thue_vao_711 = khach & bat_dau(no, "133") & bat_dau(co, "711")
+
+    if not (thu | thu_dao | gt | gt_dao).any():
+        r = CheckResult("C2.5", ten, NHOM, DO, pd.DataFrame(columns=COT_C25 + ["loai_but_toan", "ly_do"]),
+                        "Kỳ này không có bán TSCĐ chuyển giao sang khay C — không xét")
+        r.la_thong_ke = True
+        return r
+
+    tien = df["Amount"]
+    so_thu = float(tien[thu].sum() - tien[thu_dao].sum())
+    so_gt = float(tien[gt].sum() - tien[gt_dao].sum())
+    chenh = so_thu - so_gt
+    gt_nb = bat_dau(no, "811") & bat_dau(co, "21") & noi_bo
+    tat_toan = bat_dau(no, "811") & (bat_dau(co, "24", "6", "15"))
+    ghi_chu = (f"Thu 711 {fmt_so(so_thu)} − GTCL {fmt_so(so_gt)} = chênh {fmt_so(chenh)} (phải = 0)."
+               f" Thông tin, không vào chênh: GTCL chuyển nội bộ {fmt_so(tien[gt_nb].sum())};"
+               f" tất toán CCDC/chi phí chờ phân bổ (Nợ 811/Có 24x, 6xx, 15x) {fmt_so(tien[tat_toan].sum())}"
+               f" → Thu − GTCL − tất toán = {fmt_so(chenh - tien[tat_toan].sum())}."
+               f" Ngưỡng làm tròn 1.000đ × {max(1, int(gt.sum()))} tài sản.")
+    if thue_vao_711.any():
+        ghi_chu += f" ⚠ Có {int(thue_vao_711.sum())} dòng Nợ 133/Có 711 (thuế đầu vào ghi thu nhập khác)."
+    nguong = NGUONG_C25_MOI_TS * max(1, int(gt.sum()))
+    if abs(chenh) <= nguong:
+        return CheckResult("C2.5", ten, NHOM, DO, pd.DataFrame(columns=COT_C25 + ["loai_but_toan", "ly_do"]),
+                           ghi_chu)
+
+    loai = pd.Series("", index=df.index, dtype="object")
+    loai[thu], loai[thu_dao] = "Thu 711 (Nợ 131/Có 711)", "Đảo thu 711 (Nợ 711/Có 131)"
+    loai[gt], loai[gt_dao] = "GTCL TSCĐ (Nợ 811/Có 21x)", "Đảo GTCL (Nợ 21x/Có 811)"
+    loai[thue_vao_711] = "⚠ Nợ 133/Có 711 — bất thường"
+    m = loai.ne("")
+    ct = df.loc[m, [c for c in COT_C25 if c in df.columns]].copy()
+    ct["loai_but_toan"] = loai[m]
+    ct["ly_do"] = f"Thu 711 − GTCL = {fmt_so(chenh)} (luật: phải = 0)"
+    return CheckResult("C2.5", ten, NHOM, DO, ct.reset_index(drop=True), ghi_chu)
 
 
 def _bang_nhau(df: pd.DataFrame, cot_a: str, cot_b: str) -> pd.Series:

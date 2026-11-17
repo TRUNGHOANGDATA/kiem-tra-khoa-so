@@ -39,6 +39,8 @@ TEN_COT = {
     "DebitAccount2": "TK Nợ", "CreditAccount2": "TK Có",
     "Quantity": "Số lượng", "UnitPrice": "Đơn giá bán",
     "Amount2": "Doanh thu", "Amount3": "Thuế GTGT",
+    # C2.5 bán TSCĐ chuyển giao
+    "loai_but_toan": "Loại bút toán",
 }
 # Cột canh phải & định dạng số — một danh sách duy nhất cho cả giao diện lẫn Excel.
 COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",

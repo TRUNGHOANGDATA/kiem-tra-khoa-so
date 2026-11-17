@@ -7,8 +7,8 @@ def _kq(df, ctx):
     return {r.ma: r for r in g2.kiem_tra(df, ctx)}
 
 
-def test_du_4_ma(ctx):
-    assert [r.ma for r in g2.kiem_tra(tao_df([{}]), ctx)] == ["C2.1", "C2.2", "C2.3", "C2.4"]
+def test_du_5_ma(ctx):
+    assert [r.ma for r in g2.kiem_tra(tao_df([{}]), ctx)] == ["C2.1", "C2.2", "C2.3", "C2.4", "C2.5"]
 
 
 def test_c21_thieu_doi_tuong_cong_no(ctx):
