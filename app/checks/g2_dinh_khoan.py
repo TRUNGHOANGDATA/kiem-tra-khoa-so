@@ -50,6 +50,7 @@ def kiem_tra(df: pd.DataFrame, ctx: BoiCanh) -> list[CheckResult]:
                           "Amount ≠ OriginalAmount × ExchangeRate",
                           ghi_chu=f"Bỏ qua chênh dưới {TY_LE_LECH_TY_GIA:.1%} do làm tròn quy đổi"))
     kq.append(_c25(df))
+    kq.append(_c26(df))
     return kq
 
 
@@ -83,15 +84,20 @@ def _chua(s: pd.Series, *tu: str) -> pd.Series:
     return m
 
 
-def _c25(df: pd.DataFrame) -> CheckResult:
-    ten = "Bán TSCĐ chuyển giao: thu 711 ≠ giá trị còn lại"
-    no, co = df["DebitAccount"], df["CreditAccount"]
-    df = df[~bat_dau(no, "911") & ~bat_dau(co, "911")]
-    no, co = df["DebitAccount"], df["CreditAccount"]
+def _chuyen_giao(df: pd.DataFrame):
+    """(df bỏ đối ứng 911, mặt nạ khách pháp nhân nhận, mặt nạ diễn giải nội bộ) — chung C2.5/C2.6."""
+    df = df[~bat_dau(df["DebitAccount"], "911") & ~bat_dau(df["CreditAccount"], "911")]
     khach = (_chua(df["CustomerName"], KHACH_NHAN) if "CustomerName" in df.columns
              else pd.Series(False, index=df.index))
     mo_ta = df["Description"] if "Description" in df.columns else pd.Series("", index=df.index)
     noi_bo = _chua(mo_ta, *TU_KHOA_NOI_BO) | ~_chua(mo_ta, TU_KHOA_NHAN)
+    return df, khach, noi_bo
+
+
+def _c25(df: pd.DataFrame) -> CheckResult:
+    ten = "Bán TSCĐ chuyển giao: thu 711 ≠ giá trị còn lại"
+    df, khach, noi_bo = _chuyen_giao(df)
+    no, co = df["DebitAccount"], df["CreditAccount"]
 
     thu = khach & bat_dau(no, "131") & bat_dau(co, "711")
     thu_dao = khach & bat_dau(no, "711") & bat_dau(co, "131")
@@ -146,3 +152,64 @@ def _bang_nhau(df: pd.DataFrame, cot_a: str, cot_b: str) -> pd.Series:
     a = df[cot_a].astype("string").fillna("")
     b = df[cot_b].astype("string").fillna("")
     return a == b
+
+
+# C2.6 — HÀNG HÓA CHUYỂN GIAO SANG KHAY C: doanh thu hàng hóa/thành phẩm phải BẰNG giá vốn.
+# Người dùng chốt 17/11/2026: lệch là ▲ VÀNG, ngưỡng 0đ. Gốc là sheet "Hàng hoá - theo khay"
+# của Power BI; sửa theo red-team 17/11 (đo kỳ 10):
+#   - PHẠM VI: chỉ khay × kỳ có chuyển giao TSCĐ (GTCL Nợ 811/Có 21x không nội bộ). Chạy theo
+#     "chứng từ có khách pháp nhân nhận" trên mọi khay thì bắt cả bán hàng thường có lãi của khay
+#     khác cho chi nhánh pháp nhân nhận, và khay C bán cho chính nó -> VÀNG giả 6 khay. Giới
+#     hạn: tháng chỉ chuyển hàng mà không chuyển TSCĐ thì không xét (ghi rõ ở ghi chú).
+#   - CHỈ 5111/5112 (hàng hóa, thành phẩm) + 521: chứng từ của khách pháp nhân nhận còn có 5113
+#     (cho thuê xe, phần mềm — không có giá vốn) làm chênh sai dấu ở A04/A07; 5113/5118 chỉ ghi chú.
+#   - RÒNG (Có − Nợ), như C2.5: điều chỉnh ghi số âm cả hai chiều (Nợ 131/Có 511 âm; Nợ 511/Có 131
+#     âm) — tính gộp thì kế toán sửa xong ▲ không tắt. Bỏ dòng kết chuyển nội tại 511↔521.
+#   - Nhóm chứng từ theo `Id` (không có thì DocCode·DocNo). Dòng giá vốn KHÔNG SỐ chứng từ (A07: 208
+#     dòng Nợ 632) tự mang tên khách pháp nhân nhận nên vào diện theo chính nó.
+TK_DT_HANG = ("5111", "5112", "521")
+COT_C26 = ["DocCode", "DocNo", "Description", "doanh_thu", "gia_von", "chenh", "ly_do"]
+
+
+def _c26(df: pd.DataFrame) -> CheckResult:
+    ten = "Hàng hóa chuyển giao: doanh thu ≠ giá vốn"
+    rong = pd.DataFrame(columns=COT_C26)
+    df, khach, noi_bo = _chuyen_giao(df)
+    no, co = df["DebitAccount"], df["CreditAccount"]
+    co_tscd = (bat_dau(no, "811") & bat_dau(co, "21") & ~noi_bo).any()
+    if not co_tscd or not khach.any():
+        r = CheckResult("C2.6", ten, NHOM, VANG, rong,
+                        "Khay × kỳ này không chuyển giao TSCĐ sang khay C — không xét"
+                        " (C2.6 chỉ xét kỳ có chuyển giao TSCĐ)")
+        r.la_thong_ke = True
+        return r
+    dp = df["DocCode"].fillna("").astype(str) + "·" + df["DocNo"].fillna("").astype(str)
+    khoa = (df["Id"].astype("string").fillna(dp) if "Id" in df.columns else dp)
+    ct = khoa.isin(set(khoa[khach]))
+    noi_tai = bat_dau(no, "511", "521") & bat_dau(co, "511", "521")      # kết chuyển 511<->521
+    tien = df["Amount"]
+    dt_co, dt_no = ct & bat_dau(co, *TK_DT_HANG) & ~noi_tai, ct & bat_dau(no, *TK_DT_HANG) & ~noi_tai
+    gv_no, gv_co = ct & bat_dau(no, "632"), ct & bat_dau(co, "632")
+    dt_dong = tien.where(dt_co, 0.0) - tien.where(dt_no, 0.0)
+    gv_dong = tien.where(gv_no, 0.0) - tien.where(gv_co, 0.0)
+    so_dt, so_gv = float(dt_dong[ct].sum()), float(gv_dong[ct].sum())
+    chenh = so_dt - so_gv
+    dv = float(tien[ct & bat_dau(co, "5113", "5118")].sum() - tien[ct & bat_dau(no, "5113", "5118")].sum())
+    thue_vao_dt = ct & bat_dau(no, "133") & bat_dau(co, "511")
+    ghi_chu = (f"Doanh thu hàng (5111/5112, trừ 521, ròng) {fmt_so(so_dt)} − giá vốn (632 ròng) {fmt_so(so_gv)}"
+               f" = chênh {fmt_so(chenh)} (phải = 0). Thông tin, không vào chênh: doanh thu dịch vụ/khác"
+               f" (5113/5118) {fmt_so(dv)}.")
+    if thue_vao_dt.any():
+        ghi_chu += f" ⚠ Có {int(thue_vao_dt.sum())} dòng Nợ 133/Có 511 (thuế đầu vào ghi doanh thu)."
+    if abs(chenh) < 1:
+        return CheckResult("C2.6", ten, NHOM, VANG, rong, ghi_chu)
+    g = pd.DataFrame({"khoa": khoa[ct], "dt": dt_dong[ct], "gv": gv_dong[ct]})
+    tong = g.groupby("khoa", sort=False)[["dt", "gv"]].sum()
+    tong = tong[(tong["dt"] - tong["gv"]).abs() >= 1]
+    dau = df[ct].assign(khoa=khoa[ct]).drop_duplicates("khoa").set_index("khoa").reindex(tong.index)
+    bang = pd.DataFrame({"DocCode": dau["DocCode"].values, "DocNo": dau["DocNo"].values,
+                         "Description": dau["Description"].values,
+                         "doanh_thu": tong["dt"].values, "gia_von": tong["gv"].values,
+                         "chenh": (tong["dt"] - tong["gv"]).values})
+    bang["ly_do"] = f"Tổng khay: doanh thu − giá vốn = {fmt_so(chenh)} (luật: phải = 0)"
+    return CheckResult("C2.6", ten, NHOM, VANG, bang.reset_index(drop=True), ghi_chu)

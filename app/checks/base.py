@@ -41,6 +41,8 @@ TEN_COT = {
     "Amount2": "Doanh thu", "Amount3": "Thuế GTGT",
     # C2.5 bán TSCĐ chuyển giao
     "loai_but_toan": "Loại bút toán",
+    # C2.6 hàng hóa chuyển giao
+    "doanh_thu": "Doanh thu", "gia_von": "Giá vốn", "chenh": "Chênh DT − GV",
 }
 # Cột canh phải & định dạng số — một danh sách duy nhất cho cả giao diện lẫn Excel.
 COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",
@@ -48,7 +50,8 @@ COT_SO_HIEN_THI = ("Amount", "ps_no", "ps_co", "net", "tong", "so_dong",
                    "don_gia", "don_gia_pho_bien", "so_lan_xuat", "tong_ps",
                    "nguong_tk", "so_lan",
                    "so_do", "so_vang", "so_chua_lam", "so_can_ra",
-                   "Quantity", "UnitPrice", "Amount2", "Amount3")
+                   "Quantity", "UnitPrice", "Amount2", "Amount3",
+                   "doanh_thu", "gia_von", "chenh")
 # Cột số CÓ PHẦN THẬP PHÂN — làm tròn 0 chữ số ở đây là nói sai sự thật: số lượng
 # 0,059 in ra "0" đọc đúng thành "không có số lượng", ngược hẳn với dòng đang được
 # nêu. Cột Quantity9 của Bravo mang tới 9 chữ số thập phân (xem fmt_sl).
