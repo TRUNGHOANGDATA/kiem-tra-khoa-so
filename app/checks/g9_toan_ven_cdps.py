@@ -67,16 +67,23 @@ def _c92(la: pd.DataFrame) -> CheckResult:
 
 
 def _c93(cdps: pd.DataFrame, la: pd.DataFrame) -> CheckResult:
-    """TK cha (dòng nhóm) phải bằng tổng các TK con là dòng lá."""
+    """TK cha (dòng nhóm) phải bằng tổng các TK con.
+
+    Có cột `cha` (cây Bravo Id/ParentId, kho v6): con = các dòng nhận nó làm cha TRỰC TIẾP —
+    danh mục Bravo có con khác đầu số (62781/62782 dưới 6277). Không có (CĐPS nạp trước v6):
+    lùi về con = dòng lá cùng đầu số như cũ."""
     if "is_group" not in cdps.columns:
         return CheckResult("C9.3", "Tài khoản cha ≠ tổng tài khoản con", NHOM, DO, pd.DataFrame())
     # Chỉ xét TK cha THẬT (bỏ dòng "Tổng cộng:" số hiệu rỗng — nó không phải tài khoản).
     nhom = cdps[cdps["is_group"].fillna(0).astype(bool) & cd.tk_that(cdps)]
     ma_la = la["account"].fillna("").astype(str).str.strip()
+    co_cay = "cha" in cdps.columns and cdps["cha"].notna().any()
+    ma_cha = cdps["cha"].fillna("").astype(str).str.strip() if co_cay else None
     dong, ly_do = [], []
     for _, cha in nhom.iterrows():
         ma = str(cha["account"]).strip()
-        con = la[ma_la.str.startswith(ma) & (ma_la != ma)]
+        con = (cdps[ma_cha.eq(ma)] if co_cay
+               else la[ma_la.str.startswith(ma) & (ma_la != ma)])
         if con.empty:
             continue                      # nhóm không có dòng lá -> không kết luận
         sai = [f"{cd.NHAN_COT[c]}: cha {fmt_so(float(cha[c] or 0))}"

@@ -1,5 +1,5 @@
 """Định nghĩa bảng kho chốt sổ + phiên bản schema (để migrate nhẹ)."""
-PHIEN_BAN_SCHEMA = 5
+PHIEN_BAN_SCHEMA = 6
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS quy_doi_chi_nhanh (
@@ -12,7 +12,8 @@ DDL = [
         account TEXT NOT NULL, ten TEXT,
         du_dau_no REAL, du_dau_co REAL, ps_no REAL, ps_co REAL,
         du_cuoi_no REAL, du_cuoi_co REAL,
-        is_group INTEGER, level INTEGER, thoi_diem_nap TEXT
+        is_group INTEGER, level INTEGER, thoi_diem_nap TEXT,
+        cha TEXT
     )""",
     "CREATE INDEX IF NOT EXISTS ix_cdps ON cdps (chi_nhanh, ky_nam, ky_thang, account)",
     """CREATE TABLE IF NOT EXISTS snapshot (

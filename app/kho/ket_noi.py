@@ -49,8 +49,12 @@ def mo_kho(path: str) -> sqlite3.Connection:
             con.close()
             raise PhienBanMoiHon(f"Kho phiên bản {pb} > tool {schema.PHIEN_BAN_SCHEMA}. Hãy cập nhật tool.")
         if pb < schema.PHIEN_BAN_SCHEMA:
-            # Bảng mới (nếu có) đã được DDL `IF NOT EXISTS` ở trên tạo sẵn; chỉ cần
-            # nâng số phiên bản. (Migrate cần ALTER dữ liệu thì chèn thêm ở đây.)
+            # Bảng mới (nếu có) đã được DDL `IF NOT EXISTS` ở trên tạo sẵn; cột mới thì ALTER.
+            # v6: cdps.cha = số hiệu TK cha theo cây Bravo (Id/ParentId). Dòng cũ để NULL ->
+            # C9.3 lùi về so theo đầu số cho kỳ đó.
+            cot = {r[1] for r in con.execute("PRAGMA table_info(cdps)")}
+            if "cha" not in cot:
+                con.execute("ALTER TABLE cdps ADD COLUMN cha TEXT")
             con.execute("UPDATE schema_version SET phien_ban = ?", (schema.PHIEN_BAN_SCHEMA,))
             con.commit()
     return con

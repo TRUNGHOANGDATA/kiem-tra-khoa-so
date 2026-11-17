@@ -91,6 +91,21 @@ def _so(s: pd.Series) -> pd.Series:
     return pd.to_numeric(lam_sach, errors="coerce").fillna(0.0)
 
 
+def tk_cha(raw: pd.DataFrame) -> pd.Series:
+    """Số hiệu TK CHA của từng dòng theo cây Bravo (`Id`/`ParentId`); None nếu file không có
+    hai cột này hoặc dòng gốc.
+
+    Không suy cha theo đầu số: danh mục Bravo có TK con KHÁC đầu số cha — 62781/62782 ("chi
+    phí bằng tiền khác") khai dưới 6277 ở mọi khay kỳ 10/2026, nên dòng 6277 đã gồm cả chúng.
+    So theo đầu số thì C9.3 báo "cha ≠ tổng con" giả ở 12/14 khay."""
+    if "Id" not in raw.columns or "ParentId" not in raw.columns:
+        return pd.Series([None] * len(raw), index=raw.index, dtype="object")
+    tk = raw["Account"].fillna("").astype(str).str.strip()
+    theo_id = dict(zip(raw["Id"].astype(str).str.strip(), tk))
+    cha = [theo_id.get(str(p).strip()) or None for p in raw["ParentId"]]
+    return pd.Series(cha, index=raw.index, dtype="object")
+
+
 def doc_cdps(path: str) -> tuple[pd.DataFrame, MetaCdps]:
     """Đọc CĐPS -> (DataFrame chuẩn hóa, MetaCdps). Ném KhongPhaiCdps nếu tên file
     không suy được kỳ hoặc thiếu cột chuẩn."""
@@ -109,5 +124,6 @@ def doc_cdps(path: str) -> tuple[pd.DataFrame, MetaCdps]:
         df[k] = _so(raw[COT_NGUON[k]])
     df["is_group"] = raw["IsGroup"].astype(str).str.strip().str.lower().isin(("true", "1"))
     df["level"] = pd.to_numeric(raw["Level"], errors="coerce").fillna(-1).astype(int)
+    df["cha"] = tk_cha(raw)
     ma, nam, thang = meta
     return df, MetaCdps(ma, nam, thang)

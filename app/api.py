@@ -709,7 +709,12 @@ class JsApi:
                         # Số liệu THẬT SỰ khác mà người dùng chọn giữ bản cũ thì KHÔNG
                         # chạm — lúc đó kho đúng là chưa khớp file, cảnh báo phải còn.
                         if kho.so_sanh_cdps(m.ma, m.nam, m.thang, df) is None:
-                            kho.xac_nhan_cdps(m.ma, m.nam, m.thang)
+                            # Số liệu y hệt: ghi lại để bổ sung cột TK cha (kho < v6), cũng
+                            # chạm dấu thời gian như xac_nhan_cdps.
+                            if kho.thieu_cha_cdps(m.ma, m.nam, m.thang) and df["cha"].notna().any():
+                                kho.luu_cdps(m.ma, m.nam, m.thang, df)
+                            else:
+                                kho.xac_nhan_cdps(m.ma, m.nam, m.thang)
                             mo_ta = {**mo_ta, "da_doi_chieu": True}
                         bo_qua_trung.append(mo_ta)
                         continue

@@ -134,12 +134,20 @@ class KhoChotSo:
                              (chi_nhanh, ky_nam, ky_thang))
             self.con.executemany(
                 """INSERT INTO cdps (chi_nhanh, ky_nam, ky_thang, account, ten, du_dau_no,
-                     du_dau_co, ps_no, ps_co, du_cuoi_no, du_cuoi_co, is_group, level, thoi_diem_nap)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                     du_dau_co, ps_no, ps_co, du_cuoi_no, du_cuoi_co, is_group, level, thoi_diem_nap, cha)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 [(chi_nhanh, ky_nam, ky_thang, r.account, r.ten,
                   float(r.du_dau_no), float(r.du_dau_co), float(r.ps_no), float(r.ps_co),
-                  float(r.du_cuoi_no), float(r.du_cuoi_co), int(bool(r.is_group)), int(r.level), thoi_diem)
+                  float(r.du_cuoi_no), float(r.du_cuoi_co), int(bool(r.is_group)), int(r.level), thoi_diem,
+                  (r.cha if isinstance(getattr(r, "cha", None), str) and r.cha else None))
                  for r in df.itertuples(index=False)])
+
+    def thieu_cha_cdps(self, chi_nhanh, ky_nam, ky_thang) -> bool:
+        """CĐPS trong kho của kỳ này nạp trước v6 (chưa có cột TK cha) — nạp lại sẽ bổ sung."""
+        r = self.con.execute(
+            "SELECT COUNT(*) FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=? AND cha IS NOT NULL",
+            (chi_nhanh, ky_nam, ky_thang)).fetchone()
+        return int(r[0]) == 0
 
     def xac_nhan_cdps(self, chi_nhanh, ky_nam, ky_thang, thoi_diem=None) -> None:
         """Ghi nhận "đã đối chiếu CĐPS kỳ này với file lúc này" — KHÔNG đụng số liệu.
@@ -175,7 +183,7 @@ class KhoChotSo:
     def doc_cdps(self, chi_nhanh, ky_nam, ky_thang) -> pd.DataFrame:
         rows = self.con.execute(
             """SELECT account, ten, du_dau_no, du_dau_co, ps_no, ps_co, du_cuoi_no, du_cuoi_co,
-                      is_group, level
+                      is_group, level, cha
                FROM cdps WHERE chi_nhanh=? AND ky_nam=? AND ky_thang=? ORDER BY account""",
             (chi_nhanh, ky_nam, ky_thang)).fetchall()
         return pd.DataFrame([dict(r) for r in rows])
