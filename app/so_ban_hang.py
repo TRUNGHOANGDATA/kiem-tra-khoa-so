@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from .loader import chuan_hoa_id, la_ma_gop  # noqa: F401  (la_ma_gop dùng ở api)
+
 # mã chi nhánh (chữ + số) + khoảng trắng + MMYYYY ở BẤT KỲ đâu trong tên file
 RE_TEN = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]+\d+)\s+(\d{2})(\d{4})(?!\d)")
 
@@ -60,6 +62,10 @@ def chuan_hoa(raw: pd.DataFrame) -> pd.DataFrame:
     for c in COT_CHUOI:
         s = raw[c] if c in raw.columns else pd.Series(None, index=raw.index, dtype="object")
         df[c] = s.astype("string").str.strip().astype("object")
+    if "Id" in raw.columns:
+        # Id chứng từ = Id trong bảng kê — khóa DUY NHẤT để tách sổ GỘP (A00/C00/T00, không
+        # có cột chi nhánh) về từng khay. DocNo trùng giữa các khay nên không dùng được.
+        df["Id"] = chuan_hoa_id(raw["Id"])
     df["DocDate"] = pd.to_datetime(raw["DocDate"], errors="coerce")
     for c in COT_SO:
         s = raw[c] if c in raw.columns else 0
@@ -86,3 +92,22 @@ def doc_so_ban_hang(path: str) -> tuple[pd.DataFrame, MetaSoBanHang]:
                 f"{Path(path).name}: tên file ghi kỳ {thang:02d}/{nam} nhưng chứng từ thuộc "
                 f"kỳ {int(pho_bien) % 100:02d}/{int(pho_bien) // 100}")
     return df, MetaSoBanHang(ma, nam, thang)
+
+
+def tach_theo_id(sbh: pd.DataFrame, id_theo_khay: dict) -> tuple[dict, pd.DataFrame]:
+    """Tách sổ GỘP về từng khay theo `Id` chứng từ trong bảng kê cùng kỳ.
+
+    `id_theo_khay`: {khay: tập Id của bảng kê khay đó}. Trả ({khay: phần sổ}, phần KHÔNG
+    khớp khay nào). Phần không khớp phải được đếm và báo — không mặc định là hàng tặng:
+    kỳ 10/2026 có Id bán thu tiền ngay không nằm trong bảng kê nào.
+    """
+    if "Id" not in sbh.columns:
+        return {}, sbh
+    ve_khay: dict = {}
+    for khay, ids in id_theo_khay.items():
+        for i in ids:
+            ve_khay.setdefault(i, khay)
+    gan = sbh["Id"].map(ve_khay)
+    phan = {str(k): sbh[gan == k].reset_index(drop=True)
+            for k in sorted(gan.dropna().unique())}
+    return phan, sbh[gan.isna()].reset_index(drop=True)

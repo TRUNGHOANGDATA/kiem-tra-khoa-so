@@ -8,7 +8,7 @@ import BangChiTiet from "./BangChiTiet";
 import ModalChot from "./ModalChot";
 import ModalCaiDat from "./ModalCaiDat";
 import ManLichSu from "./LichSu";
-import ManCanDoi from "./CanDoi";
+import ManDuLieuDaNap from "./DuLieuDaNap";
 import ManThayDoi from "./ThayDoi";
 import nen from "./assets/nen.png";
 import logo from "./assets/logo.png";
@@ -19,7 +19,7 @@ type TienTrinh = { ten: string; pct: number } | null;
 const NAV: { id: ManHinh; nhan: string; icon: React.ReactNode }[] = [
   { id: "tongquan", nhan: "Tổng quan", icon: IC.home },
   { id: "kiemtra", nhan: "Kiểm tra khóa sổ", icon: IC.soKiemTra },
-  { id: "candoi", nhan: "Cân đối phát sinh", icon: IC.bar },
+  { id: "candoi", nhan: "Dữ liệu đã nạp", icon: IC.bar },
   { id: "thaydoi", nhan: "Thay đổi từ khi chốt", icon: IC.lock },
   { id: "lichsu", nhan: "Lịch sử", icon: IC.clock },
 ];
@@ -248,7 +248,7 @@ function Noi() {
               onNapTuKho={napTuKho} xoaTienTrinh={() => setTt(null)} />
           )}
           {man === "lichsu" && <ManLichSu onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
-          {man === "candoi" && <ManCanDoi onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
+          {man === "candoi" && <ManDuLieuDaNap onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
           {man === "thaydoi" && <ManThayDoi onQuayLai={() => setMan(kq ? "tongquan" : "kiemtra")} />}
           </div>
         </main>

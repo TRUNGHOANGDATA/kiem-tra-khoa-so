@@ -249,13 +249,21 @@ export default function ManChonFile(p: ChonFileProps) {
               ? <>Đã có sổ bán hàng cho <b>{tsSbh.length}</b> kỳ/chi nhánh trong kho.</>
               : <>Chưa có sổ bán hàng nào. Mỗi chi nhánh 1 file, tên “So chi tiet ban hang A01 092026”, xuất <b>cùng lúc</b> với bảng kê.</>}
           </div>
+          <div className="text-[12px] text-steel-500">File gộp nhiều khay (“So chi tiet ban hang <b>T00</b> 102026”, cả A00/C00) được tách về từng khay theo bảng kê — <b>nạp bảng kê (Bước 3) trước</b>, rồi nạp sổ.</div>
           <Nut bien={tsSbh.length ? "phu" : "chinh"} onClick={napSbh} disabled={dangNapSbh} className="justify-center">
             <Icon d={IC.thu_muc} className="h-4 w-4" />{dangNapSbh ? "Đang nạp…" : tsSbh.length ? "Nạp thêm / nạp lại sổ bán hàng" : "Nạp sổ bán hàng (chọn thư mục)"}
           </Nut>
-          {kqSbh && (kqSbh.nap.some((x) => x.ket_qua === "doi") || kqSbh.bo_qua.length > 0) && (
+          {kqSbh && (kqSbh.nap.some((x) => x.ket_qua === "doi" || x.ket_qua === "cu_hon")
+                     || kqSbh.bo_qua.length > 0 || (kqSbh.khong_khop ?? []).length > 0) && (
             <div className="rounded-xl border border-vang-vien bg-vang-nen px-3 py-2.5 text-[12.5px] text-vang-dam">
               {kqSbh.nap.filter((x) => x.ket_qua === "doi").map((x) => (
-                <div key={x.chi_nhanh + x.ky}>▲ <b>{x.chi_nhanh_ten || x.chi_nhanh}</b> · {x.ky}: KHÁC bản cũ trong kho — đã thay.</div>
+                <div key={x.chi_nhanh + x.ky + x.file}>▲ <b>{x.chi_nhanh_ten || x.chi_nhanh}</b> · {x.ky}: KHÁC bản cũ trong kho — đã thay{x.tu_gop ? ` (tách từ file gộp ${x.tu_gop})` : ""}.</div>
+              ))}
+              {kqSbh.nap.filter((x) => x.ket_qua === "cu_hon").map((x) => (
+                <div key={x.chi_nhanh + x.ky + x.file}>▲ <b>{x.chi_nhanh_ten || x.chi_nhanh}</b> · {x.ky}: <b>{x.file}</b> CŨ HƠN bản trong kho mà khác nội dung — giữ bản trong kho.</div>
+              ))}
+              {(kqSbh.khong_khop ?? []).map((x) => (
+                <div key={x.file + x.ky}>▲ <b>{x.file}</b> · {x.ky}: {fso(x.so_dong)} dòng ({fso(x.so_ct)} chứng từ) không thuộc khay nào có bảng kê trong kho — chưa nạp phần này.</div>
               ))}
               {kqSbh.bo_qua.map((x) => <div key={x.file}>– Bỏ qua <b>{x.file}</b>: {x.ly_do}</div>)}
             </div>
@@ -351,6 +359,12 @@ export default function ManChonFile(p: ChonFileProps) {
               )}
               {nap.loi_kho && <div className="rounded-xl border border-vang-vien bg-vang-nen px-3 py-2 text-[12.5px] text-vang-dam">▲ {nap.loi_kho}</div>}
               <CanhBaoNgoaiKy nap={nap} />
+              {(nap.bao_nap ?? []).length > 0 && (
+                <div className={cx("rounded-xl border px-3 py-2.5 text-[12.5px] leading-snug",
+                  (nap.bao_nap ?? []).some((b) => b.startsWith("✕")) ? "border-do-vien bg-do-nen text-do-dam" : "border-steel-200 bg-steel-50 text-steel-600")}>
+                  {(nap.bao_nap ?? []).map((b) => <div key={b}>{b.startsWith("✕") ? b : `– ${b}`}</div>)}
+                </div>
+              )}
             </>
           )}
           {nap?.loi && <div className="rounded-xl border border-do-vien bg-do-nen px-4 py-3 text-[13px] font-medium text-do-dam">{nap.loi}</div>}

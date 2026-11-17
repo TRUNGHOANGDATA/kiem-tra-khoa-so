@@ -12,7 +12,7 @@ interface DongCdps {
 
 const n0 = (v: number) => (v ? fso(v) : "");
 
-export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
+export default function ManCanDoi({ onQuayLai, nhung }: { onQuayLai: () => void; nhung?: boolean }) {
   const toast = useToast();
   const [ts, setTs] = useState<TrangThai[]>([]);
   const [chon, setChon] = useState<TrangThai | null>(null);
@@ -59,11 +59,13 @@ export default function ManCanDoi({ onQuayLai }: { onQuayLai: () => void }) {
   });
 
   return (
-    <div className="flex w-full flex-1 flex-col gap-4 overflow-hidden p-5">
-      <div className="flex items-center gap-3">
-        <h2 className="text-[18px] font-extrabold text-ink">Cân đối số phát sinh</h2>
-        <Nut bien="phu" className="ml-auto" onClick={onQuayLai}><Icon d={IC.chevL} className="h-4 w-4" />Quay lại</Nut>
-      </div>
+    <div className={cx("flex w-full flex-1 flex-col gap-4 overflow-hidden", !nhung && "p-5")}>
+      {!nhung && (
+        <div className="flex items-center gap-3">
+          <h2 className="text-[18px] font-extrabold text-ink">Cân đối số phát sinh</h2>
+          <Nut bien="phu" className="ml-auto" onClick={onQuayLai}><Icon d={IC.chevL} className="h-4 w-4" />Quay lại</Nut>
+        </div>
+      )}
 
       {/* Bộ lọc danh sách */}
       <div className="flex flex-wrap items-center gap-2 text-[13px]">

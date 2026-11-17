@@ -7,10 +7,12 @@ import { cx, fso, Icon, IC, Nut } from "./ui";
 
 const KICH_THUOC = 100;
 
-export default function BangChiTiet({ nap, onXuat }: {
+export default function BangChiTiet({ nap, onXuat, nhanO }: {
   nap: (trang: number, kt: number, tim: string) => Promise<ChiTiet | Loi>;
   /** Có truyền thì hiện nút "Xuất Excel"; nhận bộ lọc đang gõ để xuất đúng cái đang nhìn. */
   onXuat?: (tim: string) => Promise<void>;
+  /** Nhãn chữ nhỏ cạnh giá trị một ô (vd "thuế 0") — trung tính, không thay ký hiệu mức độ. */
+  nhanO?: (row: Record<string, unknown>, cot: string) => string | undefined;
 }) {
   const [d, setD] = useState<ChiTiet | null>(null);
   const [dangXuat, setDangXuat] = useState(false);
@@ -98,6 +100,9 @@ export default function BangChiTiet({ nap, onXuat }: {
                         <td key={c} className={cx("border-b border-steel-100 px-3 py-1.5",
                           so ? "whitespace-nowrap text-right tabular-nums" : "whitespace-normal break-words text-left")}>
                           {hien}
+                          {nhanO?.(row, c) && (
+                            <span className="ml-1.5 rounded bg-steel-100 px-1 py-px text-[10.5px] font-semibold text-steel-600">{nhanO(row, c)}</span>
+                          )}
                         </td>
                       );
                     })}

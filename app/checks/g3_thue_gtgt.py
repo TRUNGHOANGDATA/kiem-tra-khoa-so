@@ -85,6 +85,23 @@ def _lech_voi_bang_ke(df: pd.DataFrame, sbh: pd.DataFrame, m511: pd.Series, m521
             " thời điểm kết xuất; xuất lại cùng lúc rồi nạp lại trước khi tin kết quả này.")
 
 
+def _thieu_phu(df: pd.DataFrame, sbh: pd.DataFrame, no: str, co: str) -> int:
+    """Số chứng từ (Id) bán hàng/trả lại của bảng kê mà sổ bán hàng KHÔNG có.
+
+    Sổ tách từ file gộp, hoặc sổ xuất thiếu, có thể không phủ hết — khi đó "không thấy
+    dòng thuế 0" chưa phải là đạt. Chỉ xét được khi cả hai nguồn có `Id`; so trên cùng
+    loại chứng từ sổ chứa (HD/TL — phiếu kế toán PK không bao giờ lên sổ bán hàng)."""
+    if "Id" not in df.columns or "Id" not in sbh.columns:
+        return 0
+    m = bat_dau(df["DebitAccount"], no) & bat_dau(df["CreditAccount"], co)
+    if len(sbh) and "DocCode" in df.columns:
+        loai = set(sbh["DocCode"].dropna().astype(str).str.strip())
+        m &= df["DocCode"].fillna("").astype(str).str.strip().isin(loai)
+    can = set(pd.to_numeric(df.loc[m, "Id"], errors="coerce").dropna().astype("int64"))
+    co_so = set(pd.to_numeric(sbh["Id"], errors="coerce").dropna().astype("int64"))
+    return len(can - co_so)
+
+
 def _c32_c34(df: pd.DataFrame, sbh: pd.DataFrame | None) -> list[CheckResult]:
     ten32, ten34 = "Doanh thu thiếu thuế đầu ra", "Hàng bán trả lại chưa giảm thuế đầu ra"
     if sbh is None:
@@ -106,15 +123,23 @@ def _c32_c34(df: pd.DataFrame, sbh: pd.DataFrame | None) -> list[CheckResult]:
     canh_bao = _lech_voi_bang_ke(df, sbh, m511, m521)
     noi_bo = "Đã loại hàng tặng giá 0 và giao dịch chi nhánh (TransCode " + "/".join(TRANSCODE_NOI_BO) + ")"
 
-    def _kq(mat_na, ma, ten, ly_do):
+    def _kq(mat_na, ma, ten, ly_do, no, co):
         ct = sbh.loc[_dong_thue_0(sbh, mat_na), [c for c in COT_SBH if c in sbh.columns]].copy()
         ct["ly_do"] = ly_do
-        return CheckResult(ma, ten, NHOM, VANG, ct.reset_index(drop=True),
-                           " ".join(x for x in (canh_bao, noi_bo) if x))
+        thieu = _thieu_phu(df, sbh, no, co)
+        phu = (f"⚠ Sổ bán hàng KHÔNG phủ đủ: thiếu {thieu} chứng từ ({no}/{co}) có trong bảng kê"
+               " — xuất lại sổ đủ khay/kỳ rồi nạp lại." if thieu else "")
+        r = CheckResult(ma, ten, NHOM, VANG, ct.reset_index(drop=True),
+                        " ".join(x for x in (phu, canh_bao, noi_bo) if x))
+        # Sổ không phủ đủ mà không thấy dòng nào thuế 0: KHÔNG được nói "đạt" — đứng ngoài
+        # kết luận. Thấy dòng thuế 0 thì đó vẫn là bằng chứng thật, giữ cảnh báo.
+        if thieu and ct.empty:
+            r.la_thong_ke = True
+        return r
 
     return [
-        _kq(m511, "C3.2", ten32, "Bán hàng Nợ 131/Có 511 mà thuế GTGT của dòng hàng = 0"),
-        _kq(m521, "C3.4", ten34, "Trả lại Nợ 521/Có 131 mà thuế GTGT của dòng hàng = 0"),
+        _kq(m511, "C3.2", ten32, "Bán hàng Nợ 131/Có 511 mà thuế GTGT của dòng hàng = 0", "131", "511"),
+        _kq(m521, "C3.4", ten34, "Trả lại Nợ 521/Có 131 mà thuế GTGT của dòng hàng = 0", "5213", "131"),
     ]
 
 

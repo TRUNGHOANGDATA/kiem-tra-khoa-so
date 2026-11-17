@@ -34,8 +34,12 @@ def chuoi_dong(df: pd.DataFrame) -> pd.Series:
         s = df[c]
         if pd.api.types.is_datetime64_any_dtype(s):
             gt = s.dt.strftime("%Y-%m-%d").fillna("")
-        elif pd.api.types.is_float_dtype(s):
-            gt = s.map(lambda x: "" if pd.isna(x) else f"{x:.4f}")
+        elif pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s):
+            # Int và float CÙNG một cách viết: cùng cột `WarehouseId` là int ở file riêng
+            # nhưng float ở file gộp (pandas suy kiểu theo cả file) — viết khác nhau thì
+            # cùng dữ liệu ra hai vân tay, bản đã chốt báo LỆCH giả kèm diff toàn bộ
+            # (đo tháng 07: 87.623 dòng "thêm" + 87.623 dòng "bớt").
+            gt = s.astype("Float64").map(lambda x: "" if pd.isna(x) else f"{float(x):.4f}")
         else:
             gt = s.astype("string").fillna("")
         phan.append(c + "=" + gt.astype("string"))
@@ -83,6 +87,10 @@ def doi_chieu(vt_chot, df_hien_tai, df_chot=None) -> KetQuaDoiChieu:
         return KetQuaDoiChieu(CHUA_CHOT)
     vt_moi = van_tay(df_hien_tai)
     if vt_moi.ma_bam == vt_chot.ma_bam:
+        return KetQuaDoiChieu(KHOP)
+    # Hash đã lưu có thể theo luật canonical CŨ (trước 1.3.1 số int viết khác float):
+    # băm lại chính dữ liệu đã đóng băng bằng luật hiện tại rồi mới kết luận LỆCH.
+    if df_chot is not None and van_tay(df_chot).ma_bam == vt_moi.ma_bam:
         return KetQuaDoiChieu(KHOP)
     delta_dong = vt_moi.so_dong - vt_chot.so_dong
     delta_ps = round(vt_moi.tong_ps - vt_chot.tong_ps, 2)

@@ -12,12 +12,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import cap_nhat, cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report, so_ban_hang
+from . import (cap_nhat, cau_hinh, cdps, chan_doan, checks, chot_so, duong_dan, report, so_ban_hang,
+               xem_nguon as xn)
 from .checks.base import (COT_SO_LE, THU_TU_MUC_DO, BoiCanh, CheckResult, cot_so_cua,
                           doi_bool, ten_cot)
 from .kho import BANG_KE, SO_BAN_HANG, KhoChotSo, PhienBanMoiHon, sao_luu as kho_sao_luu
-from .loader import (ThongTinFile, doc_nhieu_bang_ke, thong_ke_ngoai_ky, tim_file_excel,
-                     tim_file_moi_nhat)
+from .loader import (KHAY_BO_QUA, ThongTinFile, doc_nhieu_bang_ke, la_ma_gop, ma_gop_trong_ten,
+                     thong_ke_ngoai_ky, tim_file_excel, tim_file_moi_nhat)
 from .trang_thai import BuocKhoaSo, suy_trang_thai, tinh_ket_luan
 
 # Gốc DỮ LIỆU (cấu hình/kho/báo cáo). Bản đóng gói trỏ sang thư mục người dùng;
@@ -246,6 +247,9 @@ class JsApi:
             "so_dong": sum(d.tt.so_dong for d in self._dv),
             "tong_ps": sum(d.tt.tong_ps for d in self._dv),
             "loi_kho": getattr(self, "_loi_kho", ""),
+            # Trùng file gộp / dừng khay vì hai file khác nhau / bỏ qua A99-T99 — PHẢI hiện
+            # trên màn hình, không chỉ nằm trong nhật ký Excel.
+            "bao_nap": list(getattr(self, "_bao_nap", [])),
             "don_vi": [{"ma": d.nhan, "ten_hien": self._ten(d.nhan), "ky": d.tt.ky,
                         "so_dong": d.tt.so_dong,
                         "tong_ps": d.tt.tong_ps, "nguon": d.tt.ten,
@@ -267,10 +271,11 @@ class JsApi:
             tt_doc["ten"] = ten
 
         ket: dict = {}
+        bao_nap: list[str] = []
 
         def _chay():
             try:
-                ket["ds"] = doc_nhieu_bang_ke(paths, on_file=_bao)
+                ket["ds"] = doc_nhieu_bang_ke(paths, on_file=_bao, bao=bao_nap)
             except Exception as e:  # noqa: BLE001  (chuyển lỗi về luồng chính để ném lại)
                 ket["loi"] = e
                 return
@@ -295,6 +300,7 @@ class JsApi:
             raise ket["loi"]
 
         self._loi_kho = ket.get("loi_kho") or ""
+        self._bao_nap = bao_nap
         self._dv = [DonVi(df, tt) for df, tt in ket["ds"]]
         self._i = 0
         self._duong_dan = list(paths)
@@ -629,8 +635,13 @@ class JsApi:
         hop_le, bo_qua = [], []
         for p in tim_file_excel(thu_muc or self.thu_muc_source):
             ten = Path(p).name
-            if cdps.suy_branch_ky(p) is None:
+            meta = cdps.suy_branch_ky(p)
+            if meta is None:
                 bo_qua.append(ten)
+                continue
+            if la_ma_gop(meta[0]) or meta[0] in KHAY_BO_QUA:
+                # CĐPS gộp (A00/C00/T00) không thuộc khay nào; A99/T99 không khóa sổ.
+                bo_qua.append(f"{ten} (CĐPS {meta[0]} — app kiểm từng khay, cần CĐPS từng khay)")
                 continue
             try:
                 df, m = cdps.doc_cdps(p)
@@ -779,9 +790,17 @@ class JsApi:
         Đọc Excel chậm (~3-5 s/file) -> chạy ở LUỒNG NỀN, luồng js_api chỉ đập nhịp
         (evaluate_js giữa pha nặng đồng bộ từng treo cứng WebView2).
         """
-        ds = [p for p in tim_file_excel(thu_muc or self.thu_muc_source)]
+        # CŨ TRƯỚC, MỚI SAU: file sau đè file trước, nên file mới nhất phải đến cuối
+        # (trước 1.3.1 duyệt mới->cũ nên file CŨ NHẤT thắng). Thêm lá chắn mtime ở kho.
+        ds = list(reversed(tim_file_excel(thu_muc or self.thu_muc_source)))
         tt_doc: dict = {"ten": "", "i": 0}
-        ket: dict = {"nap": [], "bo_qua": []}
+        ket: dict = {"nap": [], "bo_qua": [], "khong_khop": []}
+
+        def _ghi(kho, ma, nam, thang, df, ten, mt, tu_gop=""):
+            kieu = kho.luu_nguon(SO_BAN_HANG, ma, nam, thang, df, ten, mt, chi_de_neu_moi_hon=True)
+            ket["nap"].append({"chi_nhanh": ma, "chi_nhanh_ten": self._ten(ma),
+                               "ky": f"{thang:02d}/{nam}", "file": ten, "tu_gop": tu_gop,
+                               "so_dong": int(len(df)), "ket_qua": kieu})
 
         def _lam():
             try:
@@ -789,6 +808,7 @@ class JsApi:
             except Exception as e:  # noqa: BLE001
                 ket["loi"] = f"Không mở được kho: {e}"
                 return
+            id_ky: dict = {}      # (nam, thang) -> {khay: tập Id}: giải nén bảng kê MỘT lần/kỳ
             try:
                 for p in ds:
                     ten = Path(p).name
@@ -806,10 +826,28 @@ class JsApi:
                         ket["bo_qua"].append({"file": ten, "ly_do": f"không đọc được: {e}"})
                         continue
                     mt = datetime.fromtimestamp(os.path.getmtime(p)).isoformat(timespec="seconds")
-                    kieu = kho.luu_nguon(SO_BAN_HANG, m.ma, m.nam, m.thang, df, ten, mt)
-                    ket["nap"].append({"chi_nhanh": m.ma, "chi_nhanh_ten": self._ten(m.ma),
-                                       "ky": f"{m.thang:02d}/{m.nam}", "file": ten,
-                                       "so_dong": int(len(df)), "ket_qua": kieu})
+                    if not so_ban_hang.la_ma_gop(m.ma):
+                        _ghi(kho, m.ma, m.nam, m.thang, df, ten, mt)
+                        continue
+                    # Sổ GỘP (A00/C00/T00, không cột chi nhánh): tách NGAY về từng khay theo
+                    # Id của bảng kê cùng kỳ trong kho. Kho chỉ giữ sổ theo khay.
+                    if "Id" not in df.columns:
+                        ket["bo_qua"].append({"file": ten, "ly_do": "sổ gộp không có cột Id — không tách được về từng khay"})
+                        continue
+                    if (m.nam, m.thang) not in id_ky:
+                        id_ky[(m.nam, m.thang)] = kho.id_bang_ke_ky(m.nam, m.thang)
+                    ids = id_ky[(m.nam, m.thang)]
+                    if not ids:
+                        ket["bo_qua"].append({"file": ten, "ly_do": f"nạp bảng kê kỳ {m.thang:02d}/{m.nam} trước "
+                                                                   "(sổ gộp cần bảng kê để tách về từng khay)"})
+                        continue
+                    phan, le = so_ban_hang.tach_theo_id(df, ids)
+                    for ma, con in phan.items():
+                        _ghi(kho, ma, m.nam, m.thang, con, ten, mt, tu_gop=m.ma)
+                    if len(le):
+                        ket["khong_khop"].append({"file": ten, "ky": f"{m.thang:02d}/{m.nam}",
+                                                  "so_dong": int(len(le)),
+                                                  "so_ct": int(le["Id"].nunique())})
             except Exception as e:  # noqa: BLE001
                 ket["loi"] = f"Không nạp được sổ bán hàng: {e}"
             finally:
@@ -829,6 +867,78 @@ class JsApi:
     def trang_thai_so_ban_hang(self):
         """(chi nhánh × kỳ) đã có sổ bán hàng trong kho — cho màn nạp."""
         return self._trang_thai_nguon(SO_BAN_HANG)
+
+    def trang_thai_bang_ke(self):
+        """(chi nhánh × kỳ) đã có bảng kê trong kho — cho màn "Dữ liệu đã nạp"."""
+        return self._trang_thai_nguon(BANG_KE)
+
+    # ---- Màn "Dữ liệu đã nạp" (chỉ đọc) ----
+    def _khung_nguon(self, loai, chi_nhanh, ky_nam, ky_thang):
+        """(frame, meta) của một nguồn trong kho. Nhớ tạm MỘT khung (giải nén bảng kê ~2,7 s)
+        — khóa gồm cả THỜI ĐIỂM NẠP để nạp lại xong không hiện khung cũ."""
+        if loai not in (BANG_KE, SO_BAN_HANG):
+            raise ValueError(f"Loại nguồn lạ: {loai}")
+        kho = self._kho()
+        try:
+            meta = kho.meta_nguon(loai, chi_nhanh, ky_nam, ky_thang)
+            if meta is None:
+                return None, None
+            khoa = (loai, chi_nhanh, int(ky_nam), int(ky_thang), meta["thoi_diem_nap"])
+            nho = getattr(self, "_nho_xem", None)
+            if nho and nho[0] == khoa:
+                return nho[1], meta
+            df = kho.doc_nguon(loai, chi_nhanh, ky_nam, ky_thang)
+        finally:
+            kho.dong()
+        self._nho_xem = (khoa, df)
+        return df, meta
+
+    def xem_nguon(self, loai, chi_nhanh, ky_nam, ky_thang, trang=1, kich_thuoc=100, tim="",
+                  loc_no="", loc_co="", chi_thue_0=False, loai_ct=""):
+        try:
+            df, meta = self._khung_nguon(loai, chi_nhanh, ky_nam, ky_thang)
+            if df is None:
+                return {"loi": f"Kho không có dữ liệu {chi_nhanh} kỳ {int(ky_thang):02d}/{ky_nam}"}
+            d = xn.loc(df, loai, loc_no=loc_no, loc_co=loc_co, chi_thue_0=chi_thue_0,
+                       loai_ct=loai_ct, tim=tim)
+            cot = xn.cot_hien(d, loai)
+            hien = _dinh_dang_ngay(d[cot])
+            kich_thuoc = max(1, min(int(kich_thuoc), 500))
+            a = max(0, (int(trang) - 1) * kich_thuoc)
+            loai_cts = sorted(df["DocCode"].dropna().astype(str).str.strip().unique().tolist())                 if "DocCode" in df.columns else []
+            return {"tong": int(len(d)), "trang": int(trang), "cot": cot,
+                    "nhan": [xn.NHAN.get(c) or ten_cot([c])[0] for c in cot],
+                    "cot_so": cot_so_cua(hien), "cot_so_le": [c for c in cot if c in COT_SO_LE],
+                    "dong": json.loads(hien.iloc[a:a + kich_thuoc].to_json(orient="records", force_ascii=False)),
+                    "tong_hop": xn.tong_hop(d, loai), "loai_ct": loai_cts,
+                    "nguon_file": meta["ten_file"] or "", "tu_gop": ma_gop_trong_ten(meta["ten_file"]),
+                    "thoi_diem_nap": meta["thoi_diem_nap"], "tong_kho": int(len(df))}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không đọc được dữ liệu: {e}"}
+
+    def xuat_nguon(self, loai, chi_nhanh, ky_nam, ky_thang, tim="", loc_no="", loc_co="",
+                   chi_thue_0=False, loai_ct=""):
+        """Xuất đúng phần đang lọc ra Excel, ĐỦ mọi cột (màn xem chỉ hiện ~14 cột)."""
+        try:
+            df, meta = self._khung_nguon(loai, chi_nhanh, ky_nam, ky_thang)
+            if df is None:
+                return {"loi": f"Kho không có dữ liệu {chi_nhanh} kỳ {int(ky_thang):02d}/{ky_nam}"}
+            d = xn.loc(df, loai, loc_no=loc_no, loc_co=loc_co, chi_thue_0=chi_thue_0,
+                       loai_ct=loai_ct, tim=tim)
+            mo_ta_loc = " · ".join(x for x in (
+                f"TK Nợ {loc_no}*" if str(loc_no).strip() else "",
+                f"TK Có {loc_co}*" if str(loc_co).strip() else "",
+                f"loại CT {loai_ct}" if loai_ct else "", "chỉ dòng thuế 0" if chi_thue_0 else "",
+                f'tìm "{tim}"' if str(tim).strip() else "") if x)
+            ten = "Bang ke" if loai == BANG_KE else "So ban hang"
+            p = report.xuat_mot_check(
+                ten, "Bảng kê chứng từ" if loai == BANG_KE else "Sổ chi tiết bán hàng",
+                self._ten(chi_nhanh), f"{int(ky_thang):02d}/{ky_nam}", _dinh_dang_ngay(d),
+                self.thu_muc_report, muc_do="", ghi_chu=f"Nguồn: {meta['ten_file'] or ''}",
+                loc=mo_ta_loc)
+            return {"path": p}
+        except Exception as e:  # noqa: BLE001
+            return {"loi": f"Không xuất được: {e}"}
 
     def _trang_thai_nguon(self, loai: str) -> list[dict]:
         if not Path(self._duong_dan_kho()).exists():
@@ -913,7 +1023,7 @@ class JsApi:
             kho.dong()
         if not dv:
             return {"loi": "Chưa chọn kỳ nào"}
-        self._dv, self._i, self._duong_dan, self._loi_kho = dv, 0, [], ""
+        self._dv, self._i, self._duong_dan, self._loi_kho, self._bao_nap = dv, 0, [], "", []
         return self._thong_tin_nap()
 
     def _co_don_vi_da_chot(self) -> bool:

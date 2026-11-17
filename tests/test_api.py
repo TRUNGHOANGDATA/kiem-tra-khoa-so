@@ -237,9 +237,9 @@ def test_chay_kiem_tra_lan_2_cung_duong_dan_khong_doc_lai_file(tmp_path, monkeyp
     goc = api_module.doc_nhieu_bang_ke
     so_lan_doc = []
 
-    def dem(paths, on_file=None):
+    def dem(paths, on_file=None, **kw):
         so_lan_doc.extend(paths)
-        return goc(paths, on_file=on_file)
+        return goc(paths, on_file=on_file, **kw)
 
     monkeypatch.setattr(api_module, "doc_nhieu_bang_ke", dem)
     api = JsApi()
@@ -257,9 +257,9 @@ def test_man_hinh_1_roi_kiem_tra_khong_doc_lai_file(tmp_path, monkeypatch):
     goc = api_module.doc_nhieu_bang_ke
     so_lan_doc = []
 
-    def dem(paths, on_file=None):
+    def dem(paths, on_file=None, **kw):
         so_lan_doc.extend(paths)
-        return goc(paths, on_file=on_file)
+        return goc(paths, on_file=on_file, **kw)
 
     monkeypatch.setattr(api_module, "doc_nhieu_bang_ke", dem)
     api = JsApi()

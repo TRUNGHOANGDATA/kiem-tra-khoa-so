@@ -113,6 +113,9 @@ export interface ThongTinNap {
   don_vi: DonViNap[];
   /** Đã đọc được bảng kê nhưng KHÔNG lưu được vào kho (kho hỏng/bản mới hơn) — không chặn. */
   loi_kho?: string;
+  /** Lời báo lúc nạp: file gộp trùng nhau, khay bị dừng vì hai file khác nhau (bắt đầu "✕"),
+   * bỏ qua A99/T99. Phải hiện trên màn hình. */
+  bao_nap?: string[];
   loi?: string;
 }
 
@@ -124,9 +127,25 @@ export interface NguonKho {
 export interface KyTrongKho extends NguonKho { khoa: string; co_cdps: boolean; co_so_ban_hang: boolean }
 export interface KetQuaNapSbh {
   nap: { chi_nhanh: string; chi_nhanh_ten?: string; ky: string; file: string; so_dong: number;
-         ket_qua: "moi" | "doi" | "giong" }[];
+         /** Mã file gộp (A00/C00/T00) nếu phần này được tách từ sổ gộp. */
+         tu_gop?: string;
+         ket_qua: "moi" | "doi" | "giong" | "cu_hon" }[];
   bo_qua: { file: string; ly_do: string }[];
+  /** Dòng sổ gộp không thuộc khay nào có bảng kê trong kho. */
+  khong_khop?: { file: string; ky: string; so_dong: number; so_ct: number }[];
   trang_thai: NguonKho[];
+}
+
+export type LoaiNguon = "bang_ke" | "so_ban_hang";
+/** Một trang của màn "Dữ liệu đã nạp" — cùng khuôn ChiTiet, thêm ô tổng và nguồn file. */
+export interface XemNguon extends ChiTiet {
+  tong_hop: { nhan: string; gia_tri: number }[];
+  loai_ct: string[];
+  nguon_file: string;
+  /** Mã file gộp (A00/C00/T00) nếu dữ liệu khay này được tách từ file gộp. */
+  tu_gop: string;
+  thoi_diem_nap: string;
+  tong_kho: number;
 }
 
 export interface ChiTiet {
@@ -176,6 +195,12 @@ interface PyApi {
   chay_kiem_tra(path: string | string[] | null): Promise<KetQua | Loi>;
   nap_so_ban_hang_thu_muc(thu_muc?: string): Promise<KetQuaNapSbh | Loi>;
   trang_thai_so_ban_hang(): Promise<NguonKho[]>;
+  trang_thai_bang_ke(): Promise<NguonKho[]>;
+  xem_nguon(loai: LoaiNguon, chi_nhanh: string, ky_nam: number, ky_thang: number, trang?: number,
+            kich_thuoc?: number, tim?: string, loc_no?: string, loc_co?: string, chi_thue_0?: boolean,
+            loai_ct?: string): Promise<XemNguon | Loi>;
+  xuat_nguon(loai: LoaiNguon, chi_nhanh: string, ky_nam: number, ky_thang: number, tim?: string,
+             loc_no?: string, loc_co?: string, chi_thue_0?: boolean, loai_ct?: string): Promise<{ path: string } | Loi>;
   thieu_so_ban_hang(): Promise<{ chi_nhanh: string; chi_nhanh_ten?: string; ky: string }[]>;
   khong_can_so_ban_hang(): Promise<string[]>;
   ky_trong_kho(): Promise<KyTrongKho[]>;

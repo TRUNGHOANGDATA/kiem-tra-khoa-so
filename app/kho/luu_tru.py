@@ -219,20 +219,27 @@ class KhoChotSo:
 
     # ---- NGUỒN SỐNG (v5): bảng kê + sổ bán hàng theo (loại × chi nhánh × kỳ) ----
     def luu_nguon(self, loai, chi_nhanh, ky_nam, ky_thang, df, ten_file="", mtime_file="",
-                  thoi_diem=None) -> str:
-        """Ghi một nguồn; trả "moi" | "doi" | "giong".
+                  thoi_diem=None, chi_de_neu_moi_hon=False) -> str:
+        """Ghi một nguồn; trả "moi" | "doi" | "giong" | "cu_hon".
 
         Nạp lại đúng y hệt (cùng vân tay) thì KHÔNG ghi lại BLOB, chỉ chạm thời điểm nạp
         + mốc file — cùng lý do `xac_nhan_cdps`: dấu thời gian phải là LẦN CUỐI đối chiếu
         với file, không thì cảnh báo độ tươi kêu oan.
+
+        `chi_de_neu_moi_hon`: nội dung KHÁC bản đang lưu mà file này kết xuất CŨ HƠN (mtime)
+        thì không đè, trả "cu_hon" — một khay có thể đến từ cả A00 lẫn T00, file cũ không
+        được thắng file mới.
         """
         thoi_diem = thoi_diem or datetime.now().isoformat(timespec="seconds")
         js = _json(df)
         vt = hashlib.sha256(js).hexdigest()
         khoa = (loai, chi_nhanh, int(ky_nam), int(ky_thang))
         cu = self.con.execute(
-            "SELECT van_tay FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+            "SELECT van_tay, mtime_file FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
             khoa).fetchone()
+        if (chi_de_neu_moi_hon and cu and cu[0] != vt and cu[1] and mtime_file
+                and str(mtime_file) < str(cu[1])):
+            return "cu_hon"
         with self.con:
             if cu and cu[0] == vt:
                 self.con.execute(
@@ -254,6 +261,14 @@ class KhoChotSo:
             (loai, chi_nhanh, int(ky_nam), int(ky_thang))).fetchone()
         return _giai_nen(r[0]) if r else None
 
+    def meta_nguon(self, loai, chi_nhanh, ky_nam, ky_thang) -> dict | None:
+        """Tên file, mốc file, lần nạp, số dòng của một nguồn — KHÔNG giải nén BLOB."""
+        r = self.con.execute(
+            "SELECT ten_file, mtime_file, thoi_diem_nap, so_dong FROM nguon "
+            "WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
+            (loai, chi_nhanh, int(ky_nam), int(ky_thang))).fetchone()
+        return dict(r) if r else None
+
     def co_nguon(self, loai, chi_nhanh, ky_nam, ky_thang) -> bool:
         return self.con.execute(
             "SELECT 1 FROM nguon WHERE loai=? AND chi_nhanh=? AND ky_nam=? AND ky_thang=?",
@@ -266,3 +281,16 @@ class KhoChotSo:
                FROM nguon WHERE loai=? ORDER BY ky_nam DESC, ky_thang DESC, chi_nhanh""",
             (loai,)).fetchall()
         return [dict(r) for r in rows]
+
+    def id_bang_ke_ky(self, ky_nam, ky_thang) -> dict:
+        """{khay: tập Id chứng từ} của mọi bảng kê kỳ này trong kho — để tách sổ gộp.
+        Khay có bảng kê nhưng không có cột Id thì không có mặt (không tách được về nó)."""
+        ra = {}
+        for (cn,) in self.con.execute(
+                "SELECT chi_nhanh FROM nguon WHERE loai=? AND ky_nam=? AND ky_thang=?",
+                (BANG_KE, int(ky_nam), int(ky_thang))).fetchall():
+            df = self.doc_nguon(BANG_KE, cn, ky_nam, ky_thang)
+            if df is not None and "Id" in df.columns:
+                ids = pd.to_numeric(df["Id"], errors="coerce").dropna()
+                ra[cn] = set(ids.round().astype("int64").tolist())
+        return ra

@@ -171,9 +171,9 @@ def test_chay_kiem_tra_lan_2_cung_danh_sach_khong_doc_lai(tmp_path, monkeypatch)
     b = _ghi(tmp_path, "b.xlsx", [{"BranchCode": "B02"}])
     goc, so_lan = api_module.doc_nhieu_bang_ke, []
 
-    def dem(paths, on_file=None):
+    def dem(paths, on_file=None, **kw):
         so_lan.append(list(paths))
-        return goc(paths, on_file=on_file)
+        return goc(paths, on_file=on_file, **kw)
 
     monkeypatch.setattr(api_module, "doc_nhieu_bang_ke", dem)
     api = JsApi()

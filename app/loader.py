@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +21,34 @@ COT_CHUOI = ["DocCode", "DocNo", "Description", "DebitAccount", "CreditAccount",
 # nhánh có thể trải trên nhiều file — nên đơn vị suy từ giá trị cột này, không từ tên file.
 COT_CHI_NHANH = ("BranchCode", "Đơn vị")
 CHI_NHANH_KHONG_RO = "(không có mã chi nhánh)"
+
+# Từ kỳ 10/2026 Bravo xuất được file GỘP nhiều khay: A00 (các khay A), C00 (các khay C),
+# T00 (= A + C, chứa lại toàn bộ A00 và C00). File gộp chỉ là cái túi đựng nhiều khay —
+# đơn vị kiểm vẫn là từng `BranchCode`. Mã gộp nhận ở TÊN FILE (sổ bán hàng, CĐPS), không
+# bao giờ ở BranchCode.
+MA_GOP = ("A00", "C00", "T00")
+# Đơn vị trung gian / điều chỉnh của Bravo — không phải khay khóa sổ, người dùng chốt
+# 17/11/2026: bỏ qua. Loại TRƯỚC khi tách khay để chúng không thành đơn vị, không đòi CĐPS
+# và không chặn nút Kiểm tra của mọi khay.
+KHAY_BO_QUA = ("A99", "T99")
+
+
+def la_ma_gop(ma: str) -> bool:
+    return str(ma or "").strip().upper() in MA_GOP
+
+
+def ma_gop_trong_ten(ten_file: str) -> str:
+    """Mã gộp (A00/C00/T00) xuất hiện như một từ trong tên file; "" nếu không có."""
+    for tu in re.split(r"[^A-Za-z0-9]+", Path(str(ten_file or "")).stem):
+        if la_ma_gop(tu):
+            return tu.upper()
+    return ""
+
+
+def chuan_hoa_id(s: pd.Series) -> pd.Series:
+    """`Id` chứng từ về Int64. Sổ bán hàng đọc `dtype=str` ra '1265400', bảng kê đọc ra
+    số — không ép cùng kiểu thì `isin` khớp 0 dòng (đo thật 0/165)."""
+    return pd.to_numeric(s.astype("string").str.strip(), errors="coerce").round().astype("Int64")
 
 
 @dataclass
@@ -91,6 +120,8 @@ def chuan_hoa(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
         if hong > 0:
             log.append(f"Cột {c}: {hong} giá trị không phải số, đã ép về 0")
         df[c] = so.fillna(0.0).astype(float)
+    if "Id" in df.columns:
+        df["Id"] = chuan_hoa_id(df["Id"])
     ngay = doc_ngay(df["DocDate"])
     hong_ngay = int(ngay.isna().sum() - pd.isna(df["DocDate"]).sum())
     if hong_ngay > 0:
@@ -183,47 +214,96 @@ def tach_theo_chi_nhanh(df: pd.DataFrame) -> list[tuple[str, pd.DataFrame]]:
     return [(ten, df[cn == ten].reset_index(drop=True)) for ten in sorted(cn.unique())]
 
 
-def doc_nhieu_bang_ke(paths, on_file=None) -> list[tuple[pd.DataFrame, ThongTinFile]]:
-    """Đọc nhiều file bảng kê -> danh sách (frame, thông tin) theo TỪNG CHI NHÁNH.
+def _trung_id(a: pd.DataFrame, b: pd.DataFrame) -> bool:
+    """Hai phần của cùng (khay × kỳ) có chứng từ chung không. Thiếu cột `Id` thì KHÔNG
+    kết luận trùng (cộng như cũ) — mọi bảng kê Bravo đo được đều có `Id`."""
+    if "Id" not in a.columns or "Id" not in b.columns:
+        return False
+    ia, ib = set(a["Id"].dropna()), set(b["Id"].dropna())
+    return bool(ia & ib)
 
-    Cùng một chi nhánh nằm ở hai file thì được gộp làm một đơn vị; một file chứa
-    hai chi nhánh thì được tách làm hai. Đường dẫn trùng bị bỏ qua để bấm nhầm hai
-    lần không nhân đôi phát sinh của cả chi nhánh.
+
+def doc_nhieu_bang_ke(paths, on_file=None, bao: list | None = None) -> list[tuple[pd.DataFrame, ThongTinFile]]:
+    """Đọc nhiều file bảng kê -> danh sách (frame, thông tin) theo TỪNG (KHAY × KỲ).
+
+    - Một file chứa nhiều khay thì tách; một khay nằm ở nhiều file (KHÔNG trùng chứng từ,
+      vd tách tay theo ngày) thì cộng lại.
+    - Cùng khay × kỳ ở hai file mà TRÙNG `Id` chứng từ (vd A00 + T00, T00 chứa lại A00):
+      hai phần giống hệt -> giữ một; khác nhau (xuất lệch giờ) -> DỪNG khay đó, nêu tên
+      hai file. Không đoán file nào đúng.
+    - Khay khác kỳ là đơn vị khác (A01 07/2026 và A01 08/2026 không bị gộp làm một).
+    - Dòng của `KHAY_BO_QUA` (A99/T99) bị loại trước khi tách.
+    - Đường dẫn trùng bị bỏ qua.
+
+    `bao`: danh sách để nhận các lời báo cần hiện TRÊN MÀN HÌNH (trùng, dừng, bỏ qua).
     """
-    khung, nhat_ky, nguon = [], [], {}
+    from .chot_so import van_tay   # import muộn: chot_so không phụ thuộc loader
+
+    bao = bao if bao is not None else []
+    nhat_ky: list[str] = []
     da_doc: set[str] = set()
+    nhom: dict[tuple, list] = {}      # (khay, nam, thang) -> [(df_phan, ten_file, path)]
+    co_file = False
     for p in paths:
         khoa = os.path.normcase(os.path.abspath(p))
         if khoa in da_doc:
             nhat_ky.append(f"Bỏ qua file trùng: {Path(p).name}")
             continue
         da_doc.add(khoa)
+        co_file = True
         if on_file:
             on_file(Path(p).name)
         df, tt = doc_bang_ke(p)
-        khung.append(df)
         nhat_ky += [f"{tt.ten}: {m}" for m in tt.nhat_ky]
-        for cn in ma_chi_nhanh(df).unique():
-            nguon.setdefault(str(cn), []).append((tt.ten, p))
-    if not khung:
+        cn = ma_chi_nhanh(df)
+        bo = cn.isin(KHAY_BO_QUA)
+        if bo.any():
+            dem = cn[bo].value_counts()
+            bao.append(f"{tt.ten}: bỏ qua " + ", ".join(f"{int(v)} dòng {k}" for k, v in dem.items())
+                       + " (đơn vị trung gian/điều chỉnh, không khóa sổ)")
+            df, cn = df[~bo].reset_index(drop=True), cn[~bo].reset_index(drop=True)
+        for ma in sorted(cn.unique()):
+            phan = df[cn == ma].reset_index(drop=True)
+            thang, nam = xac_dinh_ky(phan)
+            nhom.setdefault((str(ma), nam, thang), []).append((phan, tt.ten, p))
+    if not co_file:
         raise ValueError("Chưa chọn file bảng kê nào")
-    gop = pd.concat(khung, ignore_index=True) if len(khung) > 1 else khung[0]
 
     ds = []
-    for cn, con in tach_theo_chi_nhanh(gop):
-        thang, nam = xac_dinh_ky(con)
-        goc = nguon.get(cn) or []
-        ten_file = [t for t, _ in goc]
-        duong_dan = [p for _, p in goc]
+    for (ma, nam, thang) in sorted(nhom, key=lambda k: (k[0], k[1], k[2])):
+        giu: list = []
+        dung = None
+        for phan, ten, p in nhom[(ma, nam, thang)]:
+            trung = next((g for g in giu if _trung_id(g[0], phan)), None)
+            if trung is None:
+                giu.append((phan, ten, p))
+                continue
+            if van_tay(trung[0]).ma_bam == van_tay(phan).ma_bam:
+                bao.append(f"{ma} {thang:02d}/{nam} có ở cả {trung[1]} và {ten}, giống hệt nhau"
+                           f" — dùng {trung[1]}")
+                continue
+            so = lambda n: f"{n:,}".replace(",", ".")  # noqa: E731
+            dung = (f"✕ {ma} {thang:02d}/{nam}: {trung[1]} ({so(len(trung[0]))} dòng) và {ten} "
+                    f"({so(len(phan))} dòng) trùng chứng từ nhưng KHÁC nội dung (xuất lệch giờ?)"
+                    " — chưa nạp khay này. Bỏ bớt một file rồi nạp lại.")
+            break
+        if dung:
+            bao.append(dung)
+            continue
+        con = pd.concat([g[0] for g in giu], ignore_index=True) if len(giu) > 1 else giu[0][0]
+        ten_file = list(dict.fromkeys(g[1] for g in giu))
+        duong_dan = list(dict.fromkeys(g[2] for g in giu))
         so_ngoai_ky, ngoai_ky = thong_ke_ngoai_ky(con, thang, nam)
         ds.append((con, ThongTinFile(
             path=duong_dan[0] if duong_dan else "",
             ten=" + ".join(ten_file), ky=f"{thang:02d}/{nam}",
             ky_thang=thang, ky_nam=nam, so_dong=len(con),
             tong_ps=float(con["Amount"].sum()), nhat_ky=nhat_ky,
-            chi_nhanh=cn, cac_file=list(ten_file),
+            chi_nhanh=ma, cac_file=list(ten_file),
             so_dong_ngoai_ky=so_ngoai_ky, ngoai_ky=ngoai_ky,
             mtime_file=_mtime_iso(duong_dan))))
+    if not ds:
+        raise ValueError("Không còn khay nào để kiểm tra: " + " · ".join(bao))
     return ds
 
 
